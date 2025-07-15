@@ -51,7 +51,7 @@ describe('Claude-Flow CLI', () => {
     test('should show help when no arguments provided', async () => {
       process.argv = ['node', 'claude-flow'];
       
-      const { executeCommand, hasCommand, showAllCommands } = await import('../command-registry.js');
+      const { hasCommand } = await import('../command-registry.js');
       hasCommand.mockReturnValue(false);
       
       // Import after mocks are set up
@@ -121,7 +121,7 @@ describe('Claude-Flow CLI', () => {
     test('should show error for unknown command', async () => {
       process.argv = ['node', 'claude-flow', 'invalid-command'];
       
-      const { hasCommand, listCommands } = await import('../command-registry.js');
+      const { hasCommand } = await import('../command-registry.js');
       hasCommand.mockReturnValue(false);
       
       await import('../simple-cli.js');

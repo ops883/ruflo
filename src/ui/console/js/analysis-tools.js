@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Analysis & Monitoring Tools for Claude Flow Web UI
  * Agent 2 - Analysis & Monitoring Tools Developer

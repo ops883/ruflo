@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Terminal Emulator for Claude Code Console
  * Provides terminal-like behavior and output formatting

@@ -404,7 +404,7 @@ export function setupCommands(cli: CLI): void {
           case 'start':
           case 'restart':
           case 'pool':
-          case 'health':
+          case 'health': {
             // Use the enhanced agent command system
             console.log(chalk.cyan('🚀 Using enhanced agent management system...'));
             
@@ -421,6 +421,7 @@ export function setupCommands(cli: CLI): void {
             console.log('  - Enhanced features: pools, health monitoring, resource management');
             console.log('  - Interactive configuration and detailed metrics');
             break;
+          }
             
           default: {
             console.log(chalk.cyan('📋 Agent Management Commands:'));
@@ -2220,27 +2221,32 @@ Now, please proceed with the task: ${task}`;
         
         // Execute the appropriate subcommand
         switch (subcommand) {
-          case 'init':
+          case 'init': {
             const { initCommand } = await import('./hive-mind/init.js');
             await initCommand.parseAsync(process.argv.slice(3));
             break;
-          case 'spawn':
+          }
+          case 'spawn': {
             const { spawnCommand } = await import('./hive-mind/spawn.js');
             await spawnCommand.parseAsync(process.argv.slice(3));
             break;
-          case 'status':
+          }
+          case 'status': {
             const { statusCommand } = await import('./hive-mind/status.js');
             await statusCommand.parseAsync(process.argv.slice(3));
             break;
-          case 'task':
+          }
+          case 'task': {
             const { taskCommand } = await import('./hive-mind/task.js');
             await taskCommand.parseAsync(process.argv.slice(3));
             break;
+          }
           case 'wizard':
-          default:
+          default: {
             const { wizardCommand } = await import('./hive-mind/wizard.js');
             await wizardCommand.parseAsync(process.argv.slice(3));
             break;
+          }
         }
       } catch (err) {
         error(`Hive Mind error: ${getErrorMessage(err)}`);

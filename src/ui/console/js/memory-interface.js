@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Memory Management Interface
  * Comprehensive memory management system for Claude Flow

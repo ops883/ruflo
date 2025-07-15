@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Dynamic Agent Architecture (DAA) Tools
  * Implementation of 8 core DAA tools for Claude Flow

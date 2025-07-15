@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Memory & Persistence Tools Panel
  * Provides interface for memory management and persistence operations

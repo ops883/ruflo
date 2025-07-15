@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * WebSocket Client for Claude Code Console
  * Handles real-time communication with the backend MCP server

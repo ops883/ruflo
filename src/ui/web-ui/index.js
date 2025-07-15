@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Enhanced Web UI - Main Entry Point
  * Modular UI architecture supporting 71+ MCP tools and CLI commands

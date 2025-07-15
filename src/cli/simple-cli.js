@@ -301,7 +301,7 @@ async function main() {
       console.log('📊 Real-time monitoring would display here');
       break;
       
-    case 'spawn':
+    case 'spawn': {
       // Convenience alias for agent spawn
       const spawnType = subArgs[0] || 'general';
       const spawnName = flags.name || `agent-${Date.now()}`;
@@ -314,11 +314,12 @@ async function main() {
       console.log('   Status: Ready');
       console.log('\n📋 Note: Full agent spawning requires orchestrator to be running');
       break;
+    }
       
-    case 'terminal':
+    case 'terminal': {
       const terminalCmd = subArgs[0];
       switch (terminalCmd) {
-        case 'pool':
+        case 'pool': {
           const poolCmd = subArgs[1];
           const detailed = subArgs.includes('--detailed') || subArgs.includes('-d');
           
@@ -377,8 +378,9 @@ async function main() {
             console.log('Options: --detailed, -d');
           }
           break;
+        }
           
-        case 'create':
+        case 'create': {
           // Advanced terminal creation
           const nameIndex = subArgs.indexOf('--name');
           const shellIndex = subArgs.indexOf('--shell');
@@ -405,9 +407,10 @@ async function main() {
             console.log('💾 Persistent: Yes');
           }
           break;
+        }
           
         case 'execute':
-        case 'exec':
+        case 'exec': {
           const execCmd = subArgs.slice(1).join(' ');
           const sessionFlag = subArgs.indexOf('--session');
           const timeoutFlag = subArgs.indexOf('--timeout');
@@ -436,8 +439,9 @@ async function main() {
             printError('Usage: terminal execute <command> [--session <id>] [--timeout <duration>]');
           }
           break;
+        }
           
-        case 'batch-exec':
+        case 'batch-exec': {
           // Batch command execution
           const batchSession = subArgs.find(arg => !arg.startsWith('--'));
           const commandsFlag = subArgs.indexOf('--commands');
@@ -455,8 +459,9 @@ async function main() {
             console.log('Usage: terminal batch-exec --commands "cmd1,cmd2,cmd3" [--session <id>]');
           }
           break;
+        }
           
-        case 'list':
+        case 'list': {
           // List all terminal sessions
           const listDetailed = subArgs.includes('--detailed');
           printSuccess('Active Terminal Sessions:');

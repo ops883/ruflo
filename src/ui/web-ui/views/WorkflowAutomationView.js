@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Workflow & Automation View - Interface for workflow and automation tools
  * Handles workflow creation, automation rules, pipelines, scheduling, and SPARC modes

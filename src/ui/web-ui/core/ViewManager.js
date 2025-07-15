@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * ViewManager - Dynamic view loading and state management
  * Handles all UI views, transitions, and state persistence

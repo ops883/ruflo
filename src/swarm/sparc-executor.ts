@@ -9,6 +9,59 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { Logger } from '../core/logger.js';
 
+// Type definitions for SPARC phases
+export interface SparcPhaseResult {
+  phase: string;
+  quality: number;
+  completeness: number;
+  artifacts?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface Requirements {
+  functional: string[];
+  nonFunctional: string[];
+  technical: string[];
+  business: string[];
+}
+
+export interface UserStory {
+  id: string;
+  story: string;
+  priority: string;
+}
+
+export interface AcceptanceCriteria {
+  [category: string]: string[];
+}
+
+export interface TestSuite {
+  unit: Record<string, string>;
+  integration: Record<string, string>;
+  fixtures: Record<string, unknown>;
+  mocks: Record<string, string>;
+}
+
+export interface Implementation {
+  modules: Record<string, string>;
+  classes: Record<string, string>;
+  functions: Record<string, string>;
+  config: Record<string, string>;
+  optimized?: boolean;
+  patterns?: string[];
+  performance?: string;
+  maintainability?: string;
+}
+
+export interface ProjectStructure {
+  directories: string[];
+  files: string[];
+}
+
+export interface CodeAssessment {
+  [key: string]: string | number;
+}
+
 export interface SparcPhase {
   name: string;
   description: string;
@@ -133,7 +186,7 @@ export class SparcTaskExecutor {
     task: TaskDefinition,
     agent: AgentState,
     targetDir?: string
-  ): Promise<any> {
+  ): Promise<SparcPhaseResult> {
     const objective = task.description.toLowerCase();
     
     // Map agent types to SPARC phases
@@ -174,7 +227,7 @@ export class SparcTaskExecutor {
     }
   }
 
-  private async executeSpecificationPhase(task: TaskDefinition, targetDir?: string): Promise<any> {
+  private async executeSpecificationPhase(task: TaskDefinition, targetDir?: string): Promise<SparcPhaseResult> {
     this.logger.info('Executing Specification phase', { taskName: task.name });
     
     const objective = task.description;
@@ -213,7 +266,7 @@ export class SparcTaskExecutor {
     return specifications;
   }
 
-  private async executePseudocodePhase(task: TaskDefinition, targetDir?: string): Promise<any> {
+  private async executePseudocodePhase(task: TaskDefinition, targetDir?: string): Promise<SparcPhaseResult> {
     this.logger.info('Executing Pseudocode phase', { taskName: task.name });
     
     const appType = this.determineAppType(task.description);
@@ -245,7 +298,7 @@ export class SparcTaskExecutor {
     return pseudocode;
   }
 
-  private async executeArchitecturePhase(task: TaskDefinition, targetDir?: string): Promise<any> {
+  private async executeArchitecturePhase(task: TaskDefinition, targetDir?: string): Promise<SparcPhaseResult> {
     this.logger.info('Executing Architecture phase', { taskName: task.name });
     
     const appType = this.determineAppType(task.description);
@@ -278,7 +331,7 @@ export class SparcTaskExecutor {
     return architecture;
   }
 
-  private async executeTDDPhase(task: TaskDefinition, targetDir?: string): Promise<any> {
+  private async executeTDDPhase(task: TaskDefinition, targetDir?: string): Promise<SparcPhaseResult> {
     this.logger.info('Executing TDD phase (Red-Green-Refactor)', { taskName: task.name });
     
     const appType = this.determineAppType(task.description);
@@ -320,7 +373,7 @@ export class SparcTaskExecutor {
     return tddResult;
   }
 
-  private async executeTestingPhase(task: TaskDefinition, targetDir?: string): Promise<any> {
+  private async executeTestingPhase(task: TaskDefinition, targetDir?: string): Promise<SparcPhaseResult> {
     this.logger.info('Executing Testing phase', { taskName: task.name });
     
     const testPlan = {
@@ -347,7 +400,7 @@ export class SparcTaskExecutor {
     return testPlan;
   }
 
-  private async executeReviewPhase(task: TaskDefinition, targetDir?: string): Promise<any> {
+  private async executeReviewPhase(task: TaskDefinition, targetDir?: string): Promise<SparcPhaseResult> {
     this.logger.info('Executing Review phase', { taskName: task.name });
     
     const review = {
@@ -371,7 +424,7 @@ export class SparcTaskExecutor {
     return review;
   }
 
-  private async executeDocumentationPhase(task: TaskDefinition, targetDir?: string): Promise<any> {
+  private async executeDocumentationPhase(task: TaskDefinition, targetDir?: string): Promise<SparcPhaseResult> {
     this.logger.info('Executing Documentation phase', { taskName: task.name });
     
     const documentation = {
@@ -429,7 +482,7 @@ export class SparcTaskExecutor {
     return 'javascript';
   }
 
-  private generateRequirements(objective: string, appType: string): any {
+  private generateRequirements(objective: string, appType: string): Requirements {
     return {
       functional: this.getFunctionalRequirements(appType),
       nonFunctional: this.getNonFunctionalRequirements(appType),
@@ -438,7 +491,7 @@ export class SparcTaskExecutor {
     };
   }
 
-  private generateUserStories(appType: string): any[] {
+  private generateUserStories(appType: string): UserStory[] {
     const stories = {
       'rest-api': [
         { id: 'US001', story: 'As a developer, I want to create resources via POST endpoints', priority: 'high' },
@@ -464,7 +517,7 @@ export class SparcTaskExecutor {
     ];
   }
 
-  private generateAcceptanceCriteria(appType: string): any {
+  private generateAcceptanceCriteria(appType: string): AcceptanceCriteria {
     const criteria = {
       'rest-api': {
         endpoints: ['All CRUD operations return appropriate status codes', 'API responses follow consistent format'],
@@ -484,7 +537,7 @@ export class SparcTaskExecutor {
     };
   }
 
-  private async generateFailingTests(appType: string, language: string): Promise<any> {
+  private async generateFailingTests(appType: string, language: string): Promise<TestSuite> {
     const testFramework = this.getTestFramework(language);
     
     const tests = {
@@ -497,7 +550,7 @@ export class SparcTaskExecutor {
     return tests;
   }
 
-  private async generateMinimalImplementation(appType: string, language: string, tests: any): Promise<any> {
+  private async generateMinimalImplementation(appType: string, language: string, tests: TestSuite): Promise<Implementation> {
     return {
       modules: this.generateModules(appType, language),
       classes: this.generateClasses(appType, language),
@@ -506,7 +559,7 @@ export class SparcTaskExecutor {
     };
   }
 
-  private async refactorImplementation(implementation: any, tests: any): Promise<any> {
+  private async refactorImplementation(implementation: Implementation, tests: TestSuite): Promise<Implementation> {
     return {
       ...implementation,
       optimized: true,
@@ -524,7 +577,7 @@ export class SparcTaskExecutor {
     }
   }
 
-  private async writeTestFiles(targetDir: string, tests: any, language: string): Promise<void> {
+  private async writeTestFiles(targetDir: string, tests: TestSuite, language: string): Promise<void> {
     const testDir = path.join(targetDir, this.getTestDirectory(language));
     await fs.mkdir(testDir, { recursive: true });
     
@@ -535,7 +588,7 @@ export class SparcTaskExecutor {
     }
   }
 
-  private async writeImplementationFiles(targetDir: string, implementation: any, language: string): Promise<void> {
+  private async writeImplementationFiles(targetDir: string, implementation: Implementation, language: string): Promise<void> {
     const srcDir = path.join(targetDir, this.getSourceDirectory(language));
     await fs.mkdir(srcDir, { recursive: true });
     
@@ -566,7 +619,7 @@ export class SparcTaskExecutor {
     return frameworks[language] || 'generic';
   }
 
-  private getProjectStructure(appType: string, language: string): any {
+  private getProjectStructure(appType: string, language: string): ProjectStructure {
     const structures = {
       'python-rest-api': {
         directories: ['src', 'tests', 'docs', 'config', 'migrations', 'scripts'],
@@ -678,7 +731,7 @@ export class SparcTaskExecutor {
     ];
   }
 
-  private generateUnitTestCases(appType: string, language: string, framework: string): any {
+  private generateUnitTestCases(appType: string, language: string, framework: string): Record<string, string> {
     if (language === 'python' && appType === 'rest-api') {
       return {
         'test_models': `import pytest
@@ -745,7 +798,7 @@ class TestUserService:
     };
   }
 
-  private generateIntegrationTestCases(appType: string, language: string, framework: string): any {
+  private generateIntegrationTestCases(appType: string, language: string, framework: string): Record<string, string> {
     if (language === 'python' && appType === 'rest-api') {
       return {
         'test_api': `import pytest
@@ -790,7 +843,7 @@ class TestAPI:
     };
   }
 
-  private generateTestFixtures(appType: string): any {
+  private generateTestFixtures(appType: string): Record<string, unknown> {
     return {
       users: [
         { id: 1, username: 'user1', email: 'user1@example.com' },
@@ -803,7 +856,7 @@ class TestAPI:
     };
   }
 
-  private generateMocks(appType: string): any {
+  private generateMocks(appType: string): Record<string, string> {
     return {
       database: 'Mock database connection',
       externalAPI: 'Mock external API calls',
@@ -811,7 +864,7 @@ class TestAPI:
     };
   }
 
-  private generateModules(appType: string, language: string): any {
+  private generateModules(appType: string, language: string): Record<string, string> {
     if (language === 'python' && appType === 'rest-api') {
       return {
         'app': `from flask import Flask
@@ -1052,21 +1105,21 @@ Config = {
     };
   }
 
-  private generateClasses(appType: string, language: string): any {
+  private generateClasses(appType: string, language: string): Record<string, string> {
     return {
       'BaseClass': 'Base class implementation',
       'ServiceClass': 'Service class implementation'
     };
   }
 
-  private generateFunctions(appType: string, language: string): any {
+  private generateFunctions(appType: string, language: string): Record<string, string> {
     return {
       'helpers': 'Helper functions',
       'validators': 'Validation functions'
     };
   }
 
-  private generateConfig(appType: string, language: string): any {
+  private generateConfig(appType: string, language: string): Record<string, string> {
     return {
       database: 'Database configuration',
       api: 'API configuration',
@@ -1074,7 +1127,7 @@ Config = {
     };
   }
 
-  private async getProjectFiles(appType: string, language: string): Promise<any> {
+  private async getProjectFiles(appType: string, language: string): Promise<Record<string, string>> {
     if (language === 'python') {
       return {
         'requirements.txt': `flask==2.3.2
@@ -1174,7 +1227,7 @@ volumes:
     };
   }
 
-  private calculateCoverage(tests: any, implementation: any): any {
+  private calculateCoverage(tests: TestSuite, implementation: Implementation): Record<string, number> {
     return {
       overall: 85,
       unit: 90,
@@ -1185,7 +1238,7 @@ volumes:
 
   // Formatting methods
 
-  private formatRequirements(requirements: any): string {
+  private formatRequirements(requirements: Requirements): string {
     return `# Requirements
 
 ## Functional Requirements
@@ -1202,7 +1255,7 @@ ${requirements.business.map((r: string) => `- ${r}`).join('\n')}
 `;
   }
 
-  private formatUserStories(stories: any[]): string {
+  private formatUserStories(stories: UserStory[]): string {
     return `# User Stories
 
 ${stories.map(s => `## ${s.id}: ${s.story}
@@ -1210,7 +1263,7 @@ Priority: ${s.priority}
 `).join('\n')}`;
   }
 
-  private formatAcceptanceCriteria(criteria: any): string {
+  private formatAcceptanceCriteria(criteria: AcceptanceCriteria): string {
     return `# Acceptance Criteria
 
 ${Object.entries(criteria).map(([category, items]) => `## ${category}
@@ -1218,21 +1271,21 @@ ${(items as string[]).map(item => `- ${item}`).join('\n')}
 `).join('\n')}`;
   }
 
-  private formatAlgorithms(algorithms: any): string {
+  private formatAlgorithms(algorithms: Record<string, string>): string {
     return `# Algorithms
 
 ${JSON.stringify(algorithms, null, 2)}
 `;
   }
 
-  private formatDataStructures(structures: any): string {
+  private formatDataStructures(structures: Record<string, string>): string {
     return `# Data Structures
 
 ${JSON.stringify(structures, null, 2)}
 `;
   }
 
-  private formatArchitecture(architecture: any): string {
+  private formatArchitecture(architecture: SparcPhaseResult): string {
     return `# System Architecture
 
 ## Components
@@ -1249,7 +1302,7 @@ ${JSON.stringify(architecture.infrastructure, null, 2)}
 `;
   }
 
-  private formatComponentDiagram(components: any): string {
+  private formatComponentDiagram(components: Record<string, string>): string {
     return `# Component Diagram
 
 \`\`\`mermaid
@@ -1263,7 +1316,7 @@ graph TD
 `;
   }
 
-  private formatTestPlan(plan: any): string {
+  private formatTestPlan(plan: SparcPhaseResult): string {
     return `# Test Plan
 
 ## Test Strategy
@@ -1278,7 +1331,7 @@ Current: ${plan.coverage.current}%
 `;
   }
 
-  private formatReviewReport(review: any): string {
+  private formatReviewReport(review: SparcPhaseResult): string {
     return `# Code Review Report
 
 ## Code Quality
@@ -1404,7 +1457,7 @@ Please follow our contribution guidelines...
 
   // Additional helper methods
 
-  private assessCodeQuality(task: TaskDefinition): any {
+  private assessCodeQuality(task: TaskDefinition): CodeAssessment {
     return {
       complexity: 'Low to Medium',
       duplication: 'Minimal',
@@ -1413,7 +1466,7 @@ Please follow our contribution guidelines...
     };
   }
 
-  private assessSecurity(task: TaskDefinition): any {
+  private assessSecurity(task: TaskDefinition): CodeAssessment {
     return {
       authentication: 'Implemented',
       authorization: 'Role-based',
@@ -1422,7 +1475,7 @@ Please follow our contribution guidelines...
     };
   }
 
-  private assessPerformance(task: TaskDefinition): any {
+  private assessPerformance(task: TaskDefinition): CodeAssessment {
     return {
       responseTime: 'Average 150ms',
       throughput: '1000 req/s',
@@ -1431,7 +1484,7 @@ Please follow our contribution guidelines...
     };
   }
 
-  private assessMaintainability(task: TaskDefinition): any {
+  private assessMaintainability(task: TaskDefinition): CodeAssessment {
     return {
       readability: 'High',
       modularity: 'Well-structured',
@@ -1450,19 +1503,19 @@ Please follow our contribution guidelines...
     ];
   }
 
-  private generateUnitTests(task: TaskDefinition): any {
+  private generateUnitTests(task: TaskDefinition): string {
     return 'Comprehensive unit test suite';
   }
 
-  private generateIntegrationTests(task: TaskDefinition): any {
+  private generateIntegrationTests(task: TaskDefinition): string {
     return 'Integration test scenarios';
   }
 
-  private generateE2ETests(task: TaskDefinition): any {
+  private generateE2ETests(task: TaskDefinition): string {
     return 'End-to-end test scenarios';
   }
 
-  private generatePerformanceTests(task: TaskDefinition): any {
+  private generatePerformanceTests(task: TaskDefinition): string {
     return 'Performance test suite';
   }
 
@@ -1475,7 +1528,7 @@ Please follow our contribution guidelines...
     ];
   }
 
-  private designComponents(appType: string): any {
+  private designComponents(appType: string): Record<string, string> {
     return {
       frontend: 'UI Components',
       backend: 'API Services',
@@ -1484,7 +1537,7 @@ Please follow our contribution guidelines...
     };
   }
 
-  private designInterfaces(appType: string): any {
+  private designInterfaces(appType: string): Record<string, string> {
     return {
       api: 'REST/GraphQL interfaces',
       database: 'Data access interfaces',
@@ -1501,7 +1554,7 @@ Please follow our contribution guidelines...
     ];
   }
 
-  private designInfrastructure(appType: string): any {
+  private designInfrastructure(appType: string): Record<string, string> {
     return {
       hosting: 'Cloud platform',
       database: 'Managed database service',
@@ -1510,7 +1563,7 @@ Please follow our contribution guidelines...
     };
   }
 
-  private generateAlgorithms(appType: string): any {
+  private generateAlgorithms(appType: string): Record<string, string> {
     return {
       dataProcessing: 'Data processing algorithms',
       businessLogic: 'Core business logic',
@@ -1518,7 +1571,7 @@ Please follow our contribution guidelines...
     };
   }
 
-  private generateDataStructures(appType: string): any {
+  private generateDataStructures(appType: string): Record<string, string> {
     return {
       models: 'Data models',
       schemas: 'Database schemas',
@@ -1526,7 +1579,7 @@ Please follow our contribution guidelines...
     };
   }
 
-  private generateFlowDiagrams(appType: string): any {
+  private generateFlowDiagrams(appType: string): Record<string, string> {
     return {
       userFlow: 'User interaction flow',
       dataFlow: 'Data processing flow',
@@ -1534,27 +1587,27 @@ Please follow our contribution guidelines...
     };
   }
 
-  private executeAnalysisPhase(task: TaskDefinition, targetDir?: string): Promise<any> {
+  private executeAnalysisPhase(task: TaskDefinition, targetDir?: string): Promise<SparcPhaseResult> {
     return this.executeAnalyzerTask(task, targetDir);
   }
 
-  private executeImplementationPhase(task: TaskDefinition, targetDir?: string): Promise<any> {
+  private executeImplementationPhase(task: TaskDefinition, targetDir?: string): Promise<SparcPhaseResult> {
     return this.executeTDDPhase(task, targetDir);
   }
 
-  private executeCoordinationPhase(task: TaskDefinition, targetDir?: string): Promise<any> {
+  private executeCoordinationPhase(task: TaskDefinition, targetDir?: string): Promise<SparcPhaseResult> {
     return this.executeCoordinationTask(task, targetDir);
   }
 
-  private executeGenericPhase(task: TaskDefinition, targetDir?: string): Promise<any> {
+  private executeGenericPhase(task: TaskDefinition, targetDir?: string): Promise<SparcPhaseResult> {
     return this.executeGenericTask(task, targetDir);
   }
 
-  private async executeAnalyzerTask(task: TaskDefinition, targetDir?: string): Promise<any> {
+  private async executeAnalyzerTask(task: TaskDefinition, targetDir?: string): Promise<SparcPhaseResult> {
     return this.executeSpecificationPhase(task, targetDir);
   }
 
-  private async executeCoordinationTask(task: TaskDefinition, targetDir?: string): Promise<any> {
+  private async executeCoordinationTask(task: TaskDefinition, targetDir?: string): Promise<SparcPhaseResult> {
     return {
       phase: 'coordination',
       status: 'Task coordinated',
@@ -1563,7 +1616,7 @@ Please follow our contribution guidelines...
     };
   }
 
-  private async executeGenericTask(task: TaskDefinition, targetDir?: string): Promise<any> {
+  private async executeGenericTask(task: TaskDefinition, targetDir?: string): Promise<SparcPhaseResult> {
     return {
       phase: 'generic',
       status: 'Task completed',

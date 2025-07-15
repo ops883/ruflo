@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * MCP Integration Layer - Bridge between UI and Claude Flow MCP Tools
  * Handles all MCP tool execution, caching, and result processing

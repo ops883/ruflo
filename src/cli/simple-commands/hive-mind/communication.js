@@ -1,3 +1,4 @@
+/* eslint-env node */
 /**
  * Swarm Communication System for Hive Mind
  * Handles inter-agent messaging and coordination

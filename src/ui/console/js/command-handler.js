@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Command Handler for Claude Code Console
  * Processes and executes console commands

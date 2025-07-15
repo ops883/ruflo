@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * UIManager - Central UI Controller for Claude Flow Web UI
  * Coordinates all views, handles navigation, and manages global state

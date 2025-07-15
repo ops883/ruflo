@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Memory Manager Test Module
  * Tests the memory management functionality

@@ -1,3 +1,4 @@
+/* eslint-env browser */
 #!/usr/bin/env node
 /**
  * Test script for GitHub Integration View

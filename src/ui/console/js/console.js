@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Main Console Application
  * Coordinates all components of the Claude Code Console

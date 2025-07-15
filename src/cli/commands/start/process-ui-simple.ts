@@ -98,7 +98,7 @@ export class ProcessUI {
         this.showHelp();
         break;
         
-      default:
+      default: {
         // Check if it's a number (process selection)
         const num = parseInt(input);
         if (!isNaN(num) && num >= 1 && num <= processes.length) {
@@ -108,6 +108,7 @@ export class ProcessUI {
           console.log(chalk.yellow('Invalid command. Type "h" for help.'));
         }
         break;
+      }
     }
   }
 

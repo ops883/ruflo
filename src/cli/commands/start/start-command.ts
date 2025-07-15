@@ -221,10 +221,11 @@ export const startCommand = new Command()
               console.log(chalk.green.bold('✓'), 'Core processes started');
               break;
 
-            case '3':
+            case '3': {
               const ui = new ProcessUI(processManager);
               await ui.start();
               break;
+            }
 
             case '4':
               console.clear();

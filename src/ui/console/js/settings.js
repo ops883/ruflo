@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Settings Manager for Claude Code Console
  * Handles configuration and preferences

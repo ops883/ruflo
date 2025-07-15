@@ -1,3 +1,4 @@
+/* eslint-env node */
 /**
  * Swarm command wrapper for simple CLI
  */

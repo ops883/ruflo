@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Advanced Workflow Designer for Claude Flow
  * Visual drag-and-drop workflow builder with real-time execution

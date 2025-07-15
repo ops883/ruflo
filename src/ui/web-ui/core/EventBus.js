@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * EventBus - Central event communication system for the Web UI
  * Enables loose coupling between components and real-time updates

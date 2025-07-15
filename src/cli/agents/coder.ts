@@ -279,7 +279,7 @@ export class CoderAgent extends BaseAgent {
   }
 
   private async reviewCode(task: TaskDefinition): Promise<any> {
-    const code = task.input?.code;
+    const _code = task.input?.code;
     const files = task.input?.files || [];
     const focus = task.input?.focus || ['quality', 'security', 'performance'];
 

@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * GitHub Integration View Test
  * Demonstrates integration with MCP tools

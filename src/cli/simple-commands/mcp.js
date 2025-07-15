@@ -1,3 +1,4 @@
+/* eslint-env node */
 // mcp.js - MCP server management commands
 import { printSuccess, printError, printWarning } from '../utils.js';
 

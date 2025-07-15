@@ -1,3 +1,4 @@
+/* eslint-env node */
 #!/usr/bin/env -S deno run --allow-all
 /**
  * Standalone swarm executable for npm package

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
+/* eslint-env node */
+import fs from 'fs';
+import path from 'path';
 
 /**
  * Deploy Claude optimized template to a target project

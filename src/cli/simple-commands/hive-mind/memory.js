@@ -1,3 +1,4 @@
+/* eslint-env node */
 /**
  * Collective Memory System for Hive Mind
  * Shared knowledge base and learning system

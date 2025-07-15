@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Dynamic Agent Architecture (DAA) View
  * Interface for managing dynamic agents, resources, lifecycle, and communication

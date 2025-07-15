@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * GitHub Integration View - Interface for GitHub operations
  * Handles repository analysis, PR management, issue tracking, and more

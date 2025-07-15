@@ -1,7 +1,7 @@
-const chalk = require('chalk');
-const path = require('path');
-const fs = require('fs');
-const Database = require('better-sqlite3');
+import chalk from 'chalk';
+import path from 'path';
+import fs from 'fs';
+import Database from 'better-sqlite3';
 
 // Interactive Wizard Implementation
 async function runInteractiveWizard() {
@@ -276,4 +276,4 @@ async function createSwarm(objective, config) {
     }
 }
 
-module.exports = { runInteractiveWizard };
+export { runInteractiveWizard };

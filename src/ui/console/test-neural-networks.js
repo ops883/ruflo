@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Neural Networks Dialog Test Script
  * Tests all functionality of the neural networks panel

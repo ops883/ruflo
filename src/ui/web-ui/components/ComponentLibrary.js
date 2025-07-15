@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * ComponentLibrary - Reusable UI components for Claude Flow Web UI
  * Provides consistent, themeable components across all views

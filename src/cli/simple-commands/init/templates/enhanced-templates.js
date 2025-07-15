@@ -1,3 +1,4 @@
+/* eslint-env node */
 // enhanced-templates.js - Generate Claude Flow v2.0.0 enhanced templates
 import { readFileSync } from 'fs';
 import { dirname, join } from 'path';

@@ -18,10 +18,10 @@
  * 13. capacity_plan - Capacity planning tools
  */
 
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const os = require('os');
-const { performance } = require('perf_hooks');
+import os from 'os';
+import { performance } from 'perf_hooks';
 
 // In-memory storage for metrics (replace with database in production)
 let metricsStore = {
@@ -323,7 +323,7 @@ router.get('/capacity-plan', (req, res) => {
 });
 
 // WebSocket endpoint for real-time metrics
-router.ws('/ws', (ws, req) => {
+router.ws('/ws', (ws, _req) => {
     console.log('Analysis WebSocket connected');
     
     // Send initial metrics
@@ -609,12 +609,12 @@ function handleWebSocketMessage(ws, data) {
 // Additional helper functions for other tools
 function calculateThroughputTrend() {
     // Mock throughput trend calculation
-    return Array.from({ length: 20 }, (_, i) => Math.random() * 1000 + 500);
+    return Array.from({ length: 20 }, () => Math.random() * 1000 + 500);
 }
 
 function calculateErrorRateTrend() {
     // Mock error rate trend calculation
-    return Array.from({ length: 20 }, (_, i) => Math.random() * 5);
+    return Array.from({ length: 20 }, () => Math.random() * 5);
 }
 
 function calculateBottleneckImpact(bottlenecks) {
@@ -658,7 +658,7 @@ function calculateOverallScore(benchmarks) {
 }
 
 function generateBenchmarkComparisons(benchmarks) {
-    return Object.entries(benchmarks).map(([key, value]) => ({
+    return Object.entries(benchmarks).map(([_key, value]) => ({
         name: value.name,
         current: value.score,
         baseline: value.baseline,
@@ -708,7 +708,7 @@ function analyzeTrends() {
     };
 }
 
-function generatePredictions(trends) {
+function generatePredictions(_trends) {
     return {
         nextWeek: 'Performance expected to remain stable',
         nextMonth: 'Usage likely to increase by 15-20%',
@@ -716,7 +716,7 @@ function generatePredictions(trends) {
     };
 }
 
-function generateTrendInsights(trends) {
+function generateTrendInsights(_trends) {
     return [
         'System performance has improved by 5.2% this week',
         'Usage patterns show steady growth indicating system adoption',
@@ -747,7 +747,7 @@ function analyzeCosts() {
     };
 }
 
-function generateCostOptimizations(costs) {
+function generateCostOptimizations(_costs) {
     return [
         'Optimize token usage to reduce costs by ~15%',
         'Implement better caching to reduce compute costs',
@@ -807,7 +807,7 @@ function analyzeErrors() {
     };
 }
 
-function identifyErrorPatterns(errors) {
+function identifyErrorPatterns(_errors) {
     return [
         'Most errors occur during peak hours (12-2 PM)',
         '404 errors primarily from deprecated API endpoints',
@@ -815,7 +815,7 @@ function identifyErrorPatterns(errors) {
     ];
 }
 
-function generateErrorResolutions(errors) {
+function generateErrorResolutions(_errors) {
     return [
         'Implement proper redirects for deprecated endpoints',
         'Add database connection pooling and retry logic',
@@ -845,10 +845,10 @@ function generateUsageInsights(stats) {
     ];
 }
 
-function calculateUsageTrends(stats) {
+function calculateUsageTrends(_stats) {
     return {
-        users: Array.from({ length: 30 }, () => Math.random() * 50 + stats.activeUsers - 25),
-        sessions: Array.from({ length: 30 }, () => Math.random() * 100 + stats.totalSessions - 50)
+        users: Array.from({ length: 30 }, () => Math.random() * 50 + _stats.activeUsers - 25),
+        sessions: Array.from({ length: 30 }, () => Math.random() * 100 + _stats.totalSessions - 50)
     };
 }
 
@@ -944,7 +944,7 @@ function generateCapacityRecommendations(capacity) {
     return recommendations;
 }
 
-function generateCapacityTimeline(capacity) {
+function generateCapacityTimeline(_capacity) {
     return {
         immediate: 'Monitor current usage patterns',
         '1month': 'Prepare for memory scaling',
@@ -954,4 +954,4 @@ function generateCapacityTimeline(capacity) {
     };
 }
 
-module.exports = router;
+export default router;

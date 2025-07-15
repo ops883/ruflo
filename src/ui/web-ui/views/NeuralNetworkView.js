@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Neural Network View - Interface for neural network operations
  * Handles training, prediction, pattern analysis, and model management

@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Automated Neural Networks Panel Test Suite
  * Tests all 5 tabs and 15 tools comprehensively

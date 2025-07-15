@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * StateManager - Global state persistence and management
  * Handles UI state, user preferences, and data persistence

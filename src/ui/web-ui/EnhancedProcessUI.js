@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * Enhanced Process UI - Upgraded version with modular architecture integration
  * Combines existing process management with 71+ MCP tools and advanced features
