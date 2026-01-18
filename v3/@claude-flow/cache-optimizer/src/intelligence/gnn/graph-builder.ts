@@ -538,7 +538,7 @@ export class GraphBuilder {
    */
   private buildHyperbolicEdges(
     entries: CacheEntry[],
-    nodes: Map<string, CacheNode>
+    _nodes: Map<string, CacheNode>
   ): CacheEdge[] {
     const edges: CacheEdge[] = [];
 
