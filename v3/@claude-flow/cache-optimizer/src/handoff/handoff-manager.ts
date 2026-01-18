@@ -674,7 +674,7 @@ export class HandoffManager {
       output += data.toString();
     });
 
-    child.on('close', async (code) => {
+    child.on('close', async (_code) => {
       this.activeRequests.delete(requestId);
       this.metrics.activeRequests--;
 
