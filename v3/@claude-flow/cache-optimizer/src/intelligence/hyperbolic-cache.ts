@@ -504,12 +504,12 @@ export class DriftDetector {
 
     // Relevance scores
     embedding[20] = entry.relevance.overall;
-    embedding[21] = entry.relevance.temporal;
-    embedding[22] = entry.relevance.semantic;
-    embedding[23] = entry.relevance.contextual;
+    embedding[21] = entry.relevance.components.recency;
+    embedding[22] = entry.relevance.components.semantic;
+    embedding[23] = entry.relevance.components.attention;
 
     // Age (normalized)
-    const age = Date.now() - entry.createdAt;
+    const age = Date.now() - entry.timestamp;
     embedding[36] = Math.min(age / (60 * 60 * 1000), 1);
 
     // Access pattern
