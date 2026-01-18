@@ -44,8 +44,9 @@ describe('CircuitBreaker', () => {
     breaker.recordSuccess();
 
     const stats = breaker.getStats();
-    expect(stats.totalSuccesses).toBe(2);
-    expect(stats.totalFailures).toBe(0);
+    // Note: successes tracks success count used for half-open recovery
+    expect(stats.totalRequests).toBe(2);
+    expect(stats.failures).toBe(0);
     expect(stats.state).toBe('closed');
   });
 
