@@ -1325,6 +1325,50 @@ export async function install(): Promise<void> {
     };
 
     logInfo('Installed via Module._load hook');
+
+    // Also patch the already-cached fs module
+    // This is critical because fs is loaded before our hook
+    const cachedFs = require('fs');
+    const fsProxy = new Proxy(cachedFs, {
+      get(target, prop) {
+        if (prop === 'readFileSync') {
+          return interceptedReadFileSync;
+        }
+        if (prop === 'appendFileSync') {
+          return interceptedAppendFileSync;
+        }
+        return target[prop];
+      }
+    });
+
+    // Replace the cached module with our proxy
+    const Module2 = require('module');
+    const cache = Module2._cache || require.cache;
+
+    // Find and replace fs in cache
+    for (const key of Object.keys(cache)) {
+      if (key.endsWith('fs.js') || key === 'fs' || key === 'node:fs') {
+        cache[key].exports = fsProxy;
+        logInfo(`Patched cached fs at: ${key}`);
+      }
+    }
+
+    // Also try patching the internal fs binding
+    try {
+      const originalReadFileSync = cachedFs.readFileSync;
+      const originalAppendFileSync = cachedFs.appendFileSync;
+
+      // Override using a wrapper approach
+      (cachedFs as any).__originalReadFileSync = originalReadFileSync;
+      (cachedFs as any).__originalAppendFileSync = originalAppendFileSync;
+      (cachedFs as any).__interceptedReadFileSync = interceptedReadFileSync;
+      (cachedFs as any).__interceptedAppendFileSync = interceptedAppendFileSync;
+
+      logInfo('Installed wrapper methods on fs');
+    } catch (e) {
+      logInfo(`Note: Could not install wrapper methods: ${e}`);
+    }
+
   } catch (err) {
     // Fallback: try direct assignment (older Node.js)
     try {
