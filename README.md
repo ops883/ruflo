@@ -4212,7 +4212,7 @@ npx claude-flow@v3alpha nexus swarm deploy
 ---
 
 <details>
-<summary><h2>🔗 Stream-Chain — Multi-Agent Pipelines</h2></summary>
+<summary>🔗 <strong>Stream-Chain</strong> — Multi-Agent Pipelines</summary>
 
 Stream-Chain enables **sequential processing** where the output of one agent becomes the input of the next.
 
