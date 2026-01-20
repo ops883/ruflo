@@ -635,6 +635,10 @@ function generateStatusline() {
   const security = getSecurityStatus();
   const swarm = getSwarmStatus();
   const system = getSystemMetrics();
+  const adrs = getADRStatus();
+  const hooks = getHooksStatus();
+  const agentdb = getAgentDBStats();
+  const tests = getTestStats();
   const lines = [];
 
   // Header Line
