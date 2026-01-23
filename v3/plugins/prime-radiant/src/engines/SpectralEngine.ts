@@ -263,7 +263,7 @@ export class SpectralEngine implements ISpectralEngine {
   /**
    * Matrix-vector multiplication
    */
-  private matrixVectorMultiply(matrix: Float32Array, vector: Float32Array, n: number): Float32Array {
+  private matrixVectorMultiply(matrix: Float32Array<ArrayBufferLike>, vector: Float32Array<ArrayBufferLike>, n: number): Float32Array<ArrayBufferLike> {
     const result = new Float32Array(n);
     for (let i = 0; i < n; i++) {
       let sum = 0;
