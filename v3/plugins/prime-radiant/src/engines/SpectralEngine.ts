@@ -220,7 +220,7 @@ export class SpectralEngine implements ISpectralEngine {
 
     for (let eigenIndex = 0; eigenIndex < k; eigenIndex++) {
       // Power iteration for dominant eigenvalue
-      let v = new Float32Array(n);
+      let v: Float32Array<ArrayBufferLike> = new Float32Array(n);
       for (let i = 0; i < n; i++) {
         v[i] = Math.random();
       }
