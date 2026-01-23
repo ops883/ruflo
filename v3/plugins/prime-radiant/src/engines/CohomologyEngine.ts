@@ -280,8 +280,11 @@ export class CohomologyEngine implements ICohomologyEngine {
     let totalSize = 0;
 
     for (let i = 0; i < vectors.length; i++) {
-      dims[i] = vectors[i].length;
-      totalSize += vectors[i].length;
+      const vec = vectors[i];
+      if (vec) {
+        dims[i] = vec.length;
+        totalSize += vec.length;
+      }
     }
 
     const flattened = new Float32Array(totalSize);
