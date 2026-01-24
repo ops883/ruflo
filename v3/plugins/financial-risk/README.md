@@ -298,6 +298,14 @@ const rateLimits = {
 - `ruvector-economy-wasm`: Token economics and market microstructure modeling
 - `ruvector-learning-wasm`: Reinforcement learning for adaptive risk thresholds
 
+## Related Plugins
+
+| Plugin | Description | Use Case |
+|--------|-------------|----------|
+| [@claude-flow/plugin-legal-contracts](../legal-contracts) | Contract analysis | Financial agreements, derivatives documentation |
+| [@claude-flow/plugin-healthcare-clinical](../healthcare-clinical) | Clinical decision support | Healthcare portfolio analysis |
+| [@claude-flow/plugin-perf-optimizer](../perf-optimizer) | Performance optimization | High-frequency trading latency optimization |
+
 ## License
 
 MIT License
