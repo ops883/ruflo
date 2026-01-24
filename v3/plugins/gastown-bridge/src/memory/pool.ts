@@ -381,39 +381,36 @@ export class PooledFormula implements Formula, Poolable {
 export class PooledConvoy implements Convoy, Poolable {
   id = '';
   name = '';
-  description = '';
-  status: ConvoyStatus = 'active';
   trackedIssues: string[] = [];
+  status: ConvoyStatus = 'active';
+  startedAt: Date = new Date();
+  completedAt?: Date;
   progress = { total: 0, closed: 0, inProgress: 0, blocked: 0 };
-  createdAt: Date = new Date();
-  updatedAt: Date = new Date();
-  startedAt?: Date;
-  landedAt?: Date;
+  formula?: string;
+  description?: string;
 
   reset(): void {
     this.id = '';
     this.name = '';
-    this.description = '';
-    this.status = 'active';
     this.trackedIssues.length = 0;
+    this.status = 'active';
+    this.startedAt = new Date();
+    this.completedAt = undefined;
     this.progress = { total: 0, closed: 0, inProgress: 0, blocked: 0 };
-    this.createdAt = new Date();
-    this.updatedAt = new Date();
-    this.startedAt = undefined;
-    this.landedAt = undefined;
+    this.formula = undefined;
+    this.description = undefined;
   }
 
   initFrom(source: Partial<Convoy>): this {
     this.id = source.id ?? '';
     this.name = source.name ?? '';
-    this.description = source.description ?? '';
-    this.status = source.status ?? 'active';
     this.trackedIssues = source.trackedIssues ? [...source.trackedIssues] : [];
+    this.status = source.status ?? 'active';
+    this.startedAt = source.startedAt ?? new Date();
+    this.completedAt = source.completedAt;
     this.progress = source.progress ? { ...source.progress } : { total: 0, closed: 0, inProgress: 0, blocked: 0 };
-    this.createdAt = source.createdAt ?? new Date();
-    this.updatedAt = source.updatedAt ?? new Date();
-    this.startedAt = source.startedAt;
-    this.landedAt = source.landedAt;
+    this.formula = source.formula;
+    this.description = source.description;
     return this;
   }
 }
