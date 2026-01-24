@@ -726,7 +726,7 @@ const predictCommand: Command = {
           ``,
           `Predicted Type: ${topType}`,
           `Confidence: ${(confidence * 100).toFixed(1)}%`,
-          `Latency: ${(embedTime + searchTime).toFixed(1)}ms`,
+          `Latency: ${searchTime.toFixed(1)}ms`,
           ``,
           `Top ${matches.length} Similar Patterns:`,
         ].join('\n'), 'Result');
