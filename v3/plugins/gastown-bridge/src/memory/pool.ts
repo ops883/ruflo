@@ -266,7 +266,6 @@ export class PooledBead implements Bead, Poolable {
   rig?: string;
   blockedBy?: string[];
   blocks?: string[];
-  dependencies?: string[];
 
   reset(): void {
     this.id = '';
@@ -282,7 +281,6 @@ export class PooledBead implements Bead, Poolable {
     this.rig = undefined;
     this.blockedBy = undefined;
     this.blocks = undefined;
-    this.dependencies = undefined;
   }
 
   /**
@@ -302,7 +300,6 @@ export class PooledBead implements Bead, Poolable {
     this.rig = source.rig;
     this.blockedBy = source.blockedBy ? [...source.blockedBy] : undefined;
     this.blocks = source.blocks ? [...source.blocks] : undefined;
-    this.dependencies = source.dependencies ? [...source.dependencies] : undefined;
     return this;
   }
 }
