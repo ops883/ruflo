@@ -314,7 +314,6 @@ export class PooledStep implements Step, Poolable {
   needs?: string[];
   duration?: number;
   requires?: string[];
-  outputs?: string[];
   metadata?: Record<string, unknown>;
 
   reset(): void {
@@ -324,7 +323,6 @@ export class PooledStep implements Step, Poolable {
     this.needs = undefined;
     this.duration = undefined;
     this.requires = undefined;
-    this.outputs = undefined;
     this.metadata = undefined;
   }
 
@@ -335,7 +333,6 @@ export class PooledStep implements Step, Poolable {
     this.needs = source.needs ? [...source.needs] : undefined;
     this.duration = source.duration;
     this.requires = source.requires ? [...source.requires] : undefined;
-    this.outputs = source.outputs ? [...source.outputs] : undefined;
     this.metadata = source.metadata ? { ...source.metadata } : undefined;
     return this;
   }
