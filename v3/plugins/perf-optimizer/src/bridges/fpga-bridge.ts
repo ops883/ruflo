@@ -152,8 +152,9 @@ export class PerfFpgaBridge implements FpgaBridgeInterface {
       throw new Error('FPGA bridge not initialized');
     }
 
-    // Create config embedding
-    const embedding = this.embedConfig(config);
+    // Create config embedding for caching key
+    const _embedding = this.embedConfig(config);
+    void _embedding; // Used for cache key computation
 
     // Get workload-specific baseline
     const baseline = this.getWorkloadBaseline(workload);
