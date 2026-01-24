@@ -4,6 +4,17 @@
  */
 
 import { hyperbolicReasoningTools, getTool, getToolNames } from '../dist/mcp-tools.js';
+import type { MCPToolResult } from '../dist/types.js';
+
+// Helper to parse MCP result
+function parseResult(result: MCPToolResult): { success: boolean; data: any; error?: string } {
+  if (result.isError) {
+    const parsed = JSON.parse(result.content[0]?.text || '{}');
+    return { success: false, data: null, error: parsed.message || 'Unknown error' };
+  }
+  const data = JSON.parse(result.content[0]?.text || '{}');
+  return { success: true, data };
+}
 
 async function validate() {
   console.log('=== Hyperbolic Reasoning Plugin Validation ===\n');
@@ -23,7 +34,7 @@ async function validate() {
     const tool = getTool('hyperbolic_embed_hierarchy');
     if (!tool) throw new Error('Tool not found');
 
-    const result = await tool.handler({
+    const rawResult = await tool.handler({
       hierarchy: {
         nodes: [
           { id: 'entity', parent: null },
@@ -48,8 +59,8 @@ async function validate() {
       }
     });
 
-    if (!result.success) throw new Error(result.error?.message || 'Unknown error');
-    const data = result.data as any;
+    const { success, data, error } = parseResult(rawResult);
+    if (!success) throw new Error(error);
     if (!data.indexId) throw new Error('Missing indexId');
     if (typeof data.curvature !== 'number') throw new Error('Invalid response format');
 
@@ -73,7 +84,7 @@ async function validate() {
       throw new Error('No embedding index available (test 1 may have failed)');
     }
 
-    const result = await tool.handler({
+    const rawResult = await tool.handler({
       query: {
         type: 'is_a',
         subject: 'dog',
@@ -87,8 +98,8 @@ async function validate() {
       }
     });
 
-    if (!result.success) throw new Error(result.error?.message || 'Unknown error');
-    const data = result.data as any;
+    const { success, data, error } = parseResult(rawResult);
+    if (!success) throw new Error(error);
     if (typeof data.confidence !== 'number') throw new Error('Invalid response format');
 
     console.log(`  OK: Result: ${data.result}, confidence: ${data.confidence.toFixed(2)}`);
@@ -110,7 +121,7 @@ async function validate() {
       throw new Error('No embedding index available (test 1 may have failed)');
     }
 
-    const result = await tool.handler({
+    const rawResult = await tool.handler({
       query: 'mammal',
       index: embeddingIndexId,
       searchMode: 'nearest',
@@ -120,8 +131,8 @@ async function validate() {
       topK: 5
     });
 
-    if (!result.success) throw new Error(result.error?.message || 'Unknown error');
-    const data = result.data as any;
+    const { success, data, error } = parseResult(rawResult);
+    if (!success) throw new Error(error);
     if (!Array.isArray(data.items)) throw new Error('Invalid response format');
 
     console.log(`  OK: Found ${data.items.length} items in ${data.searchTimeMs?.toFixed(2) || 'N/A'}ms`);
@@ -139,7 +150,7 @@ async function validate() {
     const tool = getTool('hyperbolic_hierarchy_compare');
     if (!tool) throw new Error('Tool not found');
 
-    const result = await tool.handler({
+    const rawResult = await tool.handler({
       source: {
         nodes: [
           { id: 'root', parent: null },
@@ -162,8 +173,8 @@ async function validate() {
       metrics: ['structural_similarity', 'semantic_similarity']
     });
 
-    if (!result.success) throw new Error(result.error?.message || 'Unknown error');
-    const data = result.data as any;
+    const { success, data, error } = parseResult(rawResult);
+    if (!success) throw new Error(error);
     if (typeof data.similarity !== 'number') throw new Error('Invalid response format');
     if (!Array.isArray(data.alignments)) throw new Error('Missing alignments');
 
@@ -182,7 +193,7 @@ async function validate() {
     const tool = getTool('hyperbolic_entailment_graph');
     if (!tool) throw new Error('Tool not found');
 
-    const result = await tool.handler({
+    const rawResult = await tool.handler({
       action: 'build',
       concepts: [
         { id: 'c1', text: 'All dogs are mammals', type: 'universal' },
@@ -195,8 +206,8 @@ async function validate() {
       pruneStrategy: 'none'
     });
 
-    if (!result.success) throw new Error(result.error?.message || 'Unknown error');
-    const data = result.data as any;
+    const { success, data, error } = parseResult(rawResult);
+    if (!success) throw new Error(error);
     if (!data.graphId) throw new Error('Invalid response format');
 
     console.log(`  OK: Graph: ${data.graphId}, nodes: ${data.stats?.nodeCount || 'N/A'}`);
