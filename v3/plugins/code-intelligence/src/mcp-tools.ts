@@ -38,6 +38,7 @@ import {
   CodeIntelligenceError,
   CodeIntelligenceErrorCodes,
   maskSecrets,
+  type AnalysisType,
 } from './types.js';
 import { createGNNBridge } from './bridges/gnn-bridge.js';
 import { createMinCutBridge } from './bridges/mincut-bridge.js';
