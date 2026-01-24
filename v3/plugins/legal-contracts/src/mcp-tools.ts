@@ -653,9 +653,9 @@ function extractKeyTerms(text: string): string[] {
  */
 async function assessRisks(
   clauses: ExtractedClause[],
-  partyRole: string,
+  _partyRole: string,
   categories: RiskCategory[] | undefined,
-  industryContext: string | undefined
+  _industryContext: string | undefined
 ): Promise<RiskFinding[]> {
   const risks: RiskFinding[] = [];
 
