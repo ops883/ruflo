@@ -450,13 +450,19 @@ function createPluginLogger(config?: GasTownBridgeConfig['logger']): PluginLogge
 // ============================================================================
 
 /**
- * Adapter to make wasm-loader work with FormulaExecutor's IWasmLoader interface
+ * Adapter to make wasm-loader work with FormulaExecutor's IWasmLoader interface.
+ *
+ * Since the WASM functions are async but IWasmLoader expects sync methods,
+ * we use synchronous JavaScript fallback implementations. The WASM modules
+ * are still loaded for caching/preloading purposes but the actual operations
+ * use sync fallbacks to satisfy the interface contract.
  */
 class WasmLoaderAdapter implements IWasmLoader {
   private initialized = false;
 
   async initialize(): Promise<void> {
     try {
+      // Preload WASM modules for caching (they will be used async elsewhere)
       await loadFormulaWasm();
       await loadGnnWasm();
       this.initialized = true;
@@ -469,12 +475,86 @@ class WasmLoaderAdapter implements IWasmLoader {
     return this.initialized && isWasmAvailable();
   }
 
+  /**
+   * Synchronous TOML parsing fallback (basic implementation)
+   */
   parseFormula(content: string): Formula {
-    return wasmParseFormula(content);
+    // Basic TOML parsing - for full TOML support, the async WASM version is preferred
+    const lines = content.split('\n');
+    const result: Record<string, unknown> = {};
+    let currentSection = '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('#') || trimmed === '') continue;
+
+      const sectionMatch = trimmed.match(/^\[([^\]]+)\]$/);
+      if (sectionMatch) {
+        currentSection = sectionMatch[1];
+        if (!result[currentSection]) result[currentSection] = {};
+        continue;
+      }
+
+      const kvMatch = trimmed.match(/^([^=]+)=(.+)$/);
+      if (kvMatch) {
+        const key = kvMatch[1].trim();
+        let value: unknown = kvMatch[2].trim();
+
+        if (value === 'true') value = true;
+        else if (value === 'false') value = false;
+        else if (/^\d+$/.test(value as string)) value = parseInt(value as string, 10);
+        else if (/^\d+\.\d+$/.test(value as string)) value = parseFloat(value as string);
+        else if ((value as string).startsWith('"') && (value as string).endsWith('"')) {
+          value = (value as string).slice(1, -1);
+        }
+
+        if (currentSection) {
+          (result[currentSection] as Record<string, unknown>)[key] = value;
+        } else {
+          result[key] = value;
+        }
+      }
+    }
+
+    return {
+      name: (result['name'] as string) || 'unknown',
+      description: (result['description'] as string) || '',
+      type: (result['type'] as Formula['type']) || 'workflow',
+      version: (result['version'] as number) || 1,
+      steps: result['steps'] as Formula['steps'],
+      legs: result['legs'] as Formula['legs'],
+      vars: result['vars'] as Formula['vars'],
+      metadata: result['metadata'] as Formula['metadata'],
+    };
   }
 
+  /**
+   * Synchronous variable substitution
+   */
   cookFormula(formula: Formula, vars: Record<string, string>): CookedFormula {
-    const cooked = wasmCookFormula(formula, vars);
+    const substituteVars = (text: string): string => {
+      let result = text;
+      for (const [key, value] of Object.entries(vars)) {
+        result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+        result = result.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), value);
+      }
+      return result;
+    };
+
+    const substituteObject = <T>(obj: T): T => {
+      if (typeof obj === 'string') return substituteVars(obj) as T;
+      if (Array.isArray(obj)) return obj.map(substituteObject) as T;
+      if (obj !== null && typeof obj === 'object') {
+        const result: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(obj)) {
+          result[key] = substituteObject(value);
+        }
+        return result as T;
+      }
+      return obj;
+    };
+
+    const cooked = substituteObject(formula);
     return {
       ...cooked,
       cookedAt: new Date(),
@@ -483,40 +563,105 @@ class WasmLoaderAdapter implements IWasmLoader {
     };
   }
 
+  /**
+   * Synchronous batch cooking
+   */
   batchCook(formulas: Formula[], varsArray: Record<string, string>[]): CookedFormula[] {
-    return wasmCookBatch(formulas, varsArray).map((cooked, i) => ({
-      ...cooked,
-      cookedAt: new Date(),
-      cookedVars: varsArray[i] ?? {},
-      originalName: formulas[i]?.name ?? 'unknown',
-    }));
+    return formulas.map((formula, i) => this.cookFormula(formula, varsArray[i] ?? {}));
   }
 
+  /**
+   * Synchronous topological sort using Kahn's algorithm
+   */
   resolveStepDependencies(steps: Array<{ id: string; needs?: string[] }>): typeof steps {
-    const result = wasmTopoSort(steps.map(s => ({
-      id: s.id,
-      dependencies: s.needs ?? [],
-    })));
-    if (result.hasCycle) {
+    const inDegree = new Map<string, number>();
+    const graph = new Map<string, string[]>();
+
+    for (const step of steps) {
+      inDegree.set(step.id, 0);
+      graph.set(step.id, []);
+    }
+
+    for (const step of steps) {
+      for (const dep of step.needs ?? []) {
+        graph.get(dep)?.push(step.id);
+        inDegree.set(step.id, (inDegree.get(step.id) || 0) + 1);
+      }
+    }
+
+    const queue: string[] = [];
+    for (const [id, degree] of inDegree) {
+      if (degree === 0) queue.push(id);
+    }
+
+    const sorted: string[] = [];
+    while (queue.length > 0) {
+      const id = queue.shift()!;
+      sorted.push(id);
+      for (const neighbor of graph.get(id) || []) {
+        const newDegree = (inDegree.get(neighbor) || 0) - 1;
+        inDegree.set(neighbor, newDegree);
+        if (newDegree === 0) queue.push(neighbor);
+      }
+    }
+
+    if (sorted.length !== steps.length) {
+      const cycleNodes = steps.filter(s => !sorted.includes(s.id)).map(s => s.id);
       throw new GasTownError(
         'Cycle detected in step dependencies',
         GasTownErrorCode.DEPENDENCY_CYCLE,
-        { cycleNodes: result.cycleNodes }
+        { cycleNodes }
       );
     }
-    // Return steps in sorted order
+
     const stepMap = new Map(steps.map(s => [s.id, s]));
-    return result.sorted.map(id => stepMap.get(id)).filter(Boolean) as typeof steps;
+    return sorted.map(id => stepMap.get(id)).filter(Boolean) as typeof steps;
   }
 
+  /**
+   * Synchronous cycle detection using DFS
+   */
   detectCycle(steps: Array<{ id: string; needs?: string[] }>): { hasCycle: boolean; cycleSteps?: string[] } {
-    const result = wasmDetectCycles(steps.map(s => ({
-      id: s.id,
-      dependencies: s.needs ?? [],
-    })));
+    const WHITE = 0, GRAY = 1, BLACK = 2;
+    const graph = new Map<string, string[]>();
+    const colors = new Map<string, number>();
+
+    for (const step of steps) {
+      graph.set(step.id, step.needs ?? []);
+      colors.set(step.id, WHITE);
+    }
+
+    const cycleNodes: string[] = [];
+
+    const dfs = (id: string, path: string[]): boolean => {
+      colors.set(id, GRAY);
+      path.push(id);
+
+      for (const dep of graph.get(id) || []) {
+        if (colors.get(dep) === GRAY) {
+          const cycleStart = path.indexOf(dep);
+          cycleNodes.push(...path.slice(cycleStart));
+          return true;
+        }
+        if (colors.get(dep) === WHITE && dfs(dep, path)) {
+          return true;
+        }
+      }
+
+      colors.set(id, BLACK);
+      path.pop();
+      return false;
+    };
+
+    for (const step of steps) {
+      if (colors.get(step.id) === WHITE && dfs(step.id, [])) {
+        break;
+      }
+    }
+
     return {
-      hasCycle: result.hasCycle,
-      cycleSteps: result.cycleNodes,
+      hasCycle: cycleNodes.length > 0,
+      cycleSteps: cycleNodes.length > 0 ? [...new Set(cycleNodes)] : undefined,
     };
   }
 }
