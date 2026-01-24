@@ -17,7 +17,7 @@
 
 import { EventEmitter } from 'events';
 import { z } from 'zod';
-import {
+import type {
   Convoy,
   ConvoyProgress,
   Bead,
