@@ -273,12 +273,16 @@ function generateHooksConfig(config: HooksConfig): object {
 
   // UserPromptSubmit for intelligent routing
   if (config.userPromptSubmit) {
+    const routeCmd = IS_WINDOWS
+      ? `npx @claude-flow/cli@latest hooks route --task "%PROMPT%" 2>${NULL_DEV}`
+      : '[ -n "$PROMPT" ] && npx @claude-flow/cli@latest hooks route --task "$PROMPT" || true';
+
     hooks.UserPromptSubmit = [
       {
         hooks: [
           {
             type: 'command',
-            command: '[ -n "$PROMPT" ] && npx @claude-flow/cli@latest hooks route --task "$PROMPT" || true',
+            command: routeCmd,
             timeout: config.timeout,
             continueOnError: true,
           },
@@ -289,18 +293,25 @@ function generateHooksConfig(config: HooksConfig): object {
 
   // SessionStart for context loading and daemon auto-start
   if (config.sessionStart) {
+    const daemonCmd = IS_WINDOWS
+      ? `npx @claude-flow/cli@latest daemon start --quiet 2>${NULL_DEV}`
+      : 'npx @claude-flow/cli@latest daemon start --quiet 2>/dev/null || true';
+    const sessionRestoreCmd = IS_WINDOWS
+      ? `npx @claude-flow/cli@latest hooks session-restore --session-id "%SESSION_ID%" 2>${NULL_DEV}`
+      : '[ -n "$SESSION_ID" ] && npx @claude-flow/cli@latest hooks session-restore --session-id "$SESSION_ID" 2>/dev/null || true';
+
     hooks.SessionStart = [
       {
         hooks: [
           {
             type: 'command',
-            command: 'npx @claude-flow/cli@latest daemon start --quiet 2>/dev/null || true',
+            command: daemonCmd,
             timeout: 5000,
             continueOnError: true,
           },
           {
             type: 'command',
-            command: '[ -n "$SESSION_ID" ] && npx @claude-flow/cli@latest hooks session-restore --session-id "$SESSION_ID" 2>/dev/null || true',
+            command: sessionRestoreCmd,
             timeout: 10000,
             continueOnError: true,
           },
