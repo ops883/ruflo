@@ -5,49 +5,51 @@ import { usePathname } from 'next/navigation';
 const navItems = [
   { href: '/', label: 'Dashboard' },
   { href: '/leads', label: 'Leads' },
-  { href: '/pipeline', label: 'Pipeline' },
-  { href: '/kpi', label: 'KPI Dashboard' },
+  { href: '/pipeline', label: 'Pijplijn' },
+  { href: '/kpi', label: 'KPI & Doelen' },
   { href: '/bronanalyse', label: 'Bronanalyse' },
-  { href: '/templates', label: 'Templates' },
+  { href: '/templates', label: 'Werkwijze & Templates' },
+  { href: '/tarief', label: 'Tarief & Voorstel' },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-56 bg-indigo-900 text-white flex flex-col shrink-0">
-      <div className="px-6 py-6 border-b border-indigo-800">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-indigo-400 rounded-lg flex items-center justify-center text-sm font-bold">N</div>
-          <div>
-            <h1 className="text-base font-bold leading-tight">Nahv</h1>
-            <p className="text-indigo-400 text-xs">Sales & Leads</p>
-          </div>
-        </div>
+    <aside className="w-60 bg-black text-white flex flex-col shrink-0" style={{ borderRight: '2px solid #000' }}>
+      <div className="px-6 py-6" style={{ borderBottom: '1px solid #222' }}>
+        <h1 className="text-xl font-black tracking-tighter text-white">NAHV</h1>
+        <p className="text-xs font-bold tracking-widest uppercase mt-1 text-gray-500">Verkoopplatform</p>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
         {navItems.map((item) => {
           const active = pathname === item.href;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+              style={{ borderLeft: active ? '4px solid #fff' : '4px solid transparent' }}
+              className={`flex items-center px-4 py-3 text-xs font-bold uppercase tracking-widest ${
                 active
-                  ? 'bg-indigo-700 text-white font-medium'
-                  : 'text-indigo-300 hover:bg-indigo-800 hover:text-white'
+                  ? 'bg-white text-black'
+                  : 'text-gray-400 hover:bg-gray-900 hover:text-white'
               }`}
             >
-              <span className={`w-2 h-2 rounded-sm ${active ? 'bg-indigo-300' : 'bg-indigo-600'}`} />
               {item.label}
             </Link>
           );
         })}
       </nav>
 
-      <div className="px-6 py-4 border-t border-indigo-800">
-        <p className="text-indigo-500 text-xs">Nahv v1.0</p>
+      <div className="px-6 py-5" style={{ borderTop: '1px solid #222' }}>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-white text-black flex items-center justify-center font-black text-xs">PH</div>
+          <div>
+            <p className="text-xs font-bold text-white">Pim Holthof</p>
+            <p className="text-xs text-gray-500">Verkoopleider</p>
+          </div>
+        </div>
       </div>
     </aside>
   );

@@ -8,127 +8,110 @@ export default function BronanalysePage() {
 
   useEffect(() => { getBronanalyse().then(setData).finally(() => setLoading(false)); }, []);
 
-  if (loading) return <div className="flex items-center justify-center h-full text-gray-400 text-sm">Laden...</div>;
+  if (loading) return <div className="flex items-center justify-center h-full"><p className="text-xs font-bold uppercase tracking-widest text-gray-400">Laden...</p></div>;
 
   const totaalLeads = data.reduce((s, r) => s + r.aantalLeads, 0);
   const totaalKlanten = data.reduce((s, r) => s + r.aantalKlanten, 0);
   const totaalArr = data.reduce((s, r) => s + r.arrTotaal, 0);
   const maxArr = Math.max(...data.map(r => r.arrTotaal), 1);
-
-  const catColors: Record<string, string> = {
-    'Klant NAHV': 'bg-indigo-500',
-    'Google': 'bg-blue-500',
-    'Academie': 'bg-purple-500',
-    'Referral/Netwerk': 'bg-green-500',
-    'Eigen acquisitie': 'bg-yellow-500',
-    'Onbekend': 'bg-gray-400',
-  };
+  const maxLeads = Math.max(...data.map(r => r.aantalLeads), 1);
 
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Bronanalyse</h2>
-        <p className="text-gray-500 text-sm mt-1">Conversie en ARR per acquisitiekanaal</p>
+    <div className="p-10 max-w-6xl">
+      <div className="mb-10">
+        <h2 className="text-3xl font-black tracking-tighter">Bronanalyse</h2>
+        <p className="text-sm text-gray-500 mt-1 font-medium">Conversie en ARR per acquisitiekanaal</p>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="card p-4 border-l-4 border-indigo-500">
-          <p className="text-gray-500 text-xs uppercase tracking-wide">Totaal leads (met bron)</p>
-          <p className="text-2xl font-bold text-gray-800 mt-1">{totaalLeads}</p>
-        </div>
-        <div className="card p-4 border-l-4 border-green-500">
-          <p className="text-gray-500 text-xs uppercase tracking-wide">Klanten gewonnen</p>
-          <p className="text-2xl font-bold text-gray-800 mt-1">{totaalKlanten}</p>
-        </div>
-        <div className="card p-4 border-l-4 border-emerald-500">
-          <p className="text-gray-500 text-xs uppercase tracking-wide">Totaal ARR (NAHV leads)</p>
-          <p className="text-2xl font-bold text-gray-800 mt-1">{eur(totaalArr)}</p>
-        </div>
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-4 mb-10">
+        {[
+          { label: 'Totaal Leads (met bron)', value: String(totaalLeads) },
+          { label: 'Klanten Gewonnen', value: String(totaalKlanten) },
+          { label: 'Totaal ARR (NAHV Leads)', value: eur(totaalArr) },
+        ].map(m => (
+          <div key={m.label} className="border-2 border-black p-6">
+            <p className="stat-label">{m.label}</p>
+            <p className="text-3xl font-black tracking-tighter mt-1">{m.value}</p>
+          </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 gap-8">
         {/* Table */}
-        <div className="card">
+        <div className="border-2 border-black">
+          <div className="px-6 py-4 bg-black text-white">
+            <h3 className="text-xs font-black uppercase tracking-widest">Per Kanaal</h3>
+          </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 text-xs uppercase tracking-wide border-b border-gray-100">
-                <th className="px-4 py-3 font-medium">Bron</th>
-                <th className="px-4 py-3 font-medium">Leads</th>
-                <th className="px-4 py-3 font-medium">Klanten</th>
-                <th className="px-4 py-3 font-medium">Conversie</th>
-                <th className="px-4 py-3 font-medium">ARR</th>
-                <th className="px-4 py-3 font-medium">Gem./klant</th>
+              <tr style={{ borderBottom: '2px solid #000' }}>
+                {['Bron', 'Leads', 'Klanten', 'Conversie', 'ARR', 'Gem./Klant'].map(h => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-black uppercase tracking-widest">{h}</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
-              {data.map(row => (
-                <tr key={row.categorie} className="hover:bg-gray-50">
+            <tbody>
+              {data.map((row, i) => (
+                <tr key={row.categorie} className="hover:bg-gray-50" style={{ borderBottom: i < data.length - 1 ? '1px solid #000' : undefined }}>
+                  <td className="px-4 py-3 font-bold text-xs uppercase tracking-wide">{row.categorie}</td>
+                  <td className="px-4 py-3 font-bold">{row.aantalLeads}</td>
+                  <td className="px-4 py-3 font-bold">{row.aantalKlanten}</td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${catColors[row.categorie] || 'bg-gray-400'}`} />
-                      <span className="font-medium text-gray-700">{row.categorie}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{row.aantalLeads}</td>
-                  <td className="px-4 py-3 text-gray-600">{row.aantalKlanten}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${row.conversie >= 70 ? 'bg-green-100 text-green-700' : row.conversie >= 40 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'}`}>
+                    <span className={`tag text-xs ${row.conversie >= 70 ? 'bg-black text-white' : 'border-black'}`}>
                       {row.conversie}%
                     </span>
                   </td>
-                  <td className="px-4 py-3 font-semibold text-gray-700">{row.arrTotaal > 0 ? eur(row.arrTotaal) : '—'}</td>
-                  <td className="px-4 py-3 text-gray-500">{row.gemArrPerKlant > 0 ? eur(row.gemArrPerKlant) : '—'}</td>
+                  <td className="px-4 py-3 font-black">{row.arrTotaal > 0 ? eur(row.arrTotaal) : '—'}</td>
+                  <td className="px-4 py-3 text-gray-500 font-bold">{row.gemArrPerKlant > 0 ? eur(row.gemArrPerKlant) : '—'}</td>
                 </tr>
               ))}
-              <tr className="bg-gray-50 border-t-2 border-gray-200">
-                <td className="px-4 py-3 font-bold text-gray-800">TOTAAL</td>
-                <td className="px-4 py-3 font-bold">{totaalLeads}</td>
-                <td className="px-4 py-3 font-bold">{totaalKlanten}</td>
-                <td className="px-4 py-3 font-bold">{totaalLeads > 0 ? Math.round(totaalKlanten / totaalLeads * 100) : 0}%</td>
-                <td className="px-4 py-3 font-bold">{eur(totaalArr)}</td>
-                <td className="px-4 py-3 font-bold">{totaalKlanten > 0 ? eur(Math.round(totaalArr / totaalKlanten)) : '—'}</td>
+              <tr className="bg-black text-white">
+                <td className="px-4 py-3 font-black text-xs uppercase tracking-widest">Totaal</td>
+                <td className="px-4 py-3 font-black">{totaalLeads}</td>
+                <td className="px-4 py-3 font-black">{totaalKlanten}</td>
+                <td className="px-4 py-3 font-black">{totaalLeads > 0 ? Math.round(totaalKlanten / totaalLeads * 100) : 0}%</td>
+                <td className="px-4 py-3 font-black">{eur(totaalArr)}</td>
+                <td className="px-4 py-3 font-black">{totaalKlanten > 0 ? eur(Math.round(totaalArr / totaalKlanten)) : '—'}</td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        {/* Bar chart */}
-        <div className="card p-6">
-          <h3 className="font-semibold text-gray-700 mb-4 text-sm uppercase tracking-wide">ARR per kanaal</h3>
-          <div className="space-y-4">
+        {/* Bar charts */}
+        <div className="border-2 border-black">
+          <div className="px-6 py-4 bg-black text-white">
+            <h3 className="text-xs font-black uppercase tracking-widest">ARR per Kanaal</h3>
+          </div>
+          <div className="p-6 space-y-5">
             {data.filter(r => r.arrTotaal > 0).map(row => {
               const pct = Math.round(row.arrTotaal / maxArr * 100);
               return (
                 <div key={row.categorie}>
-                  <div className="flex justify-between text-xs text-gray-600 mb-1">
-                    <span className="font-medium">{row.categorie}</span>
-                    <span>{eur(row.arrTotaal)} · {row.aantalKlanten} klanten</span>
+                  <div className="flex justify-between text-xs font-bold mb-1.5">
+                    <span className="uppercase tracking-wide">{row.categorie}</span>
+                    <span>{eur(row.arrTotaal)} · {row.aantalKlanten} kl.</span>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-4">
-                    <div className={`h-4 rounded-full ${catColors[row.categorie] || 'bg-gray-400'} flex items-center justify-end pr-2`}
-                      style={{ width: `${Math.max(pct, 5)}%` }}>
-                      <span className="text-xs text-white font-semibold">{row.conversie}%</span>
+                  <div className="w-full bg-gray-100 h-5" style={{ border: '1px solid #000' }}>
+                    <div className="bg-black h-full flex items-center justify-end pr-2" style={{ width: `${Math.max(pct, 5)}%` }}>
+                      <span className="text-xs text-white font-bold">{row.conversie}%</span>
                     </div>
                   </div>
                 </div>
               );
             })}
-          </div>
 
-          <div className="mt-6 pt-4 border-t border-gray-100">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Leads per kanaal</h4>
-            <div className="space-y-2">
+            <div className="pt-4 space-y-3" style={{ borderTop: '2px solid #000' }}>
+              <p className="text-xs font-black uppercase tracking-widest mb-3">Leads per kanaal</p>
               {data.map(row => {
-                const pct = Math.round(row.aantalLeads / totaalLeads * 100);
+                const pct = Math.round(row.aantalLeads / maxLeads * 100);
                 return (
-                  <div key={row.categorie} className="flex items-center gap-2 text-xs">
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${catColors[row.categorie] || 'bg-gray-400'}`} />
-                    <span className="text-gray-600 w-36 truncate">{row.categorie}</span>
-                    <div className="flex-1 bg-gray-100 rounded-full h-2">
-                      <div className={`h-2 rounded-full ${catColors[row.categorie] || 'bg-gray-400'}`} style={{ width: `${pct}%` }} />
+                  <div key={row.categorie} className="flex items-center gap-3">
+                    <span className="text-xs font-bold uppercase w-36 truncate">{row.categorie}</span>
+                    <div className="flex-1 bg-gray-100 h-3" style={{ border: '1px solid #000' }}>
+                      <div className="bg-black h-full" style={{ width: `${pct}%` }} />
                     </div>
-                    <span className="text-gray-500 w-10 text-right">{row.aantalLeads}</span>
+                    <span className="text-xs font-bold w-6 text-right">{row.aantalLeads}</span>
                   </div>
                 );
               })}

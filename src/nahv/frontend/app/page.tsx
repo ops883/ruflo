@@ -1,16 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { getAnalytics, AnalyticsData, eur, fmtDate, STATUS_LABELS, STATUS_COLORS } from '../lib/api';
-
-function Stat({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color: string }) {
-  return (
-    <div className={`card p-4 border-l-4 ${color}`}>
-      <p className="text-gray-500 text-xs font-medium uppercase tracking-wide">{label}</p>
-      <p className="text-2xl font-bold text-gray-800 mt-1">{value}</p>
-      {sub && <p className="text-gray-400 text-xs mt-0.5">{sub}</p>}
-    </div>
-  );
-}
+import { getAnalytics, AnalyticsData, eur, fmtDate } from '../lib/api';
+import Link from 'next/link';
 
 export default function DashboardPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
@@ -21,107 +12,152 @@ export default function DashboardPage() {
     getAnalytics().then(setData).catch(e => setError(e.message)).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="flex items-center justify-center h-full text-gray-400 text-sm">Laden...</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center h-full">
+      <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Laden...</p>
+    </div>
+  );
+
   if (error || !data) return (
-    <div className="p-8">
-      <div className="card p-6 border-l-4 border-red-500">
-        <p className="text-red-600 font-medium">Backend niet bereikbaar</p>
-        <code className="text-xs text-gray-400 mt-2 block">cd src/nahv/backend && npm run dev</code>
+    <div className="p-10">
+      <div className="border-2 border-black p-6 border-l-8">
+        <p className="font-bold uppercase tracking-widest text-sm">Backend niet bereikbaar</p>
+        <code className="text-xs text-gray-500 mt-2 block">cd src/nahv/backend && npm run dev</code>
       </div>
     </div>
   );
 
   const s = data.summary;
+  const maandNamen = ['', 'Jan', 'Feb', 'Mrt', 'Apr', 'Mei', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'];
 
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Data Overzicht</h2>
-        <p className="text-gray-500 text-sm mt-1">Nahv leads & klanten statistieken</p>
+    <div className="p-10 max-w-7xl">
+      {/* Header */}
+      <header className="mb-10 flex justify-between items-start">
+        <div>
+          <h2 className="text-3xl font-black tracking-tighter">Welkom terug, Pim</h2>
+          <p className="text-sm text-gray-500 mt-1 font-medium">Dit is het overzicht van vandaag.</p>
+        </div>
+        <Link href="/leads" className="btn-primary text-xs px-5 py-3">+ Nieuwe Lead</Link>
+      </header>
+
+      {/* Executive Summary */}
+      <div className="mb-10 bg-black text-white p-8" style={{ borderLeft: '8px solid #555' }}>
+        <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">Executive Summary</p>
+        <p className="text-2xl font-black tracking-tighter leading-snug">
+          {s.totalLeads} leads ontvangen.{' '}
+          <span className="underline decoration-2 underline-offset-4">{s.klantenGewonnen} klanten gewonnen</span>.{' '}
+          ARR: <span className="font-black">{eur(s.arrTotaal)}</span>.
+        </p>
+        <p className="text-sm text-gray-400 mt-4">
+          Pijplijn: <span className="text-white font-bold">{eur(s.pipelineWaarde)}</span> open voorstellen.
+          {s.staleLeads14 > 0 && (
+            <span className="text-red-400 font-bold ml-3">⚠ {s.staleLeads14} leads staan &gt;14 dagen open.</span>
+          )}
+        </p>
       </div>
 
-      {/* Row 1: Core counts */}
-      <div className="grid grid-cols-5 gap-3 mb-4">
-        <Stat label="Totaal leads" value={s.totalLeads} color="border-indigo-500" />
-        <Stat label="Gesprekken" value={s.totalGesprekken} color="border-blue-500" />
-        <Stat label="Klanten gewonnen" value={s.klantenGewonnen} color="border-green-500" />
-        <Stat label="Geen reactie" value={s.geenReactie} color="border-gray-400" />
-        <Stat label="Open leads" value={s.openLeads} color="border-yellow-500" />
+      {/* KPI row */}
+      <div className="grid grid-cols-2 gap-6 mb-8">
+        {/* ARR */}
+        <div className="border-2 border-black p-8 flex flex-col justify-between">
+          <div>
+            <p className="stat-label">Totaal ARR (Actief)</p>
+            <div className="text-5xl font-black tracking-tighter mt-2">{eur(s.arrTotaal)}</div>
+          </div>
+          <div className="mt-8 pt-5" style={{ borderTop: '2px solid #000' }}>
+            <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">
+              <span>NAHV Leads</span>
+              <span>Eigen Netwerk</span>
+            </div>
+            <div className="flex justify-between font-black text-lg">
+              <span>{eur(s.arrNahvLeads)}</span>
+              <span>{eur(s.arrEigenNetwerk)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Klanten */}
+        <div className="border-2 border-black p-8 flex flex-col justify-between">
+          <div>
+            <p className="stat-label">Klanten Gewonnen</p>
+            <div className="flex items-baseline gap-4 mt-2">
+              <div className="text-5xl font-black tracking-tighter">{s.klantenGewonnen}</div>
+              <div className="text-sm font-bold text-gray-500 uppercase">klanten</div>
+            </div>
+          </div>
+          <div className="mt-8 pt-5" style={{ borderTop: '2px solid #000' }}>
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-bold uppercase tracking-widest text-gray-500">Conversie Lead → Klant</span>
+              <span className="text-2xl font-black">{s.conversieLead}%</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Row 2: Conversie */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <Stat label="Conversie (lead → klant)" value={`${s.conversieLead}%`} sub="van totaal excl. geen reactie" color="border-indigo-400" />
-        <Stat label="Conversie (gesprek → klant)" value={`${s.conversieGesprek}%`} sub="van gesprekken" color="border-blue-400" />
+      {/* Metrics grid */}
+      <div className="grid grid-cols-4 gap-4 mb-10">
+        {[
+          { label: 'Totaal Leads', value: String(s.totalLeads) },
+          { label: 'Pipeline Waarde', value: eur(s.pipelineWaarde) },
+          { label: 'Gem. Dealcyclus', value: `${s.gemDealcyclus}d` },
+          { label: 'Stale >14d', value: String(s.staleLeads14), alert: s.staleLeads14 > 0 },
+          { label: 'Gesprekken', value: String(s.totalGesprekken) },
+          { label: 'Open Leads', value: String(s.openLeads) },
+          { label: 'Gem. Opvolging', value: `${s.gemDagenOpvolging}d` },
+          { label: 'Per Maand', value: `${s.klantenPerMaand} kl.` },
+        ].map(m => (
+          <div key={m.label} className={`p-5 border-2 ${m.alert ? 'border-black bg-black text-white' : 'border-black'}`}>
+            <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${m.alert ? 'text-gray-400' : 'text-gray-500'}`}>{m.label}</p>
+            <p className="text-2xl font-black tracking-tighter">{m.value}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Row 3: ARR */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        <Stat label="ARR NAHV leads" value={eur(s.arrNahvLeads)} color="border-green-500" />
-        <Stat label="ARR eigen netwerk" value={eur(s.arrEigenNetwerk)} color="border-teal-500" />
-        <Stat label="Totaal ARR" value={eur(s.arrTotaal)} sub="gecombineerd" color="border-emerald-600" />
-      </div>
-
-      {/* Row 4: Financial metrics */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        <Stat label="Gem. offerteprijs" value={eur(s.gemOfferteprijs)} color="border-purple-500" />
-        <Stat label="Gem. ARR per klant" value={eur(s.gemArrPerKlant)} color="border-violet-500" />
-        <Stat label="Pipeline waarde" value={eur(s.pipelineWaarde)} sub="open offertesals" color="border-orange-500" />
-      </div>
-
-      {/* Row 5: Operational metrics */}
-      <div className="grid grid-cols-4 gap-3 mb-4">
-        <Stat label="Gem. opvolgsnelheid" value={`${s.gemDagenOpvolging}d`} sub="dagen tot eerste contact" color="border-sky-500" />
-        <Stat label="Mediaan opvolging" value={`${s.medOpvolgsnelheid}d`} color="border-sky-400" />
-        <Stat label="Gem. dealcyclus" value={`${s.gemDealcyclus}d`} sub="datum t/m offerte" color="border-cyan-500" />
-        <Stat label="Stale leads >14d" value={s.staleLeads14} sub={`${s.staleLeads30} leads >30d`} color={s.staleLeads14 > 0 ? 'border-red-400' : 'border-green-400'} />
-      </div>
-
-      {/* Row 6: Activity */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <Stat label="Maanden actief" value={s.maandenActief} color="border-slate-400" />
-        <Stat label="Leads per maand" value={s.leadsPerMaand} color="border-slate-500" />
-        <Stat label="Klanten per maand" value={s.klantenPerMaand} color="border-slate-600" />
-      </div>
-
-      {/* Recent leads + monthly */}
-      <div className="grid grid-cols-2 gap-6">
-        <div className="card p-6">
-          <h3 className="font-semibold text-gray-700 mb-4 text-sm uppercase tracking-wide">Recente leads</h3>
-          <div className="space-y-2">
-            {data.recentLeads.map(lead => (
-              <div key={lead.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+      {/* Bottom row */}
+      <div className="grid grid-cols-3 gap-6">
+        {/* Recente leads */}
+        <div className="col-span-2 border-2 border-black">
+          <div className="px-6 py-4" style={{ borderBottom: '2px solid #000' }}>
+            <h3 className="text-xs font-black uppercase tracking-widest">Recente Leads</h3>
+          </div>
+          <div className="divide-y divide-black">
+            {data.recentLeads.slice(0, 6).map(lead => (
+              <div key={lead.id} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50">
                 <div>
-                  <p className="text-sm font-medium text-gray-700">{lead.naam}</p>
-                  <p className="text-xs text-gray-400">{lead.bron || '—'} · {fmtDate(lead.datum_binnenkoms)}</p>
+                  <p className="font-bold text-sm uppercase tracking-tight">{lead.naam}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{lead.bron || '—'} · {fmtDate(lead.datum_binnenkoms)}</p>
                 </div>
-                <div className="text-right">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[lead.status] || 'bg-gray-100 text-gray-500'}`}>
-                    {STATUS_LABELS[lead.status] || lead.status}
-                  </span>
-                  {lead.prijs_voorstel && <p className="text-xs text-gray-400 mt-0.5">{eur(lead.prijs_voorstel)}</p>}
+                <div className="flex items-center gap-4">
+                  {lead.prijs_voorstel && <span className="text-sm font-black">{eur(lead.prijs_voorstel)}</span>}
+                  <span className="tag">{lead.status}</span>
                 </div>
               </div>
             ))}
           </div>
+          <div className="px-6 py-3" style={{ borderTop: '2px solid #000' }}>
+            <Link href="/leads" className="text-xs font-bold uppercase tracking-widest hover:underline">Bekijk alle leads →</Link>
+          </div>
         </div>
 
-        <div className="card p-6">
-          <h3 className="font-semibold text-gray-700 mb-4 text-sm uppercase tracking-wide">Per maand</h3>
-          <div className="space-y-3">
+        {/* Per maand */}
+        <div className="border-2 border-black">
+          <div className="px-6 py-4" style={{ borderBottom: '2px solid #000' }}>
+            <h3 className="text-xs font-black uppercase tracking-widest">Per Maand</h3>
+          </div>
+          <div className="p-6 space-y-4">
             {data.monthlyStats.map(m => {
               const maxLeads = Math.max(...data.monthlyStats.map(x => x.leads), 1);
               const pct = Math.round(m.leads / maxLeads * 100);
               const [y, mo] = m.month.split('-');
-              const maandNamen = ['', 'Jan', 'Feb', 'Mrt', 'Apr', 'Mei', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'];
               return (
                 <div key={m.month}>
-                  <div className="flex justify-between text-xs text-gray-600 mb-1">
+                  <div className="flex justify-between text-xs font-bold mb-1">
                     <span>{maandNamen[parseInt(mo)]} {y}</span>
-                    <span>{m.leads} leads · {eur(m.revenue)} ARR</span>
+                    <span>{m.leads} leads · {eur(m.revenue)}</span>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-1.5">
-                    <div className="h-1.5 rounded-full bg-indigo-400" style={{ width: `${pct}%` }} />
+                  <div className="w-full bg-gray-100 h-2" style={{ border: '1px solid #000' }}>
+                    <div className="bg-black h-full" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               );

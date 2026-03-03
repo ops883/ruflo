@@ -1,352 +1,442 @@
 'use client';
 import { useState } from 'react';
 
-const TEMPLATES = {
-  kennismakingNL: {
-    label: 'Kennismaking NL',
-    subject: 'NAHV – Kennismakingsgesprek',
-    body: `Hoi [naam],
+function CopyBtn({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  }
+  return (
+    <button onClick={copy} className="btn-secondary text-xs px-3 py-1.5 absolute bottom-3 right-3">
+      {copied ? '✓ Gekopieerd' : 'Kopieer'}
+    </button>
+  );
+}
 
-Goed om met je in contact te komen! Ik ben Pim, van NAHV – wij verzorgen de administratie, belastingaangiftes en het maandelijkse boekhoudwerk voor zelfstandigen en kleine ondernemingen.
+function Template({ id, label, content }: { id: string; label: string; content: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border border-black">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex justify-between items-center px-4 py-3 bg-gray-50 hover:bg-black hover:text-white text-left"
+      >
+        <span className="text-xs font-bold uppercase tracking-widest">{label}</span>
+        <span className="text-xs font-bold">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="p-4 relative" style={{ borderTop: '1px solid #000' }}>
+          <textarea
+            id={id}
+            readOnly
+            className="w-full text-xs text-gray-700 bg-transparent border-none resize-none outline-none leading-relaxed font-mono"
+            rows={content.split('\n').length + 1}
+            value={content}
+          />
+          <CopyBtn text={content} />
+        </div>
+      )}
+    </div>
+  );
+}
 
-Ik zou graag een kort kennismakingsgesprek inplannen om te kijken of we je goed kunnen helpen. Is er een moment dat jou uitkomt? Ik ben flexibel.
+const STAPPEN = [
+  {
+    num: 1,
+    title: 'Binnenkomst via kanaal',
+    desc: 'Lead komt binnen via de website of een ander kanaal.',
+    templates: [],
+  },
+  {
+    num: 2,
+    title: 'Secretariaat pakt op',
+    desc: 'Secretariaat zet in lijst en stuurt standaard mail.',
+    templates: [],
+  },
+  {
+    num: 3,
+    title: 'Herverdeling vennoot',
+    desc: 'De vennoot beoordeelt de lead globaal en verdeelt.',
+    templates: [],
+  },
+  {
+    num: 4,
+    title: 'Toewijzing',
+    desc: 'Toegewezen aan relatiebeheerder of assistent.',
+    templates: [],
+  },
+  {
+    num: 5,
+    title: 'Inplannen Kennismaking',
+    desc: 'Inplannen kennismaking door relatiebeheerder op basis van template. Pro-tip: stuur direct twee concrete datum/tijd opties mee.',
+    templates: [
+      {
+        id: 'tpl-ken', label: 'Mail kennismaking (NL & EN)',
+        content: `Beste …,
+
+Leuk dat je interesse hebt om klant te worden bij NAHV! Ik maak graag kennis om te bespreken hoe we je kunnen helpen. Dat kan bij ons op kantoor en er zitten geen kosten aan verbonden.
+
+Zou een van de onderstaande momenten voor jou passen?
+• Dinsdag 6 januari van 14:00 tot 15:00
+• Donderdag 8 januari van 11:00 tot 12:00
+
+Laat maar weten wat je voorkeur heeft, dan plan ik de afspraak in.
+
+---
+
+Dear …,
+
+Nice to hear that you're interested in becoming a client of NAHV. I'd be happy to get to know each other and discuss how we can support you. We can meet at our office, and the introduction is free of charge.
+
+Would one of the following time slots work for you?
+• Tuesday, January 6, from 2:00 to 3:00 PM
+• Thursday, January 8, from 11:00 AM to 12:00 PM
+
+Let me know what works best for you, and I'll schedule the appointment.`,
+      },
+      {
+        id: 'tpl-rem-afs', label: 'Reminder afspraak inplannen',
+        content: `Beste [Naam],
+
+Onlangs heb ik je een bericht gestuurd over het inplannen van een kennismaking bij NAHV. Ik was benieuwd of je hier nog interesse in hebt.
+
+Als je het prettig vindt, plannen we graag een korte kennismaking in (op kantoor of online) om te bespreken hoe we je kunnen helpen. Laat gerust weten wat voor jou uitkomt, dan kijk ik mee in de agenda.
+
+---
+
+Dear [Name],
+
+I recently sent you a message about scheduling an introductory meeting with NAHV. I just wanted to check whether you are still interested.
+
+If so, we would be happy to plan a short introduction (either at our office or online) to discuss how we can support you. Let me know what suits you, and I'll take care of the scheduling.`,
+      },
+      {
+        id: 'tpl-koude', label: 'Lead template (Koude intro / Netwerk)',
+        content: `Hey [naam],
+
+Hoe gaat ie? Lang geleden!
+
+Ik werk sinds vorig jaar bij NAHV Belastingadviseurs. We helpen ondernemers met hun financiën — belastingaangifte, pensioen, dat soort zaken.
+
+Ik dacht aan je omdat [je een eigen zaak hebt / je zzp'er bent]. Geen idee of je al goed zit qua adviseur, maar mocht je ooit ergens tegenaan lopen of gewoon eens willen sparren — laat gerust weten.
+
+Hoe is het verder met je?
+Groet,
+[Jouw naam]`,
+      },
+    ],
+  },
+  {
+    num: 6,
+    title: 'Achtergrond klant doornemen',
+    desc: 'Bekijk de bedrijfswebsite, controleer KVK gegevens, zoek de contactpersoon op via LinkedIn.',
+    templates: [],
+  },
+  {
+    num: 7,
+    title: 'Standaard script aanpassen',
+    desc: 'Pas het standaard gespreksscript aan op basis van de specifieke klantbehoefte en details.',
+    templates: [],
+  },
+  {
+    num: 8,
+    title: 'Kennismaking via Teams',
+    desc: 'Voer de kennismaking uit op basis van het script. Opnemen in Teams mag voor een transcript. Laat de klant 70% van de tijd praten.',
+    templates: [
+      {
+        id: 'tpl-gesprek', label: 'Template Gesprek / Vragenlijst',
+        content: `Welkom & Kennismaking (5 min)
+Introductie van jezelf en NAHV: "Wij zijn fiscalisten en belastingadviseurs, geen standaard boekhouders. Wij denken echt met je mee..."
+
+Huidige situatie (10-15 min)
+- Wat doe je precies met je bedrijf?
+- Hoe is je bedrijfsstructuur nu geregeld (Eenmanszaak, BV, Holding)?
+- Werk je internationaal of heb je US connecties?
+- Wie doet momenteel je aangiftes en administratie?
+- Welk boekhoudpakket gebruik je (bijv. Moneybird, Exact)?
+
+Pijnpunten & Behoeftes (5 min)
+- Waar loop je nu tegenaan? (bijv. weinig proactief advies, trage communicatie)
+
+Wat wij kunnen betekenen (5 min)
+- Onze visie op ontzorging
+- Uitleg abonnement vs uurtje-factuurtje
+
+Vervolgstappen (5 min)
+- Voorstel volgt na dit gesprek
+- Check voor vragen`,
+      },
+    ],
+  },
+  {
+    num: 9,
+    title: 'Standaard template voorstel aanpassen',
+    desc: 'Werk het voorstel uit op basis van het gesprek (transcript). Check: KVK gecheckt, UBO formulier verstuurd, calculator bedrag afgestemd.',
+    templates: [
+      {
+        id: 'tpl-prijs-ind', label: 'Mail Prijs Indicatie',
+        content: `Beste {{naam}},
+
+Dank voor je bericht.
+
+Hierbij alvast een indicatie van onze tarieven. Voor een eenmanszaak liggen de jaarlijkse kosten doorgaans tussen de €750 en €950 exclusief btw, afhankelijk van de omvang en complexiteit van de administratie.
+
+Dit bedrag is inclusief:
+- het controleren en verwerken van de administratie
+- het verzorgen van de btw-aangiftes
+- het opstellen van de jaarcijfers
+- het indienen van de inkomstenbelasting (voor jou en eventueel je fiscale partner)
+
+In het eerste jaar kunnen de kosten iets hoger uitvallen, bijvoorbeeld wanneer we de administratie van een vorig kantoor overnemen of extra moeten opschonen.
+
+Op [datum] kunnen we online kennismaken om jouw situatie kort door te nemen. Op basis daarvan kan ik aangeven welk tarief in jouw geval het meest passend is.`,
+      },
+      {
+        id: 'tpl-voorstel', label: 'Template Voorstel (Hoofd Voorstel NL)',
+        content: `Hi {{naam}},
+
+Leuk je eerder gesproken te hebben! Zoals beloofd stuur ik je hierbij een kort overzicht van onze diensten, een indicatie van de kosten en hoe we de overgang soepel kunnen laten verlopen.
+
+Onze diensten
+Wij zijn aangesloten bij het Register Belastingadviseurs (RB) en werken met een vier-ogenprincipe bij alle aangiftes om de kwaliteit te waarborgen.
+
+Wij kunnen je ondersteunen bij:
+- btw-aangiftes
+- aangiftes inkomstenbelasting (voor jou en je partner)
+- boekhouding (controle administratie, opstellen jaarstukken)
+- algemeen financieel advies via onze gespecialiseerde collega's
+
+Kostenindicatie
+Voor de onderstaande werkzaamheden rekenen we op jaarbasis op circa €{{tarief}} exclusief btw:
+- controle van de administratie en indienen van de btw-aangiftes
+- opstellen van de jaarstukken
+- indienen van de aangiftes inkomstenbelasting
+
+Let op: in het eerste jaar kunnen de kosten iets hoger uitvallen in verband met het inwerken en overnemen van gegevens.
+
+Vervolgstappen
+Om de overstap in gang te zetten, ontvang ik graag een reactie of je akkoord gaat. Dan plannen we de volgende stap.
 
 Met vriendelijke groet,
-Pim
-NAHV – Administratie & Belastingen
-www.nahv.nl`,
-  },
-  kennismakingEN: {
-    label: 'Kennismaking EN',
-    subject: 'NAHV – Introduction call',
-    body: `Hi [name],
+Pim Holthof`,
+      },
+      {
+        id: 'tpl-voorstel-en', label: 'Template Voorstel (Hoofd Voorstel EN)',
+        content: `Hi {{naam}},
 
-Great to connect! I'm Pim, from NAHV – we handle bookkeeping, tax filings and monthly accounting for freelancers and small businesses in the Netherlands.
+It was nice speaking with you earlier. As promised, below you'll find a summary of what we discussed and a cost indication.
 
-I'd love to schedule a short introduction call to see how we can help you. Are you available for a quick chat? I'm flexible with timing.
+Scope of services
+We can support you with:
+- Quarterly VAT returns (including ICP reporting where applicable)
+- Review of your administration (invoices/expenses/receipts)
+- Preparation of the annual financial statements
+- Filing of the annual income tax return
 
-Kind regards,
-Pim
-NAHV – Accounting & Tax
-www.nahv.nl`,
-  },
-  voorstellNL: {
-    label: 'Voorstel NL',
-    subject: 'NAHV – Ons voorstel voor je administratie',
-    body: `Hoi [naam],
+Cost indication
+Based on your situation as discussed, the annual fee is estimated at €{{tarief}} excl. VAT.
 
-Bedankt voor ons gesprek! Zoals besproken stuur ik je hierbij ons voorstel.
+This includes:
+- Reviewing your administration
+- Submitting VAT returns and ICP reporting
+- Preparing the annual financial statements
+- Filing the annual income tax return
 
-**Wat wij voor je doen:**
-- Maandelijkse boekhouding en rapportage
-- Btw-aangifte (kwartaal of maand)
-- Jaarrekening en inkomstenbelasting
-- Persoonlijk aanspreekpunt via e-mail en telefoon
+If you confirm your agreement, I will send you a short onboarding checklist.
 
-**Prijs:** €[bedrag] per maand (excl. btw)
-
-Dit is een all-in prijs – geen verrassingen achteraf. Je kunt altijd met vragen bij ons terecht.
-
-Wil je akkoord geven? Stuur dan een berichtje terug en ik regel de rest.
-
-Met vriendelijke groet,
-Pim
-NAHV`,
-  },
-  voorstellEN: {
-    label: 'Voorstel EN',
-    subject: 'NAHV – Our proposal for your bookkeeping',
-    body: `Hi [name],
-
-Thanks for our conversation! As discussed, please find our proposal below.
-
-**What we do for you:**
-- Monthly bookkeeping and reporting
-- VAT returns (quarterly or monthly)
-- Annual accounts and income tax
-- Personal point of contact via email and phone
-
-**Price:** €[amount] per month (excl. VAT)
-
-This is an all-inclusive price – no surprises. You can always reach us with questions.
-
-Ready to proceed? Just send a quick reply and I'll take care of the rest.
-
-Kind regards,
-Pim
-NAHV`,
-  },
-  onboardingNL: {
-    label: 'Onboarding NL',
-    subject: 'Welkom bij NAHV – volgende stappen',
-    body: `Hoi [naam],
-
-Welkom bij NAHV! We zijn blij dat je voor ons gekozen hebt.
-
-Om je administratie goed op te starten hebben we het volgende nodig:
-
-1. **KvK-uittreksel** (of je KvK-nummer)
-2. **BSN-nummer** (voor belastingzaken)
-3. **Bankafschriften** van het lopende jaar (PDF of via Twikey)
-4. **Inloggegevens boekhoudpakket** (als je er al een gebruikt)
-5. **Openstaande facturen** (debiteuren en crediteuren)
-
-Je kunt alles sturen naar: administratie@nahv.nl
-
-Heb je vragen? Bel of app me gerust.
-
-Met vriendelijke groet,
-Pim
-NAHV`,
-  },
-  onboardingEN: {
-    label: 'Onboarding EN',
-    subject: 'Welcome to NAHV – next steps',
-    body: `Hi [name],
-
-Welcome to NAHV! We're happy to have you on board.
-
-To get your bookkeeping set up, we'll need the following:
-
-1. **Chamber of Commerce extract** (or your CoC number)
-2. **BSN / tax ID number**
-3. **Bank statements** for the current year (PDF or via Twikey)
-4. **Accounting software login** (if you're already using one)
-5. **Outstanding invoices** (accounts receivable and payable)
-
-Please send everything to: administratie@nahv.nl
-
-Any questions? Feel free to call or message me.
-
-Kind regards,
-Pim
-NAHV`,
-  },
-};
-
-const PROCESS_STEPS = [
-  {
-    step: 1,
-    title: 'Lead binnenkomt',
-    description: 'Lead wordt toegevoegd via website, referral, Google of netwerk. Datum binnenkoms wordt geregistreerd.',
-    color: 'bg-indigo-500',
-    textColor: 'text-indigo-700',
-    bgLight: 'bg-indigo-50',
-    border: 'border-indigo-200',
+Best regards,
+Pim Holthof`,
+      },
+    ],
   },
   {
-    step: 2,
-    title: 'Opvolging binnen 24u',
-    description: 'Stuur kennismakingsmail binnen 1 dag. Opvolgdatum wordt geregistreerd. Doel: snel en persoonlijk reageren.',
-    color: 'bg-blue-500',
-    textColor: 'text-blue-700',
-    bgLight: 'bg-blue-50',
-    border: 'border-blue-200',
+    num: 10,
+    title: 'Lead lijst bijwerken',
+    desc: 'Lead lijst bijwerken obv voorstel en mail. Status → Offerte verstuurd.',
+    templates: [],
   },
   {
-    step: 3,
-    title: 'Kennismakingsgesprek',
-    description: 'Telefonisch of video kennismaking plannen. Behoeften en situatie inventariseren. Datum kennismaking vastleggen.',
-    color: 'bg-violet-500',
-    textColor: 'text-violet-700',
-    bgLight: 'bg-violet-50',
-    border: 'border-violet-200',
+    num: 11,
+    title: 'Reminder versturen',
+    desc: 'Verstuur een herinnering indien we na een week nog niks hebben gehoord.',
+    templates: [
+      {
+        id: 'tpl-rem-voor', label: 'Template Reminder Voorstel',
+        content: `Hey {{naam}},
+
+Ik hoop dat je een goede week hebt gehad. Ik was even benieuwd of je al tijd had gevonden om naar ons voorstel te kijken?
+
+Mocht je ergens vragen over hebben, of wellicht nog over willen sparren, voel je vrij om even te bellen. Of anders via WhatsApp/Email.
+
+Zo niet, dan wens ik je sowieso veel succes toe met je onderneming, en wellicht in de toekomst!`,
+      },
+    ],
   },
   {
-    step: 4,
-    title: 'Offerte versturen',
-    description: 'Op basis van gesprek maatwerk voorstel sturen. Prijs voorstel vastleggen. Status → Offerte verstuurd.',
-    color: 'bg-amber-500',
-    textColor: 'text-amber-700',
-    bgLight: 'bg-amber-50',
-    border: 'border-amber-200',
+    num: 12,
+    title: 'Akkoord of niet',
+    desc: 'Registreer de uitslag. Bij een afwijzing gebruiken we onderstaande mail.',
+    templates: [
+      {
+        id: 'tpl-afwijzing', label: 'Afwijzing (Door klant) NL/EN',
+        content: `Beste {{naam}},
+
+Dank voor je bericht en de toelichting. Ik begrijp je keuze heel goed.
+
+Voor nu dank voor de update en heel veel succes gewenst de komende jaren. Mocht je in de toekomst toch nog een second opinion of fiscale hulp zoeken, dan weet je ons te vinden.
+
+---
+
+Dear {{naam}},
+
+Thank you for your message and for letting me know.
+
+I completely understand. While it's a pity we won't be working together, I wish you the very best of luck with your new venture.
+
+If you ever need a second opinion or tax assistance in the future, please feel free to reach out.`,
+      },
+    ],
   },
   {
-    step: 5,
-    title: 'Klant geworden',
-    description: 'Na akkoord: klant_geworden = Ja. Onboarding e-mail sturen. Type klant en alle data compleet maken.',
-    color: 'bg-green-500',
-    textColor: 'text-green-700',
-    bgLight: 'bg-green-50',
-    border: 'border-green-200',
-  },
-  {
-    step: 6,
+    num: 13,
     title: 'Onboarding',
-    description: 'Documenten ophalen (KvK, BSN, bankafschriften). Administratie opstarten. Klant welkom in NAHV systeem.',
-    color: 'bg-teal-500',
-    textColor: 'text-teal-700',
-    bgLight: 'bg-teal-50',
-    border: 'border-teal-200',
+    desc: 'Als de klant akkoord is, verzamelen we gegevens en stellen we de accountomgeving in.',
+    templates: [
+      {
+        id: 'tpl-onb-welkom', label: 'Onboarding Template Klant (Welkom) NL/EN',
+        content: `Hi {{naam}},
+
+Leuk dat we vanaf [datum] voor je aan de slag gaan.
+
+Zou je het formulier in de bijlage willen invullen en aan mij willen terugsturen? De code is 0902. Zodra ik dit heb ontvangen, kunnen we je definitief als klant aanmelden en alles inrichten.
+
+De volgende stap in de onboarding loopt via ons secretariaat. Zij nemen binnenkort contact met je op om een paar praktische zaken te regelen, zoals:
+- identificatie
+- het aanvragen van de benodigde machtigingen bij de Belastingdienst
+
+Zodra dit is afgerond, kunnen wij de aangiftes voor je verzorgen en inhoudelijk aan de slag.
+
+---
+
+Hi {{naam}},
+
+Great to start working for you from [date].
+
+Could you please complete the form attached and send it back to me? The code is 0902. Once I've received this, we can register you as a client and set everything up.
+
+The next step in the onboarding process will be handled by our administration team. They will contact you shortly to arrange:
+- identification
+- applying for the required authorisations with the Dutch Tax Authorities
+
+If you have any questions in the meantime, feel free to let me know.`,
+      },
+      {
+        id: 'tpl-onb-intern', label: 'Onboarding Stappen Intern (AFAS)',
+        content: `Interne onboarding checklist:
+- Relatiekaart AFAS incl vrijevelden (Accountmanager, Soort relatie, factuur aan relatie, abonnementeind/start)
+- UBO en aandelen in tabblad eigenschappen
+- KvK Uittreksel bijschrijven in dossier als dossieritem (Type = KvK)
+- Identiteitsbewijs in dossier als dossieritem (Type = ID check, BRP afschermen incl foto)
+- Portaal uitnodiging versturen`,
+      },
+    ],
+  },
+  {
+    num: 14,
+    title: 'Periodieke Werkzaamheden & Extra Templates',
+    desc: 'Templates voor terugkerende taken zoals btw-aangiftes, voorlopige aanslagen en overdracht.',
+    templates: [
+      {
+        id: 'tpl-btw', label: 'BTW Aangifte Standaard Mail (EN)',
+        content: `Subject: VAT declaration 4th quarter 2024
+
+Enclosed I send you the VAT declaration for the 4th quarter 2024.
+
+To be paid: € 97,-
+Payment reference: 3516 1077 8150 1300
+Bank account number: NL86 INGB 0002 4455 88 in the name of Belastingdienst, Apeldoorn.
+
+Perhaps unnecessarily, I mention that the amount must be in the account of the tax authorities no later than January 31, 2025.
+
+I enclose the VAT declaration as a PDF.`,
+      },
+      {
+        id: 'tpl-va', label: 'Voorlopige Aanslag (VA)',
+        content: `Beste {{naam}},
+
+Namens [collega] heb ik je voorlopige aanslag voor 2025 bekeken. Vooralsnog is er bij ons geen voorlopige aanslag bekend.
+
+Op basis van de btw-cijfers kom ik uit op een geschatte winst van ongeveer €65.000. Klopt dit ongeveer? Daaruit volgt de volgende schatting voor de te betalen bedragen:
+- IB/PVV: ca. €12.803
+- ZVW Bijdrage: ca. €2.699
+
+Houd er rekening mee dat dit een ruwe schatting is.
+
+Heb je een andere winstverwachting? Dan kunnen we de voorlopige aanslag daarop aanpassen.
+
+Ik hoor graag wat je voorkeur heeft:
+Ik kan alvast de voorlopige aanslag (VA) indienen, zodat je in termijnen kunt betalen en belastingrente (circa 6,5%) kunt voorkomen. Of we wachten met indienen tot komend jaar.
+
+Let op: als de aangifte ná 1 april wordt ingediend, is belastingrente onvermijdelijk.`,
+      },
+      {
+        id: 'tpl-aangenaam', label: 'Overdracht Contactpersoon NL/EN',
+        content: `Beste {{naam}},
+
+Via mijn collega heb je al gehoord dat zij NAHV gaat verlaten en dat ik jullie contactpersoon word. Mijn naam is [Jouw naam] en ik neem het contact over van [Naam collega].
+
+Als je vragen hebt of even kennis wil maken, kun je me gerust mailen of bellen.
+
+---
+
+Dear {{naam}},
+
+You have already been informed by my colleague that he is leaving NAHV and that I will be your contact person going forward.
+
+My name is [Your name]. I will be taking over from [Colleague's name] and will make sure everything continues to run smoothly.
+
+If you have any questions, feel free to email or call me.`,
+      },
+    ],
   },
 ];
 
-type TemplateKey = keyof typeof TEMPLATES;
-
 export default function TemplatesPage() {
-  const [selected, setSelected] = useState<TemplateKey>('kennismakingNL');
-  const [copied, setCopied] = useState<'subject' | 'body' | null>(null);
-
-  const tpl = TEMPLATES[selected];
-
-  function copy(type: 'subject' | 'body') {
-    const text = type === 'subject' ? tpl.subject : tpl.body;
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(type);
-      setTimeout(() => setCopied(null), 2000);
-    });
-  }
-
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Templates & Proces</h2>
-        <p className="text-gray-500 text-sm mt-1">E-mail templates en leads workflow</p>
+    <div className="p-10 max-w-4xl pb-20">
+      <div className="mb-10">
+        <h2 className="text-3xl font-black tracking-tighter">Werkwijze & Templates</h2>
+        <p className="text-sm text-gray-500 mt-1 font-medium">Het 14-stappen lead management proces inclusief standaard templates.</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-6 mb-8">
-        {/* Template selector + preview */}
-        <div className="col-span-2 card">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">E-mail templates</h3>
-          </div>
+      <div className="space-y-0">
+        {STAPPEN.map((stap, i) => (
+          <div key={stap.num} className="flex gap-5 relative pb-6">
+            {/* Line */}
+            {i < STAPPEN.length - 1 && (
+              <div className="absolute left-5 top-10 bottom-0 w-px bg-gray-300" style={{ marginLeft: -0.5 }} />
+            )}
 
-          {/* Tab buttons */}
-          <div className="px-5 pt-4 flex flex-wrap gap-2">
-            {(Object.keys(TEMPLATES) as TemplateKey[]).map((key) => (
-              <button
-                key={key}
-                onClick={() => setSelected(key)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  selected === key
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {TEMPLATES[key].label}
-              </button>
-            ))}
-          </div>
-
-          <div className="p-5 space-y-4">
-            {/* Subject */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Onderwerp</label>
-                <button
-                  onClick={() => copy('subject')}
-                  className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
-                >
-                  {copied === 'subject' ? '✓ Gekopieerd' : 'Kopieer'}
-                </button>
-              </div>
-              <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-gray-700 font-medium">
-                {tpl.subject}
-              </div>
+            {/* Number */}
+            <div className="shrink-0 w-10 h-10 bg-black text-white flex items-center justify-center font-black text-sm z-10">
+              {stap.num}
             </div>
 
-            {/* Body */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Inhoud</label>
-                <button
-                  onClick={() => copy('body')}
-                  className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
-                >
-                  {copied === 'body' ? '✓ Gekopieerd' : 'Kopieer'}
-                </button>
-              </div>
-              <pre className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
-                {tpl.body}
-              </pre>
-            </div>
-          </div>
-        </div>
+            {/* Content */}
+            <div className="flex-1 border border-black p-6 bg-white">
+              <h3 className="font-black text-sm uppercase tracking-widest mb-1">{stap.title}</h3>
+              <p className="text-xs text-gray-500 mb-4 leading-relaxed">{stap.desc}</p>
 
-        {/* Quick reference */}
-        <div className="card p-5">
-          <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide mb-4">Variabelen</h3>
-          <div className="space-y-2 text-sm">
-            {[
-              { v: '[naam]', d: 'Voornaam van de lead' },
-              { v: '[name]', d: "Lead's first name (EN)" },
-              { v: '[bedrag]', d: 'Maandbedrag (excl. btw)' },
-              { v: '[amount]', d: 'Monthly amount (excl. VAT)' },
-            ].map(({ v, d }) => (
-              <div key={v} className="flex items-start gap-2">
-                <code className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-xs font-mono shrink-0">{v}</code>
-                <span className="text-gray-500 text-xs">{d}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-gray-100">
-            <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide mb-3">Talen</h3>
-            <div className="space-y-1.5 text-xs text-gray-600">
-              <div className="flex items-center gap-2">
-                <span className="w-8 h-5 bg-orange-500 rounded text-white text-xs flex items-center justify-center font-bold">NL</span>
-                <span>Nederlands — standaard</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-8 h-5 bg-blue-600 rounded text-white text-xs flex items-center justify-center font-bold">EN</span>
-                <span>Engels — buitenlandse klanten</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-gray-100">
-            <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide mb-3">Gebruik</h3>
-            <ol className="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
-              <li>Selecteer de juiste template</li>
-              <li>Kopieer onderwerp en inhoud</li>
-              <li>Vervang variabelen</li>
-              <li>Verstuur via e-mail</li>
-              <li>Noteer datum in leads</li>
-            </ol>
-          </div>
-        </div>
-      </div>
-
-      {/* Leads Proces */}
-      <div className="card">
-        <div className="px-6 py-5 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">Leads Proces</h3>
-          <p className="text-xs text-gray-500 mt-0.5">Stap-voor-stap workflow van lead naar klant</p>
-        </div>
-        <div className="p-6">
-          <div className="grid grid-cols-3 gap-4 lg:grid-cols-6">
-            {PROCESS_STEPS.map((step, i) => (
-              <div key={step.step} className="relative">
-                {i < PROCESS_STEPS.length - 1 && (
-                  <div className="hidden lg:block absolute top-5 left-full w-full h-0.5 bg-gray-200 z-0" style={{ width: 'calc(100% - 2.5rem)', left: '2.5rem' }} />
-                )}
-                <div className={`relative z-10 rounded-xl border p-4 ${step.bgLight} ${step.border}`}>
-                  <div className={`w-8 h-8 rounded-full ${step.color} text-white flex items-center justify-center text-sm font-bold mb-3`}>
-                    {step.step}
-                  </div>
-                  <h4 className={`text-xs font-semibold mb-1.5 ${step.textColor}`}>{step.title}</h4>
-                  <p className="text-xs text-gray-600 leading-relaxed">{step.description}</p>
+              {stap.templates.length > 0 && (
+                <div className="space-y-2">
+                  {stap.templates.map(tpl => (
+                    <Template key={tpl.id} id={tpl.id} label={tpl.label} content={tpl.content} />
+                  ))}
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Key rules */}
-          <div className="mt-6 pt-4 border-t border-gray-100 grid grid-cols-3 gap-4">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-xs font-semibold text-red-700 mb-1">Opvolgsnelheid</p>
-              <p className="text-xs text-gray-600">Altijd binnen <strong>24 uur</strong> opvolgen na binnenkoms. Doel: &lt;1 dag gemiddeld.</p>
-            </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-              <p className="text-xs font-semibold text-amber-700 mb-1">Stale leads</p>
-              <p className="text-xs text-gray-600">Open leads ouder dan <strong>14 dagen</strong> actief opvolgen. Ouder dan 30 dagen: urgentie hoog.</p>
-            </div>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <p className="text-xs font-semibold text-green-700 mb-1">Dealcyclus</p>
-              <p className="text-xs text-gray-600">Doel: deal sluiten binnen <strong>14 dagen</strong> na eerste contact. Gemiddeld nu ~10 dagen.</p>
+              )}
             </div>
           </div>
-        </div>
+        ))}
       </div>
     </div>
   );
