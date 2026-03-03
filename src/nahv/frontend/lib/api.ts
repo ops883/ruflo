@@ -1,100 +1,59 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || 'API fout');
-  }
+  const res = await fetch(`${API_BASE}${path}`, { headers: { 'Content-Type': 'application/json' }, ...options });
+  if (!res.ok) { const err = await res.json().catch(() => ({ error: res.statusText })); throw new Error(err.error || 'API fout'); }
   return res.json();
 }
 
-// Leads
 export const getLeads = () => request<Lead[]>('/leads');
 export const createLead = (data: Partial<Lead>) => request<Lead>('/leads', { method: 'POST', body: JSON.stringify(data) });
 export const updateLead = (id: number, data: Partial<Lead>) => request<Lead>(`/leads/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const deleteLead = (id: number) => request<{ success: boolean }>(`/leads/${id}`, { method: 'DELETE' });
-
-// Pipeline
-export const getPipelineStages = () => request<StageWithDeals[]>('/pipeline/stages');
-export const moveDealToStage = (dealId: number, stageId: number) =>
-  request<Deal>(`/pipeline/deals/${dealId}/stage`, { method: 'PUT', body: JSON.stringify({ stage_id: stageId }) });
-export const createDeal = (data: Partial<Deal>) => request<Deal>('/pipeline/deals', { method: 'POST', body: JSON.stringify(data) });
-export const deleteDeal = (id: number) => request<{ success: boolean }>(`/pipeline/deals/${id}`, { method: 'DELETE' });
-
-// Analytics
+export const getPipelineOpen = () => request<PipelineOverview>('/pipeline/open');
 export const getAnalytics = () => request<AnalyticsData>('/analytics/overview');
+export const getBronanalyse = () => request<BronRow[]>('/analytics/bronanalyse');
+export const getKpiTargets = () => request<KpiTargetsData>('/analytics/kpi-targets');
 
-// Types
+export type LeadStatus = 'Klant' | 'Geen reactie' | 'Offerte verstuurd' | 'Contact gelegd' | 'Afspraak gepland';
+export type KlantGeworden = 'Ja' | 'Nee' | '';
+
 export interface Lead {
-  id: number;
-  name: string;
-  company: string;
-  email: string;
-  phone: string | null;
-  status: 'new' | 'contacted' | 'qualified' | 'proposal' | 'won' | 'lost';
-  value: number;
-  source: string | null;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
+  id: number; naam: string; email: string; taal: 'NL' | 'EN';
+  datum_binnenkoms: string | null; opvolging: string | null;
+  status: LeadStatus; next_action: string;
+  kennismaking: string | null; mail_tarief: string | null;
+  prijs_voorstel: number | null; bron: string | null;
+  klant_geworden: KlantGeworden; herinnering: string | null;
+  reden_afwijzing: string | null; type_klant: string | null;
+  created_at: string; updated_at: string;
 }
-
-export interface Deal {
-  id: number;
-  lead_id: number;
-  stage_id: number;
-  title: string;
-  value: number;
-  probability: number;
-  notes: string | null;
-  lead_name: string;
-  company: string;
-  email: string;
-  created_at: string;
-  updated_at: string;
+export interface OpenLead extends Lead { dagenOpen: number; }
+export interface PipelineOverview { openLeads: OpenLead[]; pipelineWaarde: number; gemDealcyclus: number; staleLeads14: number; }
+export interface AnalyticsSummary {
+  totalLeads: number; totalGesprekken: number; klantenGewonnen: number; geenReactie: number; openLeads: number;
+  conversieLead: number; conversieGesprek: number; arrNahvLeads: number; arrEigenNetwerk: number; arrTotaal: number;
+  gemOfferteprijs: number; gemArrPerKlant: number; pipelineWaarde: number; gemDagenOpvolging: number;
+  medOpvolgsnelheid: number; gemDealcyclus: number; staleLeads14: number; staleLeads30: number;
+  maandenActief: number; leadsPerMaand: number; klantenPerMaand: number;
 }
-
-export interface StageWithDeals {
-  id: number;
-  name: string;
-  order: number;
-  color: string;
-  deals: Deal[];
-}
-
-export interface AnalyticsData {
-  summary: {
-    totalLeads: number;
-    newLeads: number;
-    wonLeads: number;
-    totalRevenue: number;
-    pipelineValue: number;
-    conversionRate: number;
-  };
-  leadsByStatus: Array<{ status: string; count: number; total_value: number }>;
-  dealsByStage: Array<{ name: string; color: string; deal_count: number; total_value: number }>;
-  recentLeads: Lead[];
-  monthlyStats: Array<{ month: string; leads: number; revenue: number }>;
-}
+export interface AnalyticsData { summary: AnalyticsSummary; recentLeads: Lead[]; leadsByStatus: Array<{ status: string; count: number; total_value: number }>; monthlyStats: Array<{ month: string; leads: number; revenue: number }>; }
+export interface BronRow { categorie: string; aantalLeads: number; aantalKlanten: number; conversie: number; arrTotaal: number; gemArrPerKlant: number; }
+export interface KpiItem { naam: string; waarde: number; eenheid: string; doel: number | null; doelLabel: string | null; richting: 'hoog' | 'laag' | null; }
+export interface KpiTargetsData { kpis: KpiItem[]; funnel: Array<{ label: string; waarde: number }>; }
 
 export const STATUS_LABELS: Record<string, string> = {
-  new: 'Nieuw',
-  contacted: 'Contact',
-  qualified: 'Gekwalificeerd',
-  proposal: 'Offerte',
-  won: 'Gewonnen',
-  lost: 'Verloren',
+  'Klant': 'Klant', 'Geen reactie': 'Geen reactie', 'Offerte verstuurd': 'Offerte verstuurd',
+  'Contact gelegd': 'Contact gelegd', 'Afspraak gepland': 'Afspraak gepland',
 };
-
 export const STATUS_COLORS: Record<string, string> = {
-  new: 'bg-blue-100 text-blue-700',
-  contacted: 'bg-yellow-100 text-yellow-700',
-  qualified: 'bg-indigo-100 text-indigo-700',
-  proposal: 'bg-purple-100 text-purple-700',
-  won: 'bg-green-100 text-green-700',
-  lost: 'bg-red-100 text-red-700',
+  'Klant': 'bg-green-100 text-green-700', 'Geen reactie': 'bg-gray-100 text-gray-500',
+  'Offerte verstuurd': 'bg-purple-100 text-purple-700', 'Contact gelegd': 'bg-blue-100 text-blue-700',
+  'Afspraak gepland': 'bg-yellow-100 text-yellow-700',
 };
+export function eur(v: number): string { return `€${v.toLocaleString('nl-NL')}`; }
+export function fmtDate(d: string | null): string {
+  if (!d) return '—';
+  const [y, m, day] = d.split('-');
+  return `${day}-${m}-${y}`;
+}

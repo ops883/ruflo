@@ -1,84 +1,40 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/database';
+import { Lead } from '../types';
 
 const router = Router();
 
-router.get('/stages', (_req: Request, res: Response) => {
+router.get('/open', (_req: Request, res: Response) => {
   const db = getDb();
-  const stages = db.prepare('SELECT * FROM pipeline_stages ORDER BY "order"').all() as Array<{ id: number }>;
-  const deals = db.prepare(`
-    SELECT d.*, l.name as lead_name, l.company, l.email
-    FROM deals d
-    JOIN leads l ON d.lead_id = l.id
-    ORDER BY d.value DESC
-  `).all() as Array<{ stage_id: number }>;
+  const today = new Date().toISOString().split('T')[0];
+  const allLeads = db.prepare('SELECT * FROM leads ORDER BY datum_binnenkoms ASC').all() as Lead[];
 
-  const result = stages.map((stage) => ({
-    ...stage,
-    deals: deals.filter((d) => d.stage_id === (stage as any).id),
-  }));
+  const openLeads = allLeads.filter(l =>
+    (l.status === 'Offerte verstuurd' || l.status === 'Afspraak gepland') &&
+    l.prijs_voorstel != null && l.prijs_voorstel > 0 &&
+    l.klant_geworden !== 'Ja' && l.klant_geworden !== 'Nee'
+  );
 
-  res.json(result);
-});
+  const withDays = openLeads.map(l => {
+    const dagenOpen = l.datum_binnenkoms
+      ? Math.round((new Date(today).getTime() - new Date(l.datum_binnenkoms).getTime()) / (1000 * 60 * 60 * 24))
+      : 0;
+    return { ...l, dagenOpen };
+  });
 
-router.get('/deals', (_req: Request, res: Response) => {
-  const db = getDb();
-  const deals = db.prepare(`
-    SELECT d.*, l.name as lead_name, l.company, l.email
-    FROM deals d
-    JOIN leads l ON d.lead_id = l.id
-    ORDER BY d.created_at DESC
-  `).all();
-  res.json(deals);
-});
+  const pipelineWaarde = openLeads.reduce((s, l) => s + (l.prijs_voorstel ?? 0), 0);
 
-router.post('/deals', (req: Request, res: Response) => {
-  const db = getDb();
-  const { lead_id, stage_id, title, value, expected_close_date, probability, notes } = req.body;
-
-  if (!lead_id || !stage_id || !title) {
-    return res.status(400).json({ error: 'Lead, fase en titel zijn verplicht' });
+  const won = allLeads.filter(l => l.klant_geworden === 'Ja' && l.datum_binnenkoms && l.mail_tarief);
+  let gemDealcyclus = 0;
+  if (won.length) {
+    const days = won.map(l => Math.round((new Date(l.mail_tarief!).getTime() - new Date(l.datum_binnenkoms!).getTime()) / (1000 * 60 * 60 * 24)));
+    gemDealcyclus = Math.round(days.reduce((s, d) => s + d, 0) / days.length * 10) / 10;
   }
 
-  const result = db.prepare(`
-    INSERT INTO deals (lead_id, stage_id, title, value, expected_close_date, probability, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(lead_id, stage_id, title, Number(value) || 0, expected_close_date || null, Number(probability) || 50, notes || null);
+  const d14 = new Date(today); d14.setDate(d14.getDate() - 14);
+  const staleLeads14 = withDays.filter(l => l.datum_binnenkoms && new Date(l.datum_binnenkoms) < d14).length;
 
-  const deal = db.prepare(`
-    SELECT d.*, l.name as lead_name, l.company, l.email
-    FROM deals d JOIN leads l ON d.lead_id = l.id
-    WHERE d.id = ?
-  `).get(result.lastInsertRowid);
-
-  res.status(201).json(deal);
-});
-
-router.put('/deals/:id/stage', (req: Request, res: Response) => {
-  const db = getDb();
-  const { stage_id } = req.body;
-
-  const existing = db.prepare('SELECT id FROM deals WHERE id = ?').get(req.params.id);
-  if (!existing) return res.status(404).json({ error: 'Deal niet gevonden' });
-
-  db.prepare('UPDATE deals SET stage_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').run(stage_id, req.params.id);
-
-  const deal = db.prepare(`
-    SELECT d.*, l.name as lead_name, l.company, l.email
-    FROM deals d JOIN leads l ON d.lead_id = l.id
-    WHERE d.id = ?
-  `).get(req.params.id);
-
-  res.json(deal);
-});
-
-router.delete('/deals/:id', (req: Request, res: Response) => {
-  const db = getDb();
-  const existing = db.prepare('SELECT id FROM deals WHERE id = ?').get(req.params.id);
-  if (!existing) return res.status(404).json({ error: 'Deal niet gevonden' });
-
-  db.prepare('DELETE FROM deals WHERE id = ?').run(req.params.id);
-  res.json({ success: true });
+  res.json({ openLeads: withDays, pipelineWaarde, gemDealcyclus, staleLeads14 });
 });
 
 export default router;

@@ -1,45 +1,62 @@
-export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'proposal' | 'won' | 'lost';
+export type LeadStatus = 'Klant' | 'Geen reactie' | 'Offerte verstuurd' | 'Contact gelegd' | 'Afspraak gepland';
+export type NextAction = 'Afgerond' | 'Kennismaking' | 'Onboarden' | 'Wacht op reactie' | '';
+export type Taal = 'NL' | 'EN';
+export type KlantGeworden = 'Ja' | 'Nee' | '';
 
 export interface Lead {
   id: number;
-  name: string;
-  company: string;
+  naam: string;
   email: string;
-  phone: string | null;
+  taal: Taal;
+  datum_binnenkoms: string | null;
+  opvolging: string | null;
   status: LeadStatus;
-  value: number;
-  source: string | null;
-  notes: string | null;
+  next_action: NextAction;
+  kennismaking: string | null;
+  mail_tarief: string | null;
+  prijs_voorstel: number | null;
+  bron: string | null;
+  klant_geworden: KlantGeworden;
+  herinnering: string | null;
+  reden_afwijzing: string | null;
+  type_klant: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export interface PipelineStage {
-  id: number;
-  name: string;
-  order: number;
-  color: string;
+export interface AnalyticsSummary {
+  totalLeads: number;
+  totalGesprekken: number;
+  klantenGewonnen: number;
+  geenReactie: number;
+  openLeads: number;
+  conversieLead: number;
+  conversieGesprek: number;
+  arrNahvLeads: number;
+  arrEigenNetwerk: number;
+  arrTotaal: number;
+  gemOfferteprijs: number;
+  gemArrPerKlant: number;
+  pipelineWaarde: number;
+  gemDagenOpvolging: number;
+  medOpvolgsnelheid: number;
+  gemDealcyclus: number;
+  staleLeads14: number;
+  staleLeads30: number;
+  maandenActief: number;
+  leadsPerMaand: number;
+  klantenPerMaand: number;
 }
 
-export interface Deal {
-  id: number;
-  lead_id: number;
-  stage_id: number;
-  title: string;
-  value: number;
-  expected_close_date: string | null;
-  probability: number;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
+export interface BronRow {
+  categorie: string;
+  aantalLeads: number;
+  aantalKlanten: number;
+  conversie: number;
+  arrTotaal: number;
+  gemArrPerKlant: number;
 }
 
-export interface DealWithLead extends Deal {
-  lead_name: string;
-  company: string;
-  email: string;
-}
-
-export interface StageWithDeals extends PipelineStage {
-  deals: DealWithLead[];
+export interface OpenLead extends Lead {
+  dagenOpen: number;
 }

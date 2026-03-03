@@ -3,9 +3,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const navItems = [
-  { href: '/', label: 'Dashboard', icon: '◼' },
-  { href: '/leads', label: 'Leads', icon: '◼' },
-  { href: '/pipeline', label: 'Pipeline', icon: '◼' },
+  { href: '/', label: 'Dashboard' },
+  { href: '/leads', label: 'Leads' },
+  { href: '/pipeline', label: 'Pipeline' },
+  { href: '/kpi', label: 'KPI Dashboard' },
+  { href: '/bronanalyse', label: 'Bronanalyse' },
+  { href: '/templates', label: 'Templates' },
 ];
 
 export default function Sidebar() {

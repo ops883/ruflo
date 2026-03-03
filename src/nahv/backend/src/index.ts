@@ -20,10 +20,5 @@ app.get('/api/health', (_req, res) => {
 });
 
 initDatabase().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Nahv Backend API draait op http://localhost:${PORT}`);
-  });
-}).catch((err) => {
-  console.error('Database initialisatie mislukt:', err);
-  process.exit(1);
-});
+  app.listen(PORT, () => console.log(`Nahv Backend API draait op http://localhost:${PORT}`));
+}).catch((err) => { console.error('Database initialisatie mislukt:', err); process.exit(1); });
