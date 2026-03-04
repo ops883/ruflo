@@ -104,10 +104,14 @@ COPY v3/@claude-flow/cli/docker/start-http.js /app/start-http.js
 COPY v3/@claude-flow/cli/docker/resolve-cli.js /app/resolve-cli.js
 COPY v3/@claude-flow/cli/docker/app-package.json /app/package.json
 
+# ESM import resolution walks up from the file's directory looking for
+# node_modules/. Symlink /app/node_modules → the ruflo package tree so
+# express, zod, and @modelcontextprotocol/sdk resolve correctly.
+RUN ln -s /usr/local/lib/node_modules/ruflo/node_modules /app/node_modules
+
 ENV NODE_ENV=production \
     CLAUDE_FLOW_LOG_LEVEL=info \
-    HOME=/home/ruflo \
-    NODE_PATH=/usr/local/lib/node_modules/ruflo/node_modules:/usr/local/lib/node_modules
+    HOME=/home/ruflo
 
 # Railway sets PORT automatically; default to 3000 for local testing
 ENV PORT=3000
