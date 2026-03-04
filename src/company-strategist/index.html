@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Company Strategist — Bora Ger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-primary: #272936;
+  --bg-secondary: #1e2030;
+  --bg-card: #2f3146;
+  --bg-input: #363850;
+  --blue-primary: #0070AD;
+  --blue-light: #12ABDB;
+  --teal: #14596B;
+  --teal-green: #0F878A;
+  --teal-bright: #00BFBF;
+  --grey-light: #F6F6F6;
+  --white: #FFFFFF;
+  --text-primary: #FFFFFF;
+  --text-secondary: #b0b3c6;
+  --text-muted: #7a7d94;
+  --green: #2ecc71;
+  --amber: #f39c12;
+  --red: #e74c3c;
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+
+body {
+  font-family: 'Ubuntu', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* Layout */
+.app { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 240px;
+  background: var(--bg-secondary);
+  border-right: 1px solid rgba(255,255,255,0.06);
+  padding: 24px 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 100;
+  transition: transform 0.3s ease;
+}
+
+.sidebar-header {
+  padding: 0 20px 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 16px;
+}
+
+.sidebar-header h2 {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--blue-light);
+  letter-spacing: 0.5px;
+}
+
+.sidebar-header p {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 300;
+  margin-top: 4px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 400;
+  transition: all 0.15s ease;
+  border-left: 3px solid transparent;
+}
+
+.nav-item:hover {
+  background: rgba(255,255,255,0.04);
+  color: var(--text-primary);
+}
+
+.nav-item.active {
+  background: rgba(0,112,173,0.12);
+  color: var(--blue-light);
+  border-left-color: var(--blue-light);
+}
+
+.nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+.main {
+  flex: 1;
+  margin-left: 240px;
+  padding: 32px;
+  max-width: 1200px;
+}
+
+.page { display: none; }
+.page.active { display: block; }
+
+/* Mobile */
+.mobile-header {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  z-index: 99;
+  align-items: center;
+  padding: 0 16px;
+}
+
+.menu-btn {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 8px;
+}
+
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 99;
+}
+
+@media (max-width: 768px) {
+  .mobile-header { display: flex; }
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .overlay.open { display: block; }
+  .main { margin-left: 0; padding: 72px 16px 24px; }
+}
+
+/* Typography */
+h1 { font-size: 28px; font-weight: 500; margin-bottom: 8px; }
+h2 { font-size: 20px; font-weight: 500; margin-bottom: 12px; }
+h3 { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
+.subtitle { font-size: 14px; color: var(--text-secondary); font-weight: 300; margin-bottom: 24px; }
+
+/* Cards */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: all 0.2s ease;
+}
+
+.card.clickable { cursor: pointer; }
+.card.clickable:hover {
+  border-color: var(--blue-primary);
+  transform: translateY(-1px);
+}
+
+.card-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.card-title { font-size: 16px; font-weight: 500; margin-bottom: 6px; }
+.card-desc { font-size: 13px; color: var(--text-secondary); font-weight: 300; }
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: var(--radius);
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-primary { background: var(--blue-primary); color: white; }
+.btn-primary:hover { background: #0083cc; }
+.btn-secondary { background: var(--bg-input); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.1); }
+.btn-secondary:hover { background: rgba(255,255,255,0.1); }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+
+/* Forms */
+input[type="text"], input[type="number"], input[type="password"], textarea, select {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 300;
+  transition: border-color 0.15s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--blue-light);
+}
+
+textarea { resize: vertical; min-height: 120px; }
+
+label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-group { margin-bottom: 16px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+
+/* HAICI Gauge */
+.gauge-container { text-align: center; margin: 24px 0; }
+
+.gauge {
+  width: 200px;
+  height: 110px;
+  position: relative;
+  margin: 0 auto 12px;
+}
+
+.gauge svg { width: 200px; height: 110px; }
+
+.gauge-score {
+  font-size: 36px;
+  font-weight: 700;
+  display: block;
+  margin-top: 4px;
+}
+
+.gauge-band {
+  font-size: 14px;
+  font-weight: 500;
+  display: block;
+  margin-top: 2px;
+}
+
+.band-catalytic { color: var(--green); }
+.band-stable { color: var(--blue-light); }
+.band-provisional { color: var(--amber); }
+.band-unfit { color: var(--red); }
+
+/* Comparison */
+.comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 600px) { .comparison-grid { grid-template-columns: 1fr; } }
+
+.comparison-panel {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.comparison-panel h3 { text-align: center; color: var(--blue-light); }
+
+/* OKR */
+.okr-section {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.okr-section h3 { color: var(--blue-light); margin-bottom: 16px; }
+
+.kr-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.kr-item:last-child { border-bottom: none; }
+
+.kr-text { font-size: 13px; font-weight: 300; color: var(--text-secondary); }
+
+.kr-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+.status-badge {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  border: none;
+  font-family: inherit;
+}
+
+.status-not-started { background: var(--bg-input); color: var(--text-muted); }
+.status-in-progress { background: rgba(18,171,219,0.15); color: var(--blue-light); }
+.status-complete { background: rgba(46,204,113,0.15); color: var(--green); }
+.status-at-risk { background: rgba(231,76,60,0.15); color: var(--red); }
+
+.kr-notes {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+.kr-notes textarea {
+  min-height: 40px;
+  font-size: 12px;
+  padding: 8px 10px;
+}
+
+/* Client Briefs */
+.brief-section {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.brief-section h3 { color: var(--blue-light); margin-bottom: 4px; }
+.brief-context { font-size: 13px; color: var(--text-secondary); font-weight: 300; margin-bottom: 16px; line-height: 1.7; }
+
+/* Framework Reference */
+.framework-section {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.framework-section h3 { color: var(--blue-light); margin-bottom: 12px; }
+.framework-section p { font-size: 13px; color: var(--text-secondary); font-weight: 300; margin-bottom: 10px; line-height: 1.7; }
+
+.formula {
+  background: var(--bg-input);
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  font-family: 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  color: var(--teal-bright);
+  margin: 12px 0;
+  border-left: 3px solid var(--blue-primary);
+}
+
+.level-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.level-item {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.level-badge {
+  background: var(--blue-primary);
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.level-item h4 { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+.level-item p { font-size: 12px; color: var(--text-muted); font-weight: 300; }
+
+/* Settings */
+.settings-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  max-width: 600px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Loading */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: var(--blue-light);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Draft output */
+.draft-output {
+  background: var(--bg-input);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-top: 16px;
+  min-height: 100px;
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.7;
+  font-weight: 300;
+}
+
+.char-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: right;
+  margin-top: 6px;
+}
+
+.char-count.over { color: var(--red); }
+
+/* Tabs */
+.tab-bar { display: flex; gap: 2px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.tab-btn {
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+.tab-btn:hover { color: var(--text-secondary); }
+.tab-btn.active { color: var(--blue-light); border-bottom-color: var(--blue-light); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* Slider input */
+.slider-group { margin-bottom: 14px; }
+.slider-group .slider-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.slider-group .slider-label span:first-child { font-size: 13px; font-weight: 400; color: var(--text-primary); }
+.slider-group .slider-label span:last-child { font-size: 20px; font-weight: 700; color: var(--blue-light); }
+
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-input);
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--blue-light);
+  cursor: pointer;
+  border: 2px solid var(--bg-card);
+}
+
+.var-desc { font-size: 11px; color: var(--text-muted); font-weight: 300; margin-top: 2px; }
+
+/* Toggle */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.toggle {
+  width: 44px;
+  height: 24px;
+  background: var(--bg-input);
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+
+.toggle.on { background: var(--blue-primary); }
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.toggle.on::after { transform: translateX(20px); }
+
+.toggle-label { font-size: 13px; color: var(--text-secondary); }
+
+/* Toast notification */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--green);
+  color: var(--text-primary);
+  padding: 12px 20px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  z-index: 1000;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Mobile Header -->
+  <div class="mobile-header">
+    <button class="menu-btn" onclick="toggleSidebar()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <span style="font-size:14px;font-weight:500;margin-left:8px;">Company Strategist</span>
+  </div>
+  <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h2>Company Strategist</h2>
+      <p>Bora Ger</p>
+    </div>
+    <div class="nav-item active" data-page="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item" data-page="haici">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      HAICI Calculator
+    </div>
+    <div class="nav-item" data-page="linkedin">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      LinkedIn Drafter
+    </div>
+    <div class="nav-item" data-page="okr">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+      OKR Tracker
+    </div>
+    <div class="nav-item" data-page="clients">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Client Briefs
+    </div>
+    <div class="nav-item" data-page="frameworks">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      Frameworks
+    </div>
+    <div class="nav-item" data-page="settings" style="margin-top:auto;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <h1>Bora Ger</h1>
+      <p class="subtitle">Global AI Upskilling Lead, Capgemini Invent</p>
+
+      <h2>Active Workstreams</h2>
+      <div class="card-grid">
+        <div class="card clickable" onclick="navigateTo('haici')">
+          <div class="card-label">Framework</div>
+          <div class="card-title">HAICI Framework</div>
+          <div class="card-desc">Human-AI Chemistry Index. Quantify how well humans and AI work together.</div>
+        </div>
+        <div class="card clickable" onclick="navigateTo('okr')">
+          <div class="card-label">Objectives</div>
+          <div class="card-title">Intelligent Industry OKRs</div>
+          <div class="card-desc">2026 AI upskilling objectives. Five pillars from universal access to leadership ownership.</div>
+        </div>
+        <div class="card clickable" onclick="navigateTo('clients')">
+          <div class="card-label">Engagements</div>
+          <div class="card-title">Client Engagements</div>
+          <div class="card-desc">Porsche, MAN Truck and Bus, DATEV. Active strategy and transformation work.</div>
+        </div>
+        <div class="card clickable" onclick="navigateTo('linkedin')">
+          <div class="card-label">Content</div>
+          <div class="card-title">LinkedIn Content</div>
+          <div class="card-desc">Draft and sharpen posts. Sharp, evidence-based, zero fluff.</div>
+        </div>
+        <div class="card clickable" onclick="navigateTo('frameworks')">
+          <div class="card-label">Reference</div>
+          <div class="card-title">AI Asset Exchange</div>
+          <div class="card-desc">Frameworks, maturity models, and strategic tools for AI transformation.</div>
+        </div>
+      </div>
+
+      <h2>Quick Actions</h2>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="navigateTo('linkedin')">Draft LinkedIn Post</button>
+        <button class="btn btn-primary" onclick="navigateTo('haici')">Apply HAICI to a Tool</button>
+        <button class="btn btn-secondary" onclick="navigateTo('clients')">Generate Client Brief</button>
+        <button class="btn btn-secondary" onclick="navigateTo('okr')">Review OKRs</button>
+      </div>
+    </div>
+
+    <!-- HAICI CALCULATOR -->
+    <div class="page" id="page-haici">
+      <h1>HAICI Calculator</h1>
+      <p class="subtitle">Human-AI Chemistry Index. Measure how well humans and AI collaborate.</p>
+
+      <div class="toggle-row">
+        <button class="toggle" id="comparisonToggle" onclick="toggleComparison()"></button>
+        <span class="toggle-label">Comparison mode</span>
+      </div>
+
+      <!-- Single Mode -->
+      <div id="haici-single">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+          <div>
+            <div class="slider-group">
+              <div class="slider-label"><span>P — Performance</span><span id="pVal">10</span></div>
+              <input type="range" min="0" max="20" value="10" id="pSlider" oninput="updateHAICI()">
+              <div class="var-desc">Does the AI deliver real, measurable results?</div>
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>T — Trust</span><span id="tVal">10</span></div>
+              <input type="range" min="0" max="20" value="10" id="tSlider" oninput="updateHAICI()">
+              <div class="var-desc">Do users rely on AI output without second-guessing?</div>
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>L — Cognitive Load</span><span id="lVal">5</span></div>
+              <input type="range" min="0" max="20" value="5" id="lSlider" oninput="updateHAICI()">
+              <div class="var-desc">Does it free mental bandwidth or consume it? Higher is worse.</div>
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>S — Stress</span><span id="sVal">5</span></div>
+              <input type="range" min="0" max="20" value="5" id="sSlider" oninput="updateHAICI()">
+              <div class="var-desc">Does AI feel like a partner or a burden? Higher is worse.</div>
+            </div>
+          </div>
+          <div class="gauge-container">
+            <div class="gauge">
+              <svg viewBox="0 0 200 110">
+                <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="14" stroke-linecap="round"/>
+                <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGrad)" stroke-width="14" stroke-linecap="round" id="gaugeArc" stroke-dasharray="251.3" stroke-dashoffset="125"/>
+                <defs>
+                  <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#e74c3c"/>
+                    <stop offset="35%" stop-color="#f39c12"/>
+                    <stop offset="60%" stop-color="#12ABDB"/>
+                    <stop offset="100%" stop-color="#2ecc71"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <span class="gauge-score" id="chemScore">47.1</span>
+            <span class="gauge-band band-provisional" id="chemBand">Provisional</span>
+            <div style="margin-top:12px;font-size:13px;color:var(--text-secondary);">
+              ROI Capture: <strong id="roiCapture">58.8%</strong>
+            </div>
+            <div class="formula" style="margin-top:16px;text-align:left;font-size:12px;">
+              Ci = 100 &times; (P &times; T) / (400 + L&sup2; + S&sup2;)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparison Mode -->
+      <div id="haici-comparison" style="display:none;">
+        <div class="comparison-grid">
+          <div class="comparison-panel">
+            <h3>Scenario A</h3>
+            <div class="form-group"><label>Label</label><input type="text" id="cmpA_label" value="Fantastic tool + L1 users" oninput="updateComparison()"></div>
+            <div class="slider-group"><div class="slider-label"><span>P</span><span id="cmpA_pVal">18</span></div><input type="range" min="0" max="20" value="18" id="cmpA_p" oninput="updateComparison()"></div>
+            <div class="slider-group"><div class="slider-label"><span>T</span><span id="cmpA_tVal">16</span></div><input type="range" min="0" max="20" value="16" id="cmpA_t" oninput="updateComparison()"></div>
+            <div class="slider-group"><div class="slider-label"><span>L</span><span id="cmpA_lVal">2</span></div><input type="range" min="0" max="20" value="2" id="cmpA_l" oninput="updateComparison()"></div>
+            <div class="slider-group"><div class="slider-label"><span>S</span><span id="cmpA_sVal">3</span></div><input type="range" min="0" max="20" value="3" id="cmpA_s" oninput="updateComparison()"></div>
+            <div class="gauge-container">
+              <span class="gauge-score" id="cmpA_score">—</span>
+              <span class="gauge-band" id="cmpA_band">—</span>
+              <div style="margin-top:6px;font-size:13px;color:var(--text-secondary);">ROI: <strong id="cmpA_roi">—</strong></div>
+            </div>
+          </div>
+          <div class="comparison-panel">
+            <h3>Scenario B</h3>
+            <div class="form-group"><label>Label</label><input type="text" id="cmpB_label" value="Complex tool + L5 users" oninput="updateComparison()"></div>
+            <div class="slider-group"><div class="slider-label"><span>P</span><span id="cmpB_pVal">12</span></div><input type="range" min="0" max="20" value="12" id="cmpB_p" oninput="updateComparison()"></div>
+            <div class="slider-group"><div class="slider-label"><span>T</span><span id="cmpB_tVal">8</span></div><input type="range" min="0" max="20" value="8" id="cmpB_t" oninput="updateComparison()"></div>
+            <div class="slider-group"><div class="slider-label"><span>L</span><span id="cmpB_lVal">14</span></div><input type="range" min="0" max="20" value="14" id="cmpB_l" oninput="updateComparison()"></div>
+            <div class="slider-group"><div class="slider-label"><span>S</span><span id="cmpB_sVal">12</span></div><input type="range" min="0" max="20" value="12" id="cmpB_s" oninput="updateComparison()"></div>
+            <div class="gauge-container">
+              <span class="gauge-score" id="cmpB_score">—</span>
+              <span class="gauge-band" id="cmpB_band">—</span>
+              <div style="margin-top:6px;font-size:13px;color:var(--text-secondary);">ROI: <strong id="cmpB_roi">—</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LINKEDIN DRAFTER -->
+    <div class="page" id="page-linkedin">
+      <h1>LinkedIn Post Drafter</h1>
+      <p class="subtitle">Sharp, evidence-based content. No fluff, no engagement bait.</p>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Topic or Angle</label>
+          <input type="text" id="linkedinTopic" placeholder="e.g., Why most AI benchmarks are meaningless for enterprise adoption">
+        </div>
+        <div class="form-group">
+          <label>Post Type</label>
+          <select id="linkedinType">
+            <option value="takedown">Takedown — Dismantle a common claim</option>
+            <option value="framework">Framework Drop — Introduce or apply a framework</option>
+            <option value="contrast">Contrast — Show what most get wrong vs. reality</option>
+            <option value="signal">Signal — Point to an underappreciated trend</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="generatePostBtn" onclick="generateLinkedInPost()">Generate Draft</button>
+        <button class="btn btn-secondary" id="sharpenBtn" onclick="sharpenPost()" disabled>Sharpen</button>
+      </div>
+
+      <div id="linkedinOutput" style="display:none;">
+        <label>Draft</label>
+        <textarea id="linkedinDraft" style="min-height:240px;" oninput="updateCharCount()"></textarea>
+        <div class="char-count" id="charCount">0 / 3,000</div>
+      </div>
+
+      <div id="linkedinLoading" style="display:none;text-align:center;padding:40px;">
+        <div class="spinner"></div>
+        <p style="margin-top:12px;font-size:13px;color:var(--text-muted);">Drafting...</p>
+      </div>
+
+      <div id="linkedinError" style="display:none;color:var(--red);font-size:13px;margin-top:12px;"></div>
+    </div>
+
+    <!-- OKR TRACKER -->
+    <div class="page" id="page-okr">
+      <h1>2026 AI Upskilling OKRs</h1>
+      <p class="subtitle">Five objectives. Tracked quarterly. No vanity metrics.</p>
+      <div id="okrContainer"></div>
+    </div>
+
+    <!-- CLIENT BRIEFS -->
+    <div class="page" id="page-clients">
+      <h1>Client Engagement Briefs</h1>
+      <p class="subtitle">Active engagements. Context and talking points.</p>
+      <div id="clientContainer"></div>
+    </div>
+
+    <!-- FRAMEWORKS -->
+    <div class="page" id="page-frameworks">
+      <h1>Framework Reference</h1>
+      <p class="subtitle">Strategic tools for AI transformation. Read-only reference.</p>
+
+      <div class="framework-section">
+        <h3>HAICI Framework</h3>
+        <p>The Human-AI Chemistry Index quantifies how effectively humans and AI systems collaborate. Unlike adoption metrics that count logins or usage frequency, HAICI measures the quality of the working relationship between a person and an AI tool. The framework is grounded in 87+ empirical studies spanning cognitive science, organizational psychology, and human-computer interaction.</p>
+        <div class="formula">Ci = 100 &times; (P &times; T) / (400 + L&sup2; + S&sup2;)</div>
+        <p><strong>Variables (each scored 0 to 20):</strong></p>
+        <p>P (Performance): Does the AI deliver real, measurable results? Encompasses accuracy, reliability, and task completion quality.</p>
+        <p>T (Trust): Do users rely on AI output without second-guessing? Measures calibrated trust, not blind faith. Users should trust appropriately based on the AI's actual capabilities.</p>
+        <p>L (Cognitive Load): Does the tool free mental bandwidth or consume it? Higher values indicate greater burden. An AI that requires constant supervision, complex prompting, or frequent error correction scores high on cognitive load.</p>
+        <p>S (Stress): Does AI feel like a partner or a burden? Higher values indicate greater friction. Measures anxiety, frustration, and the emotional cost of working with the tool.</p>
+        <p><strong>Certification Bands:</strong></p>
+        <p>Catalytic (75 to 100): The AI-human pairing accelerates work beyond what either could achieve alone. Rare and worth protecting.</p>
+        <p>Stable (60 to 74): Solid working relationship. The tool adds clear value with manageable overhead.</p>
+        <p>Provisional (45 to 59): The partnership works but has friction. Worth investigating what drags it down.</p>
+        <p>Unfit (0 to 44): The tool costs more than it delivers. Retrain, replace, or redesign the integration.</p>
+        <p><strong>ROI Capture:</strong> min(Ci / 80, 1) &times; 100%. A chemistry score below 80 means you are leaving value on the table. Catalytic pairings capture near-full ROI. Unfit pairings waste investment.</p>
+        <p><strong>Bilateral Extension:</strong> HAICI can be applied in both directions. How well does the human work with AI? And how well does the AI system accommodate different human working styles? This bilateral view reveals whether failures stem from tool design or user readiness.</p>
+        <p><strong>Client Delivery Model:</strong> Assess (data collection, surveys, observation), Diagnose (score calculation, pattern analysis, root cause identification), Recommend (targeted interventions, training plans, tool configuration changes). Typical engagement runs 2 to 3 weeks per team.</p>
+      </div>
+
+      <div class="framework-section">
+        <h3>Chemistry Law</h3>
+        <p><strong>Core Principle:</strong> Technology sets the potential. Culture determines the realization. A brilliant AI tool deployed into a resistant or unprepared culture will underperform a mediocre tool embraced by a ready one. This is the Chemistry Law, and it applies to every AI investment.</p>
+        <div class="formula">ROI Capture = min(Ci / 80, 1) &times; 100%</div>
+        <p><strong>The Proof Scenarios:</strong> Consider two cases. A fantastic tool (P=18, T=16) deployed to L1-level users who struggle with basic cognitive load (L=2, S=3) yields a Chemistry Score near 69 and captures roughly 86% of potential ROI. Now take a complex tool (P=12, T=8) given to L5-level innovators dealing with significant friction (L=14, S=12) and the score drops to around 15, capturing barely 19% of ROI. The tool quality matters less than the cultural and cognitive fit.</p>
+        <p><strong>The Ferrari Analogy:</strong> Buying a Ferrari does not make you a racing driver. Buying the best AI tools does not make your workforce AI-capable. Without the right skills, trust, and workflow integration, premium tools deliver economy-car results.</p>
+        <p><strong>Governance Implication:</strong> Organizations should measure and optimize Chemistry Scores as rigorously as they track license costs and feature adoption. A procurement decision without a HAICI assessment is incomplete. A training program without pre-and-post HAICI measurement is flying blind.</p>
+      </div>
+
+      <div class="framework-section">
+        <h3>L1 to L5 Consultant Proficiency Maturity Framework</h3>
+        <p>Five levels of AI proficiency for consulting professionals. Each level represents a qualitative shift in how a consultant uses AI, not just frequency of use but depth of integration into their work.</p>
+        <div class="level-grid">
+          <div class="level-item">
+            <div class="level-badge">L1</div>
+            <div>
+              <h4>Compliant Operator</h4>
+              <p>Follows instructions. Uses AI tools when told to, in prescribed ways. Can execute pre-built prompts and workflows. Does not adapt or improvise. Needs step-by-step guidance for any new AI task. The baseline. Everyone starts here.</p>
+            </div>
+          </div>
+          <div class="level-item">
+            <div class="level-badge">L2</div>
+            <div>
+              <h4>Efficient User</h4>
+              <p>Uses AI tools independently for routine tasks. Understands which tool fits which task. Can modify prompts to improve output. Saves measurable time on repetitive work. Still treats AI as a tool, not a partner.</p>
+            </div>
+          </div>
+          <div class="level-item">
+            <div class="level-badge">L3</div>
+            <div>
+              <h4>Workflow Architect</h4>
+              <p>Designs multi-step AI workflows for recurring consulting tasks. Chains tools together. Builds templates others can use. Thinks in systems, not single interactions. The pivot point between using AI and leveraging AI.</p>
+            </div>
+          </div>
+          <div class="level-item">
+            <div class="level-badge">L4</div>
+            <div>
+              <h4>Builder</h4>
+              <p>Creates custom agents, automations, and integrations. Builds solutions that scale beyond personal use. Understands API patterns, data flows, and system design at a working level. Contributes to the organization's AI capability.</p>
+            </div>
+          </div>
+          <div class="level-item">
+            <div class="level-badge">L5</div>
+            <div>
+              <h4>Innovator</h4>
+              <p>Defines new use cases. Sees opportunities others miss. Combines AI with domain expertise to create novel approaches. Teaches and mentors others. Shapes the organization's AI strategy. Not just using the tools but advancing how the organization thinks about AI.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <h1>Settings</h1>
+      <p class="subtitle">Configuration for API access and application preferences.</p>
+
+      <div class="settings-card">
+        <div class="form-group">
+          <label>Anthropic API Key</label>
+          <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Your API key is stored in localStorage and never sent anywhere except the Anthropic API.</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveApiKey()">Save API Key</button>
+          <button class="btn btn-secondary" onclick="clearApiKey()">Clear</button>
+        </div>
+
+        <div class="form-group" style="margin-top:24px;">
+          <label>Data Management</label>
+          <div class="btn-row">
+            <button class="btn btn-secondary" onclick="exportData()">Export All Data</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">Import Data</button>
+            <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Export or import all OKR progress, client notes, and settings as JSON.</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== State Management ====================
+const STATE_KEY = 'companyStrategist';
+
+const defaultOKRs = [
+  {
+    title: 'No Consultant Left Behind — Universal Access to Every Approved AI Tool',
+    krs: [
+      { text: '100% active accounts for Agentic Workbench, Prompt Academy, Co-Pilot by end of Feb', status: 'not-started', notes: '' },
+      { text: '100% of access blockers resolved within 48 hours', status: 'not-started', notes: '' },
+      { text: 'Access verification audit completed across all L1 units by end of Feb', status: 'not-started', notes: '' },
+      { text: 'Zero "no access" reports in end-of-Q1 pulse check', status: 'not-started', notes: '' }
+    ]
+  },
+  {
+    title: 'Move Beyond Tool Awareness to Real AI Fluency',
+    krs: [
+      { text: '100% foundational AI tool training completion by end of Feb', status: 'not-started', notes: '' },
+      { text: '80% complete Prompt Academy challenges to beyond-beginner by end of Q1', status: 'not-started', notes: '' },
+      { text: 'Every L1 unit holds 2+ hands-on AI skill-building sessions in Q1', status: 'not-started', notes: '' },
+      { text: 'Self-reported confidence 7+/10 in end-of-Q1 survey', status: 'not-started', notes: '' }
+    ]
+  },
+  {
+    title: 'Every Consultant Becomes a Workflow Builder',
+    krs: [
+      { text: 'Majority create at least one personal workflow/agent by end of March', status: 'not-started', notes: '' },
+      { text: '100% reach three documented workflows/agents by end of Q1', status: 'not-started', notes: '' },
+      { text: 'Every workflow linked to a specific recurring consulting task', status: 'not-started', notes: '' },
+      { text: '50+ workflows submitted to shared library by end of Q1', status: 'not-started', notes: '' }
+    ]
+  },
+  {
+    title: 'Make Impact Measurable',
+    krs: [
+      { text: 'Impact tracking template adopted by 100% by mid-Feb', status: 'not-started', notes: '' },
+      { text: 'Every team member logs one before-and-after comparison by end of Q1', status: 'not-started', notes: '' },
+      { text: '80% report measurable time savings or quality improvement', status: 'not-started', notes: '' },
+      { text: 'Aggregated impact data compiled per L1 unit, reported to leadership by end of Q1', status: 'not-started', notes: '' }
+    ]
+  },
+  {
+    title: 'Leaders Own the Adoption',
+    krs: [
+      { text: 'Every L1 lead has visibility dashboard by end of Jan', status: 'not-started', notes: '' },
+      { text: 'Weekly adoption metrics reviewed in L1 leadership meetings', status: 'not-started', notes: '' },
+      { text: 'Every L1 lead conducts 2+ individual check-ins on AI adoption', status: 'not-started', notes: '' },
+      { text: '100% of L1 units achieve 80%+ weekly active usage by end of Q1', status: 'not-started', notes: '' }
+    ]
+  }
+];
+
+const defaultClients = [
+  {
+    name: 'Porsche',
+    context: 'End-to-end AI transformation strategy. Pyramid model from Vision to Infrastructure. Focus on Intelligent Industry positioning. The engagement spans strategic alignment at the executive level through to concrete implementation roadmaps for business units. Key challenge is bridging the gap between ambition and operational readiness.',
+    notes: '',
+    talkingPoints: ''
+  },
+  {
+    name: 'MAN Truck & Bus',
+    context: 'GAIA ecosystem. Three-agent architecture: PRDAgent (requirements gathering and structuring), Solution Space Agent (options evaluation and trade-off analysis), Solution Architect Agent (technical design and implementation planning). Multi-agent evaluation for automotive use cases. The work pushes beyond single-agent demos into production-grade multi-agent orchestration.',
+    notes: '',
+    talkingPoints: ''
+  },
+  {
+    name: 'DATEV',
+    context: 'Greenfield agentic AI project called "Agentenkanzlei." The team needs a genuine transformation thesis, not a use case portfolio. Push for structural thinking. The opportunity is to define what an AI-native tax consultancy workflow looks like from first principles, not to bolt agents onto existing processes.',
+    notes: '',
+    talkingPoints: ''
+  }
+];
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return { okrs: defaultOKRs, clients: defaultClients, apiKey: '' };
+}
+
+function saveState(state) {
+  localStorage.setItem(STATE_KEY, JSON.stringify(state));
+}
+
+let state = loadState();
+
+// ==================== Navigation ====================
+function navigateTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
+  closeSidebar();
+}
+
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => navigateTo(item.dataset.page));
+});
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('open');
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+
+// ==================== Toast ====================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ==================== HAICI Calculator ====================
+function calcHAICI(p, t, l, s) {
+  const score = 100 * (p * t) / (400 + l * l + s * s);
+  const roi = Math.min(score / 80, 1) * 100;
+  let band, bandClass;
+  if (score >= 75) { band = 'Catalytic'; bandClass = 'band-catalytic'; }
+  else if (score >= 60) { band = 'Stable'; bandClass = 'band-stable'; }
+  else if (score >= 45) { band = 'Provisional'; bandClass = 'band-provisional'; }
+  else { band = 'Unfit'; bandClass = 'band-unfit'; }
+  return { score: score.toFixed(1), roi: roi.toFixed(1), band, bandClass };
+}
+
+function updateHAICI() {
+  const p = +document.getElementById('pSlider').value;
+  const t = +document.getElementById('tSlider').value;
+  const l = +document.getElementById('lSlider').value;
+  const s = +document.getElementById('sSlider').value;
+
+  document.getElementById('pVal').textContent = p;
+  document.getElementById('tVal').textContent = t;
+  document.getElementById('lVal').textContent = l;
+  document.getElementById('sVal').textContent = s;
+
+  const r = calcHAICI(p, t, l, s);
+  document.getElementById('chemScore').textContent = r.score;
+  document.getElementById('chemBand').textContent = r.band;
+  document.getElementById('chemBand').className = 'gauge-band ' + r.bandClass;
+  document.getElementById('roiCapture').textContent = r.roi + '%';
+
+  const pct = Math.min(+r.score / 100, 1);
+  const totalLen = 251.3;
+  document.getElementById('gaugeArc').setAttribute('stroke-dashoffset', totalLen * (1 - pct));
+}
+
+function toggleComparison() {
+  const toggle = document.getElementById('comparisonToggle');
+  const isOn = toggle.classList.toggle('on');
+  document.getElementById('haici-single').style.display = isOn ? 'none' : 'block';
+  document.getElementById('haici-comparison').style.display = isOn ? 'block' : 'none';
+  if (isOn) updateComparison();
+}
+
+function updateComparison() {
+  ['A', 'B'].forEach(side => {
+    const p = +document.getElementById(`cmp${side}_p`).value;
+    const t = +document.getElementById(`cmp${side}_t`).value;
+    const l = +document.getElementById(`cmp${side}_l`).value;
+    const s = +document.getElementById(`cmp${side}_s`).value;
+
+    document.getElementById(`cmp${side}_pVal`).textContent = p;
+    document.getElementById(`cmp${side}_tVal`).textContent = t;
+    document.getElementById(`cmp${side}_lVal`).textContent = l;
+    document.getElementById(`cmp${side}_sVal`).textContent = s;
+
+    const r = calcHAICI(p, t, l, s);
+    document.getElementById(`cmp${side}_score`).textContent = r.score;
+    document.getElementById(`cmp${side}_score`).className = 'gauge-score';
+    document.getElementById(`cmp${side}_band`).textContent = r.band;
+    document.getElementById(`cmp${side}_band`).className = 'gauge-band ' + r.bandClass;
+    document.getElementById(`cmp${side}_roi`).textContent = r.roi + '%';
+  });
+}
+
+// ==================== LinkedIn Drafter ====================
+const VOICE_PROMPT = `You are a ghostwriter for Bora Ger, Global AI Upskilling Lead at Capgemini Invent. Write a LinkedIn post with these rules:
+
+Voice and tone:
+Sharp and evidence-based. Every claim backed by data or direct experience.
+Critical of AI hype. Call out misleading comparisons and inflated benchmarks.
+Direct. Short sentences. Clear position. No hedging.
+No emojis. No fluff. No "excited to share" openers. No engagement bait.
+Practical over theoretical.
+
+Format rules:
+Do not use bullet points or dashes. Write in prose.
+Do not use hashtags.
+Keep under 3000 characters.
+Open with a provocative or contrarian statement.
+End with a clear takeaway, not a question begging for engagement.
+
+Bora's frameworks include: HAICI (Human-AI Chemistry Index), L1-L5 Consultant Proficiency Maturity, Chemistry Law (technology sets potential, culture determines realization).`;
+
+async function callAnthropic(systemPrompt, userMessage) {
+  const apiKey = state.apiKey;
+  if (!apiKey) {
+    throw new Error('No API key configured. Go to Settings to add your Anthropic API key.');
+  }
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }]
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.content[0].text;
+}
+
+async function generateLinkedInPost() {
+  const topic = document.getElementById('linkedinTopic').value.trim();
+  if (!topic) { showToast('Enter a topic first.'); return; }
+
+  const type = document.getElementById('linkedinType').value;
+  const typeLabels = {
+    takedown: 'Takedown — dismantle a common claim or widely accepted but wrong idea.',
+    framework: 'Framework Drop — introduce or apply one of Bora\'s frameworks to a real situation.',
+    contrast: 'Contrast — show what most people get wrong versus what the evidence actually shows.',
+    signal: 'Signal — point to an underappreciated trend that matters.'
+  };
+
+  document.getElementById('linkedinOutput').style.display = 'none';
+  document.getElementById('linkedinLoading').style.display = 'block';
+  document.getElementById('linkedinError').style.display = 'none';
+  document.getElementById('generatePostBtn').disabled = true;
+
+  try {
+    const text = await callAnthropic(
+      VOICE_PROMPT,
+      `Write a "${typeLabels[type]}" LinkedIn post about: ${topic}`
+    );
+    document.getElementById('linkedinDraft').value = text;
+    document.getElementById('linkedinOutput').style.display = 'block';
+    document.getElementById('sharpenBtn').disabled = false;
+    updateCharCount();
+  } catch (e) {
+    document.getElementById('linkedinError').textContent = e.message;
+    document.getElementById('linkedinError').style.display = 'block';
+  } finally {
+    document.getElementById('linkedinLoading').style.display = 'none';
+    document.getElementById('generatePostBtn').disabled = false;
+  }
+}
+
+async function sharpenPost() {
+  const draft = document.getElementById('linkedinDraft').value.trim();
+  if (!draft) return;
+
+  document.getElementById('sharpenBtn').disabled = true;
+  document.getElementById('linkedinLoading').style.display = 'block';
+
+  try {
+    const text = await callAnthropic(
+      VOICE_PROMPT,
+      `Sharpen this LinkedIn post. Cut unnecessary words. Make every sentence hit harder. Remove anything that reads like filler. Keep prose format, no bullet points or dashes. Keep under 3000 characters.\n\nDraft:\n${draft}`
+    );
+    document.getElementById('linkedinDraft').value = text;
+    updateCharCount();
+  } catch (e) {
+    document.getElementById('linkedinError').textContent = e.message;
+    document.getElementById('linkedinError').style.display = 'block';
+  } finally {
+    document.getElementById('linkedinLoading').style.display = 'none';
+    document.getElementById('sharpenBtn').disabled = false;
+  }
+}
+
+function updateCharCount() {
+  const len = document.getElementById('linkedinDraft').value.length;
+  const el = document.getElementById('charCount');
+  el.textContent = `${len.toLocaleString()} / 3,000`;
+  el.className = 'char-count' + (len > 3000 ? ' over' : '');
+}
+
+// ==================== OKR Tracker ====================
+const STATUS_CYCLE = ['not-started', 'in-progress', 'complete', 'at-risk'];
+const STATUS_LABELS = { 'not-started': 'Not Started', 'in-progress': 'In Progress', 'complete': 'Complete', 'at-risk': 'At Risk' };
+
+function renderOKRs() {
+  const container = document.getElementById('okrContainer');
+  container.innerHTML = '';
+
+  state.okrs.forEach((obj, oi) => {
+    const section = document.createElement('div');
+    section.className = 'okr-section';
+    section.innerHTML = `<h3>Objective ${oi + 1}: ${obj.title}</h3>`;
+
+    obj.krs.forEach((kr, ki) => {
+      const statusClass = 'status-' + kr.status;
+      const item = document.createElement('div');
+      item.className = 'kr-item';
+      item.innerHTML = `
+        <div class="kr-text">${kr.text}</div>
+        <div class="kr-controls">
+          <button class="status-badge ${statusClass}" onclick="cycleStatus(${oi},${ki})">${STATUS_LABELS[kr.status]}</button>
+        </div>
+        <div class="kr-notes">
+          <textarea placeholder="Progress notes..." oninput="updateKRNote(${oi},${ki},this.value)">${kr.notes}</textarea>
+        </div>
+      `;
+      section.appendChild(item);
+    });
+
+    container.appendChild(section);
+  });
+}
+
+function cycleStatus(oi, ki) {
+  const curr = state.okrs[oi].krs[ki].status;
+  const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(curr) + 1) % STATUS_CYCLE.length];
+  state.okrs[oi].krs[ki].status = next;
+  saveState(state);
+  renderOKRs();
+}
+
+function updateKRNote(oi, ki, value) {
+  state.okrs[oi].krs[ki].notes = value;
+  saveState(state);
+}
+
+// ==================== Client Briefs ====================
+function renderClients() {
+  const container = document.getElementById('clientContainer');
+  container.innerHTML = '';
+
+  state.clients.forEach((client, ci) => {
+    const section = document.createElement('div');
+    section.className = 'brief-section';
+    section.innerHTML = `
+      <h3>${client.name}</h3>
+      <p class="brief-context">${client.context}</p>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea oninput="updateClientNote(${ci},this.value)" placeholder="Your notes...">${client.notes}</textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm" onclick="generateTalkingPoints(${ci})">Generate Talking Points</button>
+      </div>
+      <div id="clientLoading${ci}" style="display:none;padding:12px;"><div class="spinner"></div></div>
+      <div id="clientTP${ci}" style="display:${client.talkingPoints ? 'block' : 'none'};">
+        <label>Talking Points</label>
+        <div class="draft-output" id="clientTPText${ci}">${client.talkingPoints}</div>
+      </div>
+    `;
+    container.appendChild(section);
+  });
+}
+
+function updateClientNote(ci, value) {
+  state.clients[ci].notes = value;
+  saveState(state);
+}
+
+async function generateTalkingPoints(ci) {
+  const client = state.clients[ci];
+  document.getElementById(`clientLoading${ci}`).style.display = 'block';
+
+  const systemPrompt = `You are a strategy advisor for Bora Ger, Global AI Upskilling Lead at Capgemini Invent. Generate concise, actionable talking points for a client meeting. Write in prose, no bullet points or dashes. Be direct, strategic, and grounded in the engagement context. Reference relevant frameworks (HAICI, L1-L5 maturity, Chemistry Law) where they add value.`;
+
+  const userMsg = `Client: ${client.name}\nContext: ${client.context}\n${client.notes ? 'Additional notes: ' + client.notes : ''}\n\nGenerate 4 to 6 talking points for the next meeting, written as prose paragraphs.`;
+
+  try {
+    const text = await callAnthropic(systemPrompt, userMsg);
+    state.clients[ci].talkingPoints = text;
+    saveState(state);
+    document.getElementById(`clientTPText${ci}`).textContent = text;
+    document.getElementById(`clientTP${ci}`).style.display = 'block';
+  } catch (e) {
+    showToast(e.message);
+  } finally {
+    document.getElementById(`clientLoading${ci}`).style.display = 'none';
+  }
+}
+
+// ==================== Settings ====================
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  state.apiKey = key;
+  saveState(state);
+  showToast('API key saved.');
+}
+
+function clearApiKey() {
+  state.apiKey = '';
+  document.getElementById('apiKeyInput').value = '';
+  saveState(state);
+  showToast('API key cleared.');
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'company-strategist-backup.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Data exported.');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (imported.okrs && imported.clients) {
+        state = imported;
+        saveState(state);
+        init();
+        showToast('Data imported.');
+      } else {
+        showToast('Invalid file format.');
+      }
+    } catch (err) {
+      showToast('Failed to parse file.');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ==================== Init ====================
+function init() {
+  if (state.apiKey) {
+    document.getElementById('apiKeyInput').value = state.apiKey;
+  }
+  updateHAICI();
+  renderOKRs();
+  renderClients();
+}
+
+init();
+</script>
+</body>
+</html>
