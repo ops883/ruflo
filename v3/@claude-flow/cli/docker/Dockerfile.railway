@@ -27,10 +27,9 @@ RUN npm install -g ruflo@latest \
       --no-fund \
     && npm cache clean --force
 
-# Install the Streamable HTTP dependencies into the CLI package.
+# Install the Streamable HTTP dependencies into the ruflo package tree.
 # These are needed at runtime for the HTTP transport.
 RUN GLOBAL_PREFIX=$(npm config get prefix) \
-    && CLI_NM="${GLOBAL_PREFIX}/lib/node_modules/ruflo/node_modules" \
     && cd "${GLOBAL_PREFIX}/lib/node_modules/ruflo" \
     && npm install --save \
       @modelcontextprotocol/sdk@latest \
@@ -96,13 +95,19 @@ COPY --from=build /staged/bin/ /usr/local/bin/
 
 # Ensure bin symlinks
 RUN ln -sf /usr/local/lib/node_modules/ruflo/bin/ruflo.js /usr/local/bin/ruflo 2>/dev/null || true \
-    && ln -sf /usr/local/lib/node_modules/@claude-flow/cli/bin/cli.js /usr/local/bin/claude-flow 2>/dev/null || true \
-    && chmod +x /usr/local/bin/ruflo 2>/dev/null || true \
-    && chmod +x /usr/local/bin/claude-flow 2>/dev/null || true
+    && chmod +x /usr/local/bin/ruflo 2>/dev/null || true
+
+# Copy the standalone HTTP server entry point from the repo.
+# These files are NOT in the published npm package yet, so we bundle them
+# directly from the repo into a known location inside the image.
+COPY v3/@claude-flow/cli/docker/start-http.js /app/start-http.js
+COPY v3/@claude-flow/cli/docker/resolve-cli.js /app/resolve-cli.js
+COPY v3/@claude-flow/cli/docker/app-package.json /app/package.json
 
 ENV NODE_ENV=production \
     CLAUDE_FLOW_LOG_LEVEL=info \
-    HOME=/home/ruflo
+    HOME=/home/ruflo \
+    NODE_PATH=/usr/local/lib/node_modules/ruflo/node_modules:/usr/local/lib/node_modules
 
 # Railway sets PORT automatically; default to 3000 for local testing
 ENV PORT=3000
@@ -117,4 +122,4 @@ WORKDIR /workspace
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
 # Start the Streamable HTTP MCP server
-CMD ["node", "/usr/local/lib/node_modules/ruflo/bin/mcp-http-server.js"]
+CMD ["node", "/app/start-http.js"]
