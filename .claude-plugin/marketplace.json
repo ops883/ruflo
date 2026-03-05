@@ -22,9 +22,6 @@
       },
       "homepage": "https://claude-flow.ruv.io",
       "repository": "https://github.com/ruvnet/claude-flow",
-      "bugs": {
-        "url": "https://github.com/ruvnet/claude-flow/issues"
-      },
       "license": "MIT",
       "keywords": [
         "ai-agents",
@@ -55,22 +52,6 @@
         "neural-network",
         "enterprise"
       ],
-      "features": [
-        "150+ slash commands across 19 categories",
-        "74+ specialized AI agents",
-        "Multi-agent swarm coordination (Hierarchical, Mesh, Ring, Star)",
-        "SPARC methodology integration (18 development modes)",
-        "GitHub automation (PR management, code review, releases)",
-        "Neural training with WASM acceleration (2.8-4.4x speed)",
-        "Cross-session memory persistence",
-        "Real-time performance monitoring",
-        "110+ MCP tools across 3 servers",
-        "84.8% SWE-Bench solve rate"
-      ],
-      "requirements": {
-        "claudeCode": ">=2.0.0",
-        "node": ">=20.0.0"
-      },
       "mcpServers": {
         "claude-flow": {
           "command": "npx",
