@@ -47,11 +47,22 @@ const session = safeRequire(path.join(helpersDir, 'session.js'));
 const memory = safeRequire(path.join(helpersDir, 'memory.js'));
 const intelligence = safeRequire(path.join(helpersDir, 'intelligence.cjs'));
 
+// Read hook payload from stdin (Claude Code 2.x sends JSON via stdin)
+let stdinPayload = {};
+if (!process.stdin.isTTY) {
+  try {
+    const raw = fs.readFileSync(0, 'utf8').trim();
+    if (raw) stdinPayload = JSON.parse(raw);
+  } catch (e) { /* stdin empty or not JSON -- fall back to env vars below */ }
+}
+
 // Get the command from argv
 const [,, command, ...args] = process.argv;
 
-// Get prompt from environment variable (set by Claude Code hooks)
-const prompt = process.env.PROMPT || process.env.TOOL_INPUT_command || args.join(' ') || '';
+// Get prompt: prefer stdin JSON (Claude Code 2.x), fall back to env vars (legacy)
+const prompt = stdinPayload.prompt
+  || (stdinPayload.tool_input && stdinPayload.tool_input.command)
+  || process.env.PROMPT || process.env.TOOL_INPUT_command || args.join(' ') || '';
 
 const handlers = {
   'route': () => {
@@ -125,7 +136,8 @@ const handlers = {
     // Record edit for intelligence consolidation
     if (intelligence && intelligence.recordEdit) {
       try {
-        const file = process.env.TOOL_INPUT_file_path || args[0] || '';
+        const file = (stdinPayload.tool_input && stdinPayload.tool_input.file_path)
+          || process.env.TOOL_INPUT_file_path || args[0] || '';
         intelligence.recordEdit(file);
       } catch (e) { /* non-fatal */ }
     }
