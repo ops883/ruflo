@@ -74,23 +74,14 @@ export class MiniMaxProvider extends BaseProvider {
     supportedModels: [
       'MiniMax-M2.5',
       'MiniMax-M2.5-highspeed',
-      'MiniMax-M2.1',
-      'MiniMax-M2.1-highspeed',
-      'MiniMax-M2',
     ],
     maxContextLength: {
       'MiniMax-M2.5': 204800,
       'MiniMax-M2.5-highspeed': 204800,
-      'MiniMax-M2.1': 204800,
-      'MiniMax-M2.1-highspeed': 204800,
-      'MiniMax-M2': 204800,
     },
     maxOutputTokens: {
-      'MiniMax-M2.5': 128000,
-      'MiniMax-M2.5-highspeed': 128000,
-      'MiniMax-M2.1': 16384,
-      'MiniMax-M2.1-highspeed': 16384,
-      'MiniMax-M2': 16384,
+      'MiniMax-M2.5': 192000,
+      'MiniMax-M2.5-highspeed': 192000,
     },
     supportsStreaming: true,
     supportsToolCalling: true,
@@ -114,21 +105,6 @@ export class MiniMaxProvider extends BaseProvider {
       'MiniMax-M2.5-highspeed': {
         promptCostPer1k: 0.002,
         completionCostPer1k: 0.008,
-        currency: 'USD',
-      },
-      'MiniMax-M2.1': {
-        promptCostPer1k: 0.002,
-        completionCostPer1k: 0.008,
-        currency: 'USD',
-      },
-      'MiniMax-M2.1-highspeed': {
-        promptCostPer1k: 0.001,
-        completionCostPer1k: 0.004,
-        currency: 'USD',
-      },
-      'MiniMax-M2': {
-        promptCostPer1k: 0.001,
-        completionCostPer1k: 0.004,
         currency: 'USD',
       },
     },
@@ -285,11 +261,8 @@ export class MiniMaxProvider extends BaseProvider {
 
   async getModelInfo(model: LLMModel): Promise<ModelInfo> {
     const descriptions: Record<string, string> = {
-      'MiniMax-M2.5': 'Most capable MiniMax model with 204K context and advanced reasoning (CoT up to 128K)',
+      'MiniMax-M2.5': 'Most capable MiniMax model with 204K context, 192K output, and advanced reasoning',
       'MiniMax-M2.5-highspeed': 'Fast variant of M2.5 with lower latency',
-      'MiniMax-M2.1': 'Balanced MiniMax model with 204K context',
-      'MiniMax-M2.1-highspeed': 'Fast variant of M2.1 with lower latency',
-      'MiniMax-M2': 'Standard MiniMax model with 204K context',
     };
 
     return {
@@ -297,7 +270,7 @@ export class MiniMaxProvider extends BaseProvider {
       name: model,
       description: descriptions[model] || 'MiniMax language model',
       contextLength: this.capabilities.maxContextLength[model] || 204800,
-      maxOutputTokens: this.capabilities.maxOutputTokens[model] || 16384,
+      maxOutputTokens: this.capabilities.maxOutputTokens[model] || 192000,
       supportedFeatures: [
         'chat',
         'completion',

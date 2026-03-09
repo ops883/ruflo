@@ -270,7 +270,6 @@ describe('Provider Integration Tests', () => {
 
       expect(models).toContain('MiniMax-M2.5');
       expect(models).toContain('MiniMax-M2.5-highspeed');
-      expect(models).toContain('MiniMax-M2.1');
 
       provider.destroy();
     }, 30000);
@@ -291,7 +290,7 @@ describe('Provider Integration Tests', () => {
       console.log('MiniMax-M2.5 info:', info);
 
       expect(info.contextLength).toBe(204800);
-      expect(info.maxOutputTokens).toBe(128000);
+      expect(info.maxOutputTokens).toBe(192000);
 
       provider.destroy();
     }, 30000);
