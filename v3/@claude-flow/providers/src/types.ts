@@ -18,6 +18,7 @@ export type LLMProvider =
   | 'cohere'
   | 'ollama'
   | 'ruvector'
+  | 'minimax'
   | 'openrouter'
   | 'litellm'
   | 'custom';
@@ -56,6 +57,12 @@ export type LLMModel =
   | 'codellama'
   | 'phi-4'
   | 'deepseek-coder'
+  // MiniMax Models
+  | 'MiniMax-M2.5'
+  | 'MiniMax-M2.5-highspeed'
+  | 'MiniMax-M2.1'
+  | 'MiniMax-M2.1-highspeed'
+  | 'MiniMax-M2'
   // Generic
   | 'custom-model'
   | string;
