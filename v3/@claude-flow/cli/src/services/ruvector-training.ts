@@ -136,7 +136,9 @@ export async function initializeTraining(config: TrainingConfig = {}): Promise<{
     features.push('TrajectoryBuffer');
 
     // Initialize attention mechanisms
-    const attention: any = await import('@ruvector/attention');
+    // ESM/CJS interop: @ruvector/attention exports via .default in CJS environments
+    const attentionMod: any = await import('@ruvector/attention');
+    const attention: any = attentionMod.default || attentionMod;
 
     if (config.useFlashAttention !== false) {
       flashAttention = new attention.FlashAttention(dim, 64);
@@ -180,7 +182,9 @@ export async function initializeTraining(config: TrainingConfig = {}): Promise<{
     // Initialize SONA (optional, backward compatible)
     if (config.useSona !== false) {
       try {
-        const sona = await import('@ruvector/sona');
+        // ESM/CJS interop: @ruvector/sona exports via .default in CJS environments
+        const sonaMod = await import('@ruvector/sona');
+        const sona = (sonaMod as any).default || sonaMod;
         const sonaRank = config.sonaRank || 4;
         // SonaEngine constructor: (dim, rank, alpha, learningRate) - TypeScript types are wrong
         // @ts-expect-error - SonaEngine accepts 4 positional args but types say 1
@@ -459,7 +463,9 @@ export async function benchmarkTraining(
   dim?: number,
   iterations?: number
 ): Promise<BenchmarkResult[]> {
-  const attention: any = await import('@ruvector/attention');
+  // ESM/CJS interop: @ruvector/attention exports via .default in CJS environments
+  const attentionBenchMod: any = await import('@ruvector/attention');
+  const attention: any = attentionBenchMod.default || attentionBenchMod;
   lastBenchmark = attention.benchmarkAttention(dim || 256, 100, iterations || 1000);
   return lastBenchmark ?? [];
 }
