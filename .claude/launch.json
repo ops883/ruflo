@@ -1,0 +1,26 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "MeetingToTasks AI (port 3001)",
+      "cwd": "C:/Users/SokMa/OneDrive/Downloads/04_Proyectos/MeetingToTasks",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev", "-p", "3001"],
+      "port": 3001
+    },
+    {
+      "name": "AI Content Studio (port 3000)",
+      "cwd": "C:/Users/SokMa/OneDrive/Downloads/04_Proyectos/AI_Content_Studio",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev", "-p", "3000"],
+      "port": 3000
+    },
+    {
+      "name": "Investment Dashboard (port 3002)",
+      "cwd": "C:/Users/SokMa/OneDrive/Downloads/04_Proyectos/investment-dashboard",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["react-scripts", "start"],
+      "port": 3002
+    }
+  ]
+}
