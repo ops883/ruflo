@@ -187,6 +187,28 @@ const initAction = async (ctx: CommandContext): Promise<CommandResult> => {
     return initCodexAction(ctx, { codexMode, dualMode, force, minimal, full });
   }
 
+  // ── MoFlo Project Setup ────────────────────────────────────────────
+  // Always run MoFlo init to ensure moflo.yaml, hooks, skill, and
+  // CLAUDE.md are set up, regardless of other init options.
+  try {
+    const { initMoflo } = await import('../init/moflo-init.js');
+    output.writeln();
+    output.writeln(output.bold('MoFlo Project Setup'));
+    output.writeln();
+
+    const mofloResult = await initMoflo({ projectRoot: cwd, force });
+
+    for (const step of mofloResult.steps) {
+      const icon = step.status === 'created' ? '✓' : step.status === 'updated' ? '↻' : step.status === 'skipped' ? '○' : '✗';
+      const color = step.status === 'error' ? output.error : step.status === 'skipped' ? output.dim : output.success;
+      output.writeln(`  ${icon} ${step.name.padEnd(25)} ${step.detail || ''}`);
+    }
+    output.writeln();
+  } catch (e) {
+    output.printWarning(`MoFlo setup: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  // ── End MoFlo Setup ────────────────────────────────────────────────
+
   // Check if already initialized
   const initialized = isInitialized(cwd);
   const hasExisting = initialized.claude || initialized.claudeFlow;
