@@ -47,19 +47,25 @@ Use results with score > 0.3. If no good results, fall back to reading project g
 
 ---
 
-## 2. Check Project Guidance
+## 2. Check Project-Specific Bootstrap
 
-If memory search doesn't return useful results, look for project-level guidance:
+**After reading this file, check for a project-specific bootstrap:**
 
 ```bash
-# Check if project has guidance docs
-ls .claude/guidance/ 2>/dev/null
+# Project-specific bootstrap (has domain rules, patterns, templates)
+cat .claude/guidance/agent-bootstrap.md 2>/dev/null | head -10
+```
 
-# Check if project has a core index
+If `.claude/guidance/agent-bootstrap.md` exists, **read it next**. It contains project-specific rules (entity patterns, multi-tenancy, tech stack conventions) that override generic guidance.
+
+If no project bootstrap exists, look for general project guidance:
+
+```bash
+ls .claude/guidance/ 2>/dev/null
 cat .claude/guidance/core.md 2>/dev/null | head -50
 ```
 
-Project guidance takes precedence over generic patterns.
+Project guidance always takes precedence over generic patterns.
 
 ---
 
