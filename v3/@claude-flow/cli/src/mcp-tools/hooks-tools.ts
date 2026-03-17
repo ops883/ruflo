@@ -4,7 +4,7 @@
  */
 
 import { mkdirSync, writeFileSync, existsSync, readFileSync, statSync } from 'fs';
-import { join, resolve } from 'path';
+import { dirname, join, resolve } from 'path';
 import type { MCPTool } from './types.js';
 
 // Real vector search functions - lazy loaded to avoid circular imports
@@ -203,7 +203,7 @@ function loadRoutingOutcomes(): RoutingOutcome[] {
 
 function saveRoutingOutcomes(outcomes: RoutingOutcome[]): void {
   try {
-    const dir = ROUTING_OUTCOMES_PATH.replace(/[/\\][^/\\]+$/, '');
+    const dir = dirname(ROUTING_OUTCOMES_PATH);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     // Cap at 500 entries to bound file size
     const capped = outcomes.slice(-500);
@@ -922,9 +922,10 @@ export const hooksRoute: MCPTool = {
         backendInfo = 'native VectorDb (HNSW)';
 
         // Convert results to semantic format
+        const mergedPatterns = getMergedTaskPatterns();
         semanticResult = results.map((r: { id: string; score: number }) => {
           const [patternName] = r.id.split(':');
-          const pattern = getMergedTaskPatterns()[patternName];
+          const pattern = mergedPatterns[patternName];
           return {
             intent: patternName,
             score: 1 - r.score, // Native uses distance (lower is better), convert to similarity
@@ -1246,7 +1247,7 @@ export const hooksPostTask: MCPTool = {
     const taskText = (params.task as string) || '';
     const outcomeKeywords = extractKeywords(taskText);
     let outcomePersisted = false;
-    if (taskText && agent) {
+    if (taskText && agent && agent.length <= 100 && /^[a-zA-Z0-9_-]+$/.test(agent)) {
       try {
         const outcomes = loadRoutingOutcomes();
         outcomes.push({
