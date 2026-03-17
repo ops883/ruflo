@@ -67,6 +67,8 @@ const commandLoaders: Record<string, CommandLoader> = {
   guidance: () => import('./guidance.js'),
   // RVFA Appliance Management
   appliance: () => import('./appliance.js'),
+  // MoFlo Workflow Gates
+  gate: () => import('./gate.js'),
 };
 
 // Cache for loaded commands
