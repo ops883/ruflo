@@ -66,8 +66,7 @@ const preEditCommand: Command = {
 
     try {
       // Call MCP tool for pre-edit hook
-      // Wrap MCP call in timeout to prevent indefinite hang (#13)
-      const mcpPromise = callMCPTool<{
+      const result = await callMCPTool<{
         filePath: string;
         operation: string;
         context: {
@@ -86,152 +85,6 @@ const preEditCommand: Command = {
         includePatterns: true,
         includeRisks: true,
       });
-
-      if (ctx.flags.format === 'json') {
-        output.printJson(result);
-        return { success: true, data: result };
-      }
-
-      output.writeln();
-      output.printBox(
-        [
-          `File: ${result.filePath}`,
-          `Operation: ${result.operation}`,
-          `Type: ${result.context.fileType}`,
-          `Exists: ${result.context.fileExists ? 'Yes' : 'No'}`
-        ].join('\n'),
-        'File Context'
-      );
-
-      if (result.context.suggestedAgents.length > 0) {
-        output.writeln();
-        output.writeln(output.bold('Suggested Agents'));
-        output.printList(result.context.suggestedAgents.map(a => output.highlight(a)));
-      }
-
-      if (result.context.relatedFiles.length > 0) {
-        output.writeln();
-        output.writeln(output.bold('Related Files'));
-        output.printList(result.context.relatedFiles.slice(0, 5).map(f => output.dim(f)));
-      }
-
-      if (result.context.patterns.length > 0) {
-        output.writeln();
-        output.writeln(output.bold('Learned Patterns'));
-        output.printTable({
-          columns: [
-            { key: 'pattern', header: 'Pattern', width: 40 },
-            { key: 'confidence', header: 'Confidence', width: 12, align: 'right', format: (v) => `${(Number(v) * 100).toFixed(1)}%` }
-          ],
-          data: result.context.patterns
-        });
-      }
-
-      if (result.context.risks.length > 0) {
-        output.writeln();
-        output.writeln(output.bold(output.error('Potential Risks')));
-        output.printList(result.context.risks.map(r => output.warning(r)));
-      }
-
-      if (result.recommendations.length > 0) {
-        output.writeln();
-        output.writeln(output.bold('Recommendations'));
-        output.printList(result.recommendations.map(r => output.success(`• ${r}`)));
-      }
-
-      return { success: true, data: result };
-    } catch (error) {
-      if (error instanceof MCPClientError) {
-        output.printError(`Pre-edit hook failed: ${error.message}`);
-      } else {
-        output.printError(`Unexpected error: ${String(error)}`);
-      }
-      return { success: false, exitCode: 1 };
-    }
-  }
-};
-
-// Post-edit subcommand
-const postEditCommand: Command = {
-  name: 'post-edit',
-  description: 'Record editing outcome for learning',
-  options: [
-    {
-      name: 'file',
-      short: 'f',
-      description: 'File path that was edited',
-      type: 'string',
-      required: false
-    },
-    {
-      name: 'success',
-      short: 's',
-      description: 'Whether the edit was successful',
-      type: 'boolean',
-      required: false
-    },
-    {
-      name: 'outcome',
-      short: 'o',
-      description: 'Outcome description',
-      type: 'string'
-    },
-    {
-      name: 'metrics',
-      short: 'm',
-      description: 'Performance metrics (e.g., "time:500ms,quality:0.95")',
-      type: 'string'
-    }
-  ],
-  examples: [
-    { command: 'claude-flow hooks post-edit -f src/utils.ts --success true', description: 'Record successful edit' },
-    { command: 'claude-flow hooks post-edit -f src/api.ts --success false -o "Type error"', description: 'Record failed edit' }
-  ],
-  action: async (ctx: CommandContext): Promise<CommandResult> => {
-    // Default file to 'unknown' for backward compatibility (env var may be empty)
-    const filePath = ctx.args[0] || ctx.flags.file as string || 'unknown';
-    // Default success to true for backward compatibility (PostToolUse = success, PostToolUseFailure = failure)
-    const success = ctx.flags.success !== undefined ? (ctx.flags.success as boolean) : true;
-
-    output.printInfo(`Recording outcome for: ${output.highlight(filePath)}`);
-
-    try {
-      // Parse metrics if provided
-      const metrics: Record<string, number> = {};
-      if (ctx.flags.metrics) {
-        const metricsStr = ctx.flags.metrics as string;
-        metricsStr.split(',').forEach(pair => {
-          const [key, value] = pair.split(':');
-          if (key && value) {
-            metrics[key.trim()] = parseFloat(value);
-          }
-        });
-      }
-
-      // Call MCP tool for post-edit hook
-      const result = await callMCPTool<{
-        filePath: string;
-        success: boolean;
-        recorded: boolean;
-        patternId?: string;
-        learningUpdates: {
-          patternsUpdated: number;
-          confidenceAdjusted: number;
-          newPatterns: number;
-        };
-      }>('hooks_post-edit', {
-        filePath,
-        success,
-        outcome: ctx.flags.outcome,
-        metrics,
-        timestamp: Date.now(),
-      });
-
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('session-end timed out after 3s')), 3000)
-      );
-
-      const result = await Promise.race([mcpPromise, timeoutPromise]);
 
       if (ctx.flags.format === 'json') {
         output.printJson(result);
@@ -1712,7 +1565,7 @@ const sessionEndCommand: Command = {
     output.printInfo('Ending session...');
 
     try {
-      const result = await callMCPTool<{
+      const mcpPromise = callMCPTool<{
         sessionId: string;
         duration: number;
         statePath?: string;
@@ -1728,6 +1581,12 @@ const sessionEndCommand: Command = {
         saveState: ctx.flags.saveState ?? true,
         timestamp: Date.now(),
       });
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('session-end timed out after 3s')), 3000)
+      );
+
+      const result = await Promise.race([mcpPromise, timeoutPromise]);
 
       if (ctx.flags.format === 'json') {
         output.printJson(result);
