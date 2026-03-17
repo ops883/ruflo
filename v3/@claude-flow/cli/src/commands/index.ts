@@ -72,6 +72,8 @@ const commandLoaders: Record<string, CommandLoader> = {
   appliance: () => import('./appliance.js'),
   // MoFlo Workflow Gates
   gate: () => import('./gate.js'),
+  // Feature Orchestrator
+  orc: () => import('./orc.js'),
 };
 
 // Cache for loaded commands
