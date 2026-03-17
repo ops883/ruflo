@@ -7,7 +7,8 @@
 #
 # Usage:
 #   ./scripts/review-pr.sh https://github.com/org/repo/pull/123
-#   ./scripts/review-pr.sh --chat [dir]
+#   ./scripts/review-pr.sh --chat <id>
+#   ./scripts/review-pr.sh --chat --dir <path>
 #   ./scripts/review-pr.sh -v org/repo#123
 #
 set -euo pipefail
@@ -47,7 +48,8 @@ while [[ $# -gt 0 ]]; do
       echo "  --claude-only       Skip Codex agents"
       echo "  --force             Force new review even if one exists"
       echo "  --no-chat           Skip interactive chat after review"
-      echo "  --chat [dir]        Interactive Q&A with previous review"
+      echo "  --chat <id>         Interactive Q&A by review ID (or most recent)"
+      echo "  --chat --dir <path> Interactive Q&A with explicit review directory"
       echo "  --cleanup [days]    Remove reviews older than N days (default: 21)"
       echo "  -h, --help          Show this help"
       echo ""
