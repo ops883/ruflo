@@ -3,6 +3,10 @@
  * Memory operations for AgentDB integration
  */
 
+import * as fs from 'fs';
+import * as pathModule from 'path';
+import { createHash } from 'crypto';
+import { execSync } from 'child_process';
 import type { Command, CommandContext, CommandResult } from '../types.js';
 import { output } from '../output.js';
 import { select, confirm, input } from '../prompt.js';
@@ -1515,7 +1519,6 @@ async function openDb(cwd: string): Promise<{ db: any; dbPath: string; SQL: any 
 }
 
 function saveAndCloseDb(db: any, dbPath: string): void {
-  const fs = require('fs');
   const data = db.export();
   fs.writeFileSync(dbPath, Buffer.from(data));
   db.close();
@@ -1849,7 +1852,7 @@ const indexGuidanceCommand: Command = {
     let errors = 0;
 
     const indexFile = (filePath: string, keyPrefix: string) => {
-      const fileName = pathMod.basename(filePath, pathMod.extname(filePath));
+      const fileName = pathModule.basename(filePath, pathModule.extname(filePath));
       const docKey = `doc-${keyPrefix}-${fileName}`;
       const chunkPrefix = `chunk-${keyPrefix}-${fileName}`;
 
@@ -1971,7 +1974,7 @@ const indexGuidanceCommand: Command = {
     };
 
     if (specificFile) {
-      const filePath = pathMod.resolve(cwd, specificFile);
+      const filePath = pathModule.resolve(cwd, specificFile);
       if (!fs.existsSync(filePath)) {
         output.printError(`File not found: ${specificFile}`);
         db.close();
@@ -1988,7 +1991,7 @@ const indexGuidanceCommand: Command = {
       else if (result.status === 'unchanged') { unchanged++; }
       else { errors++; output.printError(`${result.docKey}: ${(result as any).error}`); }
     } else {
-      const guidanceDir = pathMod.resolve(cwd, '.claude/guidance');
+      const guidanceDir = pathModule.resolve(cwd, '.claude/guidance');
       if (!fs.existsSync(guidanceDir)) {
         output.printError(`Guidance directory not found: .claude/guidance/`);
         db.close();
@@ -1997,7 +2000,7 @@ const indexGuidanceCommand: Command = {
 
       const files = fs.readdirSync(guidanceDir).filter((f: string) => f.endsWith('.md'));
       for (const file of files) {
-        const filePath = pathMod.resolve(guidanceDir, file);
+        const filePath = pathModule.resolve(guidanceDir, file);
         const result = indexFile(filePath, 'guidance');
         if (result.status === 'indexed') {
           output.printSuccess(`${result.docKey} (${result.chunks} chunks)`);
@@ -2022,7 +2025,7 @@ const indexGuidanceCommand: Command = {
 
       for (const { key } of docs) {
         if (!key.startsWith('doc-guidance-')) continue;
-        const checkPath = pathMod.resolve(cwd, '.claude/guidance', key.replace('doc-guidance-', '') + '.md');
+        const checkPath = pathModule.resolve(cwd, '.claude/guidance', key.replace('doc-guidance-', '') + '.md');
         if (!fs.existsSync(checkPath)) {
           const cp = key.replace('doc-', 'chunk-');
           db.run(`DELETE FROM memory_entries WHERE namespace = ? AND key LIKE ?`, [NAMESPACE, `${cp}%`]);
@@ -2305,9 +2308,7 @@ function detectKind(line: string): string {
 }
 
 function extractTypesFromFile(filePath: string, projectRoot: string): ExtractedType[] {
-  const fs = require('fs');
-  const pathMod = require('path');
-  const fullPath = pathMod.resolve(projectRoot, filePath);
+  const fullPath = pathModule.resolve(projectRoot, filePath);
   if (!fs.existsSync(fullPath)) return [];
 
   let content: string;
@@ -2419,7 +2420,7 @@ const codeMapCommand: Command = {
     const { createHash } = await import('crypto');
 
     const cwd = ctx.cwd || process.cwd();
-    const hashCachePath = pathMod.join(cwd, '.swarm', 'code-map-hash.txt');
+    const hashCachePath = pathModule.join(cwd, '.swarm', 'code-map-hash.txt');
 
     output.writeln();
     output.writeln(output.bold('Generating Code Map'));
@@ -2502,7 +2503,7 @@ const codeMapCommand: Command = {
         if (!typesByProject[project]) typesByProject[project] = [];
         typesByProject[project].push(t);
 
-        const dir = pathMod.dirname(t.file).replace(/\\/g, '/');
+        const dir = pathModule.dirname(t.file).replace(/\\/g, '/');
         if (!typesByDir[dir]) typesByDir[dir] = [];
         typesByDir[dir].push(t);
       }
@@ -2519,7 +2520,6 @@ const codeMapCommand: Command = {
       const dirMap: Record<string, string[]> = {};
 
       for (const t of types) {
-        const pathModule = require('path');
         const rel = pathModule.relative(project, pathModule.dirname(t.file)).replace(/\\/g, '/') || '(root)';
         if (!dirMap[rel]) dirMap[rel] = [];
         dirMap[rel].push(t.name);
@@ -2528,7 +2528,7 @@ const codeMapCommand: Command = {
       // Detect primary language
       let tsx = 0, ts = 0, js = 0;
       for (const f of projFiles) {
-        const ext = pathMod.extname(f);
+        const ext = pathModule.extname(f);
         if (ext === '.tsx' || ext === '.jsx') tsx++;
         else if (ext === '.ts') ts++;
         else js++;
@@ -2569,7 +2569,7 @@ const codeMapCommand: Command = {
         if (t.bases) suffix.push(`: ${t.bases}`);
         if (t.implements) suffix.push(`: ${t.implements}`);
         const suffixStr = suffix.length ? ` ${suffix.join(' ')}` : '';
-        const fileName = pathMod.basename(t.file);
+        const fileName = pathModule.basename(t.file);
         content += `  ${t.name}${suffixStr} (${fileName})\n`;
       }
 
@@ -2634,7 +2634,7 @@ const codeMapCommand: Command = {
 
       let content = `# Type Index (batch ${batchNum}, ${batch.length} types)\n\n`;
       for (const t of batch) {
-        const ext = pathMod.extname(t.file);
+        const ext = pathModule.extname(t.file);
         const lang = (ext === '.tsx' || ext === '.jsx') ? 'tsx' : ext === '.ts' ? 'ts' : ext === '.mjs' ? 'esm' : 'js';
         content += `  ${t.name} -> ${t.file} [${lang}]\n`;
       }
@@ -2673,7 +2673,7 @@ const codeMapCommand: Command = {
     saveAndCloseDb(db, dbPath);
 
     // Save hash
-    const hashDir = pathMod.dirname(hashCachePath);
+    const hashDir = pathModule.dirname(hashCachePath);
     if (!fs.existsSync(hashDir)) {
       fs.mkdirSync(hashDir, { recursive: true });
     }
