@@ -28,7 +28,7 @@ import { SqlJsBackend, SqlJsBackendConfig } from './sqljs-backend.js';
 /**
  * Available database provider types
  */
-export type DatabaseProvider = 'better-sqlite3' | 'sql.js' | 'json' | 'rvf' | 'auto';
+export type DatabaseProvider = 'sql.js' | 'json' | 'rvf' | 'auto';
 
 /**
  * Database creation options
@@ -80,7 +80,7 @@ function detectPlatform(): PlatformInfo {
   const isLinux = os === 'linux';
 
   // Recommend better-sqlite3 for Unix-like systems, sql.js for Windows
-  const recommendedProvider: DatabaseProvider = isWindows ? 'sql.js' : 'better-sqlite3';
+  const recommendedProvider: DatabaseProvider = 'sql.js';
 
   return {
     os,
@@ -98,18 +98,9 @@ async function testRvf(): Promise<boolean> {
   return true;
 }
 
-/**
- * Test if better-sqlite3 is available and working
- */
+/** better-sqlite3 removed — always returns false */
 async function testBetterSqlite3(): Promise<boolean> {
-  try {
-    const Database = (await import('better-sqlite3')).default;
-    const testDb = new Database(':memory:');
-    testDb.close();
-    return true;
-  } catch (error) {
-    return false;
-  }
+  return false;
 }
 
 /**
@@ -156,19 +147,7 @@ async function selectProvider(
     return 'rvf';
   }
 
-  // Try recommended provider
-  if (platformInfo.recommendedProvider === 'better-sqlite3') {
-    if (await testBetterSqlite3()) {
-      if (verbose) {
-        console.log('[DatabaseProvider] better-sqlite3 available and working');
-      }
-      return 'better-sqlite3';
-    } else if (verbose) {
-      console.log('[DatabaseProvider] better-sqlite3 not available, trying sql.js');
-    }
-  }
-
-  // Try sql.js as fallback
+  // Try sql.js (moflo: sql.js is the only SQLite backend)
   if (await testSqlJs()) {
     if (verbose) {
       console.log('[DatabaseProvider] sql.js available and working');
@@ -233,20 +212,6 @@ export async function createDatabase(
   let backend: IMemoryBackend;
 
   switch (selectedProvider) {
-    case 'better-sqlite3': {
-      const config: Partial<SQLiteBackendConfig> = {
-        databasePath: path,
-        walMode,
-        optimize,
-        defaultNamespace,
-        maxEntries,
-        verbose,
-      };
-
-      backend = new SQLiteBackend(config);
-      break;
-    }
-
     case 'sql.js': {
       const config: Partial<SqlJsBackendConfig> = {
         databasePath: path,

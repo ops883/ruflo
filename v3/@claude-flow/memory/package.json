@@ -18,11 +18,7 @@
     "agentdb": "^3.0.0-alpha.10",
     "sql.js": "^1.10.3"
   },
-  "optionalDependencies": {
-    "better-sqlite3": "^11.0.0"
-  },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.11",
     "@types/sql.js": "^1.4.9",
     "vitest": "^4.0.16"
   },

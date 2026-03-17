@@ -37,7 +37,7 @@ describe('DatabaseProvider', () => {
       if (info.isWindows) {
         expect(info.recommendedProvider).toBe('sql.js');
       } else {
-        expect(info.recommendedProvider).toBe('better-sqlite3');
+        expect(info.recommendedProvider).toBe('sql.js');
       }
     });
   });
@@ -126,7 +126,7 @@ describe('DatabaseProvider', () => {
       }
 
       const db = await createDatabase(':memory:', {
-        provider: 'better-sqlite3',
+        provider: 'sql.js',
         verbose: false,
       });
 
@@ -178,9 +178,9 @@ describe('DatabaseProvider', () => {
   describe('Cross-Platform Functionality', () => {
     it('should handle CRUD operations consistently across providers', async () => {
       const available = await getAvailableProviders();
-      const providers: Array<'better-sqlite3' | 'sql.js' | 'json'> = [];
+      const providers: Array<'sql.js' | 'sql.js' | 'json'> = [];
 
-      if (available.betterSqlite3) providers.push('better-sqlite3');
+      if (available.betterSqlite3) providers.push('sql.js');
       if (available.sqlJs) providers.push('sql.js');
       providers.push('json'); // Always available
 

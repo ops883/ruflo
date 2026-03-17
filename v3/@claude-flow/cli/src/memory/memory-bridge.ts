@@ -128,7 +128,7 @@ async function getRegistry(dbPath?: string): Promise<any | null> {
         console.log = (...args: unknown[]) => {
           const msg = String(args[0] ?? '');
           if (msg.includes('Transformers.js') ||
-              msg.includes('better-sqlite3') ||
+              
               msg.includes('[AgentDB]') ||
               msg.includes('[HNSWLibBackend]') ||
               msg.includes('RuVector graph')) return;
@@ -424,7 +424,7 @@ export async function bridgeStoreEntry(options: {
       }
     }
 
-    // better-sqlite3 uses synchronous .run() with positional params
+    // sql.js uses synchronous .run() with positional params
     const insertSql = options.upsert
       ? `INSERT OR REPLACE INTO memory_entries (
           id, key, namespace, content, type,
@@ -516,7 +516,7 @@ export async function bridgeSearchEntries(options: {
       // Fall back to keyword search
     }
 
-    // better-sqlite3: .prepare().all() returns array of objects
+    // Prepare/all returns array of objects
     const nsFilter = namespace !== 'all'
       ? `AND namespace = ?`
       : '';

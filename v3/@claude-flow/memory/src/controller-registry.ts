@@ -486,7 +486,7 @@ export class ControllerRegistry extends EventEmitter {
       const suppressFilter = (args: unknown[]) => {
         const msg = String(args[0] ?? '');
         return msg.includes('Transformers.js') ||
-               msg.includes('better-sqlite3') ||
+               
                msg.includes('[AgentDB]');
       };
       console.log = (...args: unknown[]) => {

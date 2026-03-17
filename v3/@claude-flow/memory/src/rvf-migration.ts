@@ -115,28 +115,17 @@ function normalizeSqliteRow(row: Record<string, unknown>): Record<string, unknow
 interface SqliteRow { [key: string]: unknown }
 
 async function readSqliteRows(dbPath: string): Promise<SqliteRow[]> {
-  // Attempt better-sqlite3
+  // Use sql.js (WASM) for SQLite reading
   try {
-    const mod = await import('better-sqlite3' as string);
-    const Database = mod.default ?? mod;
-    const db = new Database(dbPath, { readonly: true });
-    try { return db.prepare('SELECT * FROM memory_entries').all() as SqliteRow[]; }
-    finally { db.close(); }
-  } catch { /* unavailable */ }
-  // Attempt sql.js
-  try {
-    const mod = await import('sql.js' as string);
-    const SQL = await (mod.default ?? mod)();
-    const db = new SQL.Database(await readFile(dbPath));
-    try {
-      const stmt = db.prepare('SELECT * FROM memory_entries');
-      const rows: SqliteRow[] = [];
-      while (stmt.step()) rows.push(stmt.getAsObject() as SqliteRow);
-      stmt.free();
-      return rows;
-    } finally { db.close(); }
-  } catch { /* unavailable */ }
-  throw new Error('Cannot read SQLite: install better-sqlite3 or sql.js');
+    const initSqlJs = (await import('sql.js')).default;
+    const SQL = await initSqlJs();
+    const fs = await import('node:fs');
+    const buf = fs.readFileSync(dbPath);
+    const db = new SQL.Database(buf);
+    return { exec: (sql: string) => db.exec(sql), close: () => db.close() } as any;
+  } catch {
+    throw new Error('Cannot read SQLite: install sql.js');
+  }
 }
 
 // -- Batch migration helper -------------------------------------------------
