@@ -9,7 +9,15 @@
  */
 
 import { EventEmitter } from 'node:events';
-import Database from 'better-sqlite3';
+// Lazy import — better-sqlite3 is optional (requires native build tools)
+let Database: any = null;
+async function loadBetterSqlite3(): Promise<any> {
+  if (!Database) {
+    const mod = await import('better-sqlite3');
+    Database = mod.default;
+  }
+  return Database;
+}
 import {
   IMemoryBackend,
   MemoryEntry,
@@ -77,7 +85,7 @@ const DEFAULT_CONFIG: SQLiteBackendConfig = {
  */
 export class SQLiteBackend extends EventEmitter implements IMemoryBackend {
   private config: SQLiteBackendConfig;
-  private db: Database.Database | null = null;
+  private db: any = null;
   private initialized: boolean = false;
 
   // Performance tracking

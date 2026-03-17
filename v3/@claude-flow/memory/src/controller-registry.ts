@@ -11,6 +11,7 @@
  */
 
 import { EventEmitter } from 'node:events';
+import * as path from 'node:path';
 import type {
   IMemoryBackend,
   HealthCheckResult,
@@ -462,7 +463,7 @@ export class ControllerRegistry extends EventEmitter {
       // Validate dbPath to prevent path traversal
       const dbPath = config.dbPath || ':memory:';
       if (dbPath !== ':memory:') {
-        const resolved = require('path').resolve(dbPath);
+        const resolved = path.resolve(dbPath);
         if (resolved.includes('..')) {
           this.emit('agentdb:unavailable', { reason: 'Invalid dbPath' });
           return;

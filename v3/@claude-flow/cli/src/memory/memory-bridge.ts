@@ -19,6 +19,63 @@
 
 import * as path from 'path';
 import * as crypto from 'crypto';
+// ===== Project root resolution =====
+// When run via npx, CWD may be node_modules/moflo — walk up to find actual project
+import * as fs from 'fs';
+
+let _projectRoot: string | undefined;
+function getProjectRoot(): string {
+  if (_projectRoot) return _projectRoot;
+  if (process.env.CLAUDE_PROJECT_DIR) {
+    _projectRoot = process.env.CLAUDE_PROJECT_DIR;
+    return _projectRoot;
+  }
+  let dir = process.cwd();
+  const root = path.parse(dir).root;
+  while (dir !== root) {
+    if (fs.existsSync(path.join(dir, '.swarm', 'memory.db'))) {
+      _projectRoot = dir;
+      return _projectRoot;
+    }
+    if (fs.existsSync(path.join(dir, 'CLAUDE.md')) && fs.existsSync(path.join(dir, 'package.json'))) {
+      _projectRoot = dir;
+      return _projectRoot;
+    }
+    // Skip node_modules directories
+    if (path.basename(dir) === 'node_modules') {
+      dir = path.dirname(dir);
+      continue;
+    }
+    dir = path.dirname(dir);
+  }
+  _projectRoot = process.cwd();
+  return _projectRoot;
+}
+
+// ===== Transformers.js fallback embedder =====
+let _tfEmbedder: any = null;
+let _tfFailed = false;
+
+async function getFallbackEmbedder(): Promise<any> {
+  if (_tfFailed) return null;
+  if (_tfEmbedder) return _tfEmbedder;
+  try {
+    const { pipeline } = await import('@xenova/transformers');
+    _tfEmbedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+    return _tfEmbedder;
+  } catch {
+    _tfFailed = true;
+    return null;
+  }
+}
+
+async function fallbackEmbed(text: string): Promise<number[] | null> {
+  const embedder = await getFallbackEmbedder();
+  if (!embedder) return null;
+  const result = await embedder(text, { pooling: 'mean', normalize: true });
+  return Array.from(result.data);
+}
+
 
 // ===== Lazy singleton =====
 
@@ -32,12 +89,12 @@ let bridgeAvailable: boolean | null = null;
  * or the special ':memory:' path.
  */
 function getDbPath(customPath?: string): string {
-  const swarmDir = path.resolve(process.cwd(), '.swarm');
+  const swarmDir = path.resolve(getProjectRoot(), '.swarm');
   if (!customPath) return path.join(swarmDir, 'memory.db');
   if (customPath === ':memory:') return ':memory:';
   const resolved = path.resolve(customPath);
   // Ensure the path doesn't escape the working directory
-  const cwd = process.cwd();
+  const cwd = getProjectRoot();
   if (!resolved.startsWith(cwd)) {
     return path.join(swarmDir, 'memory.db'); // fallback to safe default
   }
