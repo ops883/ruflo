@@ -72,6 +72,40 @@ flo gate prompt-reminder         # Context bracket tracking
 flo gate session-reset           # Reset workflow state
 ```
 
+### Feature Orchestration
+
+Sequence multiple GitHub issues through `/flo` workflows using a YAML definition:
+
+```bash
+flo orc run feature.yaml              # Execute a feature (stories in dependency order)
+flo orc run feature.yaml --dry-run    # Show execution plan without running
+flo orc run feature.yaml --verbose    # Execute with Claude output streaming
+flo orc status my-feature             # Check progress of a feature
+flo orc reset my-feature              # Reset feature state for re-run
+```
+
+Feature YAML example:
+
+```yaml
+feature:
+  id: my-feature
+  name: "My Feature"
+  repository: /path/to/project
+  base_branch: main
+
+  stories:
+    - id: story-1
+      name: "Entity and service"
+      issue: 101
+
+    - id: story-2
+      name: "Routes and tests"
+      issue: 102
+      depends_on: [story-1]
+```
+
+Stories are resolved via topological sort (respecting `depends_on`), then executed sequentially by spawning `claude -p "/flo <issue>"`.
+
 ### System
 
 ```bash
