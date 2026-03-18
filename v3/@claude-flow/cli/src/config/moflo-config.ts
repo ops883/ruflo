@@ -290,7 +290,7 @@ models:
  */
 export function writeMofloConfig(projectRoot?: string): string {
   const root = projectRoot || process.cwd();
-  const configPath = path.join(root, CONFIG_FILENAME);
+  const configPath = path.join(root, CONFIG_FILES[0]);
   const content = generateMofloConfig(root);
   fs.writeFileSync(configPath, content, 'utf-8');
   return configPath;

@@ -37,10 +37,6 @@ export {
   type WorkerConfig,
 } from './headless-worker-executor.js';
 
-// Container Worker Pool (Phase 3)
-export {
-  ContainerWorkerPool,
-  type ContainerInfo,
 // Container Worker Pool removed — Docker infra not used by moflo
 
 // Worker Queue (Phase 4)

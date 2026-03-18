@@ -92,24 +92,7 @@ const preEditCommand: Command = {
       }
 
       output.writeln();
-      output.printSuccess(`Outcome recorded for ${filePath}`);
-
-      if (result.learningUpdates) {
-        output.writeln();
-        output.writeln(output.bold('Learning Updates'));
-        output.printTable({
-          columns: [
-            { key: 'metric', header: 'Metric', width: 25 },
-            { key: 'value', header: 'Value', width: 15, align: 'right' }
-          ],
-          data: [
-            { metric: 'Patterns Updated', value: result.learningUpdates.patternsUpdated },
-            { metric: 'Confidence Adjusted', value: result.learningUpdates.confidenceAdjusted },
-            { metric: 'New Patterns', value: result.learningUpdates.newPatterns }
-          ]
-        });
-      }
-
+      output.printSuccess(`Context analyzed for ${filePath}`);
       return { success: true, data: result };
     } catch (error) {
       if (error instanceof MCPClientError) {
