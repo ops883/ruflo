@@ -4,7 +4,7 @@
  */
 
 import { mkdirSync, writeFileSync, existsSync, readFileSync, statSync } from 'fs';
-import { join, resolve } from 'path';
+import { dirname, join, resolve } from 'path';
 import type { MCPTool } from './types.js';
 
 // Real vector search functions - lazy loaded to avoid circular imports
@@ -158,6 +158,92 @@ function generateSimpleEmbedding(text: string, dimension: number = 384): Float32
   return embedding;
 }
 
+// ── Runtime routing outcome persistence ──────────────────────────────
+// Closes the learning loop: post-task records outcomes → route loads them.
+
+const ROUTING_OUTCOMES_PATH = join(resolve('.'), '.claude-flow/routing-outcomes.json');
+
+const ROUTING_STOPWORDS = new Set([
+  'the','a','an','is','are','was','were','be','been','being','have','has','had',
+  'do','does','did','will','would','could','should','may','might','shall','can',
+  'to','of','in','for','on','with','at','by','from','as','into','through','during',
+  'before','after','above','below','between','under','again','further','then','once',
+  'it','its','this','that','these','those','i','me','my','we','our','you','your',
+  'he','she','they','them','and','but','or','nor','not','no','so','if','when','than',
+  'very','just','also','only','both','each','all','any','few','more','most','other',
+  'some','such','same','new','now','here','there','where','how','what','which','who',
+]);
+
+interface RoutingOutcome {
+  task: string;
+  agent: string;
+  success: boolean;
+  quality: number;
+  keywords: string[];
+  timestamp: string;
+}
+
+function extractKeywords(text: string): string[] {
+  if (!text) return [];
+  return text.toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !ROUTING_STOPWORDS.has(w));
+}
+
+function loadRoutingOutcomes(): RoutingOutcome[] {
+  try {
+    if (existsSync(ROUTING_OUTCOMES_PATH)) {
+      const data = JSON.parse(readFileSync(ROUTING_OUTCOMES_PATH, 'utf-8'));
+      return data.outcomes || [];
+    }
+  } catch { /* corrupt file, start fresh */ }
+  return [];
+}
+
+function saveRoutingOutcomes(outcomes: RoutingOutcome[]): void {
+  try {
+    const dir = dirname(ROUTING_OUTCOMES_PATH);
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    // Cap at 500 entries to bound file size
+    const capped = outcomes.slice(-500);
+    writeFileSync(ROUTING_OUTCOMES_PATH, JSON.stringify({ outcomes: capped }, null, 2));
+  } catch { /* non-critical */ }
+}
+
+/**
+ * Build learned patterns from past routing outcomes.
+ * Called by hooks_route to incorporate runtime learning into routing decisions.
+ */
+function learnedPatternsFromOutcomes(): Record<string, { keywords: string[]; agents: string[] }> {
+  const outcomes = loadRoutingOutcomes();
+  if (outcomes.length === 0) return {};
+
+  // Group successful outcomes by agent
+  const agentKeywords = new Map<string, Map<string, number>>();
+  for (const o of outcomes) {
+    if (!o.success || o.quality < 0.5) continue;
+    if (!agentKeywords.has(o.agent)) agentKeywords.set(o.agent, new Map());
+    const kwMap = agentKeywords.get(o.agent)!;
+    for (const kw of o.keywords) {
+      kwMap.set(kw, (kwMap.get(kw) || 0) + 1);
+    }
+  }
+
+  const learned: Record<string, { keywords: string[]; agents: string[] }> = {};
+  for (const [agent, kwMap] of agentKeywords) {
+    // Take top-10 most frequent keywords for this agent
+    const sorted = [...kwMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+    if (sorted.length >= 2) { // Need at least 2 keywords for a meaningful pattern
+      learned[`learned-${agent}`] = {
+        keywords: sorted.map(([kw]) => kw),
+        agents: [agent],
+      };
+    }
+  }
+  return learned;
+}
+
 // Task patterns used by both native and pure-JS routers
 const TASK_PATTERNS: Record<string, { keywords: string[]; agents: string[] }> = {
   'security-task': {
@@ -214,50 +300,8 @@ const TASK_PATTERNS: Record<string, { keywords: string[]; agents: string[] }> = 
  * Load learned routing patterns from persisted file.
  * These are outcomes from previous task executions stored by hooksPostTask.
  */
-const ROUTING_OUTCOMES_PATH = '.claude-flow/routing-outcomes.json';
-
-function loadRoutingOutcomes(): Array<{ pattern: string; agentType: string; confidence: number; keywords?: string[]; task?: string; timestamp?: string }> {
-  try {
-    const fullPath = join(process.cwd(), ROUTING_OUTCOMES_PATH);
-    if (!existsSync(fullPath)) return [];
-    const data = JSON.parse(readFileSync(fullPath, 'utf-8'));
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveRoutingOutcome(task: string, agentType: string, confidence: number): void {
-  try {
-    const fullPath = join(process.cwd(), ROUTING_OUTCOMES_PATH);
-    const dir = resolve(fullPath, '..');
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-
-    const existing = loadRoutingOutcomes();
-    // Extract keywords for pattern matching
-    const keywords = task.toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter(w => w.length > 3)
-      .slice(0, 5);
-
-    if (keywords.length > 0) {
-      existing.push({
-        pattern: `learned-${agentType}`,
-        agentType,
-        confidence,
-        keywords,
-        task: task.slice(0, 200),
-        timestamp: new Date().toISOString(),
-      });
-      // Keep last 500 outcomes
-      const trimmed = existing.slice(-500);
-      writeFileSync(fullPath, JSON.stringify(trimmed, null, 2));
-    }
-  } catch {
-    // Silently fail — routing outcome persistence is best-effort
-  }
-}
+// Old loadRoutingOutcomes/saveRoutingOutcome removed — replaced by
+// RoutingOutcome-based persistence at top of file (upstream adcfe6fad).
 
 /**
  * Get the semantic router with environment detection.
@@ -298,13 +342,11 @@ async function getSemanticRouter() {
       }
 
       // Also load learned patterns from previous task executions
-      const learnedPatterns = loadRoutingOutcomes();
-      for (const lp of learnedPatterns) {
-        // Index per-keyword embeddings for finer-grained matching
-        const kws = lp.keywords || [lp.pattern];
-        for (const kw of kws) {
+      const learned = learnedPatternsFromOutcomes();
+      for (const [patternName, { keywords }] of Object.entries(learned)) {
+        for (const kw of keywords) {
           const embedding = generateSimpleEmbedding(kw);
-          const entryKey = `learned-${lp.agentType}:${kw}`;
+          const entryKey = `${patternName}:${kw}`;
           db.insert(entryKey, embedding);
           TASK_PATTERN_EMBEDDINGS.set(entryKey, embedding);
         }
@@ -336,17 +378,12 @@ async function getSemanticRouter() {
     }
 
     // Also load learned patterns from previous task executions
-    const learnedPatterns = loadRoutingOutcomes();
-    for (const lp of learnedPatterns) {
-      const kws = lp.keywords || [lp.pattern];
-      const embeddings = kws.map(kw => generateSimpleEmbedding(kw));
-      semanticRouter.addIntentWithEmbeddings(
-        `learned-${lp.agentType}`,
-        embeddings,
-        { agents: [lp.agentType], keywords: kws, confidence: lp.confidence }
-      );
-      kws.forEach((kw, i) => {
-        TASK_PATTERN_EMBEDDINGS.set(`learned-${lp.agentType}:${kw}`, embeddings[i]);
+    const learned = learnedPatternsFromOutcomes();
+    for (const [patternName, { keywords, agents }] of Object.entries(learned)) {
+      const embeddings = keywords.map(kw => generateSimpleEmbedding(kw));
+      semanticRouter.addIntentWithEmbeddings(patternName, embeddings, { agents, keywords });
+      keywords.forEach((kw, i) => {
+        TASK_PATTERN_EMBEDDINGS.set(`${patternName}:${kw}`, embeddings[i]);
       });
     }
 
@@ -1205,18 +1242,43 @@ export const hooksPostTask: MCPTool = {
     }
 
     // Persist routing outcome for future learned pattern matching
-    let routingOutcomeSaved = false;
-    if (storeDecisions && agent && task) {
+    // Persist routing outcome for runtime learning (file-based, always reliable)
+    const taskText = (params.task as string) || '';
+    const outcomeKeywords = extractKeywords(taskText);
+    let outcomePersisted = false;
+    if (taskText && agent && agent.length <= 100 && /^[a-zA-Z0-9_-]+$/.test(agent)) {
       try {
-        saveRoutingOutcome(task, agent, quality);
-        routingOutcomeSaved = true;
+        const outcomes = loadRoutingOutcomes();
+        outcomes.push({
+          task: taskText,
+          agent,
+          success,
+          quality,
+          keywords: outcomeKeywords,
+          timestamp: new Date().toISOString(),
+        });
+        saveRoutingOutcomes(outcomes);
+        outcomePersisted = true;
 
         // Sync learning metrics for dashboard
         const { getAgentRouter } = await import('../services/agent-router.js');
         getAgentRouter().syncLearningMetrics();
-      } catch {
-        // Best-effort persistence
-      }
+      } catch { /* non-critical */ }
+    }
+
+    // Optionally store in memory DB for cross-session vector retrieval
+    if (params.storeDecisions && taskText && agent) {
+      try {
+        const storeFn = await getRealStoreFunction();
+        if (storeFn) {
+          await storeFn({
+            key: `routing-decision:${taskId}`,
+            namespace: 'patterns',
+            value: JSON.stringify({ task: taskText, agent, success, quality, keywords: outcomeKeywords }),
+            tags: ['routing-decision'],
+          });
+        }
+      } catch { /* non-critical */ }
     }
 
     const duration = Date.now() - startTime;
@@ -1230,6 +1292,7 @@ export const hooksPostTask: MCPTool = {
         newPatterns: success ? 1 : 0,
         trajectoryId: `traj-${Date.now()}`,
         controller: feedbackResult?.controller || 'none',
+        outcomePersisted,
       },
       quality,
       feedback: feedbackResult ? {
@@ -1238,9 +1301,9 @@ export const hooksPostTask: MCPTool = {
         updates: feedbackResult.updated,
       } : { recorded: false, controller: 'unavailable', updates: 0 },
       routingOutcome: {
-        saved: routingOutcomeSaved,
+        saved: outcomePersisted,
         agent: agent || null,
-        task: task || null,
+        task: taskText || null,
       },
       timestamp: new Date().toISOString(),
     };
