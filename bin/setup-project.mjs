@@ -34,6 +34,27 @@ const MARKER_START = '<!-- MOFLO:SUBAGENT-PROTOCOL:START -->';
 const MARKER_END = '<!-- MOFLO:SUBAGENT-PROTOCOL:END -->';
 
 const CLAUDE_MD_SECTION = `${MARKER_START}
+## FIRST ACTION ON EVERY PROMPT: Search Memory
+
+Your first tool call for every new user prompt MUST be a memory search. Do this BEFORE Glob, Grep, Read, or any file exploration. No exceptions.
+
+WHY: Memory contains curated solutions, patterns, and architectural context from previous work. Without it, you will miss existing solutions, repeat mistakes that were already solved, and waste time re-discovering what is already known. Memory search is faster than file scanning.
+
+HOW: Use ToolSearch to load \`mcp__claude-flow__memory_search\`, then call it with a query describing your task. If MCP is unavailable, use:
+\`node .claude/scripts/semantic-search.mjs "[task description]" --namespace guidance\`
+
+### Namespaces to search:
+
+| Namespace | When to search | What it returns |
+|-----------|---------------|-----------------|
+| \`guidance\` | Always — understanding patterns, rules, conventions | Guidance docs, coding rules, domain context |
+| \`patterns\` | Always — prior solutions and implementation patterns | Learned patterns from previous task execution |
+| \`code-map\` | Finding where code lives (files, types, services) | Type-to-file mappings, directory contents, project overviews |
+
+**Always search both \`guidance\` and \`patterns\` namespaces.** The \`patterns\` namespace contains solutions to problems already solved — skipping it means repeating past mistakes.
+
+For **codebase navigation** (finding where a type/service/component lives), also search the \`code-map\` namespace.
+
 ## Subagent Protocol (MoFlo)
 
 All subagents MUST read \`.claude/guidance/moflo-bootstrap.md\` before starting any work.

@@ -8,14 +8,17 @@
 
 **Before reading any files or exploring code, search memory for guidance relevant to your task.**
 
-### Two namespaces to search:
+### Three namespaces to search:
 
 | Namespace | When to search | What it returns |
 |-----------|---------------|-----------------|
 | `guidance` | Understanding patterns, rules, conventions | Guidance docs, coding rules, domain context |
-| `code-map` | Finding where code lives (files, types, services) | Project overviews, directory contents, type locations |
+| `code-map` | Finding where code lives (files, types, services) | Project overviews, directory contents, type-to-file mappings |
+| `patterns` | Prior solutions, gotchas, implementation patterns | Learned patterns from previous task execution |
 
-**Search `code-map` BEFORE using Glob/Grep for navigation.** It's faster and returns structured results.
+**Always search `patterns` alongside `guidance`.** It contains solutions to problems already solved — skipping it means repeating past mistakes or re-discovering known approaches.
+
+**Search `code-map` BEFORE using Glob/Grep for navigation.** It's faster and returns structured results including file-level type mappings.
 
 ### Option A: MCP Tools (Preferred)
 
@@ -35,12 +38,13 @@ npx moflo memory search --query "[describe your task]" --namespace guidance --li
 
 | Your task involves... | Search namespace | Example query |
 |-----------------------|------------------|---------------|
-| Database/entities | `guidance` | `"database entity migration"` |
-| Frontend components | `guidance` | `"React frontend component"` |
-| API endpoints | `guidance` | `"API route endpoint pattern"` |
-| Authentication | `guidance` | `"auth middleware JWT"` |
-| Unit tests | `guidance` | `"test mock vitest"` |
-| Where is a file/type? | `code-map` | `"service entity location"` |
+| Database/entities | `guidance` + `patterns` | `"database entity migration"` |
+| Frontend components | `guidance` + `patterns` | `"React frontend component"` |
+| API endpoints | `guidance` + `patterns` | `"API route endpoint pattern"` |
+| Authentication | `guidance` + `patterns` | `"auth middleware JWT"` |
+| Unit tests | `guidance` + `patterns` | `"test mock vitest"` |
+| Prior solutions/gotchas | `patterns` | `"audit log service pattern"` |
+| Where is a file/type? | `code-map` | `"CompanyEntity file location"` |
 | What's in a directory? | `code-map` | `"back-office api routes"` |
 
 Use results with score > 0.3. If no good results, fall back to reading project guidance docs.
