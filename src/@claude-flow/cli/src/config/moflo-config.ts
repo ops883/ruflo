@@ -53,7 +53,17 @@ export interface MofloConfig {
 
   models: {
     default: string;
+    research: string;
     review: string;
+    test: string;
+  };
+
+  model_routing: {
+    enabled: boolean;
+    confidence_threshold: number;
+    cost_optimization: boolean;
+    circuit_breaker: boolean;
+    agent_overrides: Record<string, string>;
   };
 }
 
@@ -97,7 +107,16 @@ const DEFAULT_CONFIG: MofloConfig = {
   },
   models: {
     default: 'opus',
+    research: 'sonnet',
     review: 'opus',
+    test: 'sonnet',
+  },
+  model_routing: {
+    enabled: false,
+    confidence_threshold: 0.85,
+    cost_optimization: true,
+    circuit_breaker: true,
+    agent_overrides: {},
   },
 };
 
@@ -161,7 +180,16 @@ function mergeConfig(raw: Record<string, any>, root: string): MofloConfig {
     },
     models: {
       default: raw.models?.default || DEFAULT_CONFIG.models.default,
+      research: raw.models?.research || DEFAULT_CONFIG.models.research,
       review: raw.models?.review || DEFAULT_CONFIG.models.review,
+      test: raw.models?.test || DEFAULT_CONFIG.models.test,
+    },
+    model_routing: {
+      enabled: raw.model_routing?.enabled ?? raw.modelRouting?.enabled ?? DEFAULT_CONFIG.model_routing.enabled,
+      confidence_threshold: raw.model_routing?.confidence_threshold ?? raw.modelRouting?.confidenceThreshold ?? DEFAULT_CONFIG.model_routing.confidence_threshold,
+      cost_optimization: raw.model_routing?.cost_optimization ?? raw.modelRouting?.costOptimization ?? DEFAULT_CONFIG.model_routing.cost_optimization,
+      circuit_breaker: raw.model_routing?.circuit_breaker ?? raw.modelRouting?.circuitBreaker ?? DEFAULT_CONFIG.model_routing.circuit_breaker,
+      agent_overrides: raw.model_routing?.agent_overrides ?? raw.modelRouting?.agentOverrides ?? DEFAULT_CONFIG.model_routing.agent_overrides,
     },
   };
 }
@@ -276,10 +304,24 @@ hooks:
   stop_hook: true              # Session-end persistence
   session_restore: true        # Restore session state on start
 
-# Model preferences
+# Model preferences (haiku, sonnet, opus)
 models:
-  default: opus
-  review: opus
+  default: opus        # Model for general tasks
+  research: sonnet     # Model for research/exploration agents
+  review: opus         # Model for code review agents
+  test: sonnet         # Model for test-writing agents
+
+# Intelligent model routing (auto-selects haiku/sonnet/opus per task)
+# When enabled, overrides the static model preferences above
+# by analyzing task complexity and routing to the cheapest capable model.
+model_routing:
+  enabled: false                   # Set to true to enable dynamic routing
+  confidence_threshold: 0.85       # Min confidence before escalating to a more capable model
+  cost_optimization: true          # Prefer cheaper models when confidence is high
+  circuit_breaker: true            # Penalize models that fail repeatedly
+  # agent_overrides:
+  #   security-architect: opus     # Always use opus for security
+  #   researcher: sonnet           # Pin research to sonnet
 `;
 
   return config;

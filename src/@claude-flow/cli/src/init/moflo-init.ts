@@ -226,10 +226,25 @@ hooks:
   stop_hook: ${answers?.stopHook ?? true}
   session_restore: true
 
-# Model preferences
+# Model preferences (haiku, sonnet, opus)
 models:
-  default: opus
-  review: opus
+  default: opus        # Model for general tasks
+  research: sonnet     # Model for research/exploration agents
+  review: opus         # Model for code review agents
+  test: sonnet         # Model for test-writing agents
+
+# Intelligent model routing (auto-selects haiku/sonnet/opus per task)
+# When enabled, overrides the static model preferences above
+# by analyzing task complexity and routing to the cheapest capable model.
+model_routing:
+  enabled: false                   # Set to true to enable dynamic routing
+  confidence_threshold: 0.85       # Min confidence before escalating to a more capable model
+  cost_optimization: true          # Prefer cheaper models when confidence is high
+  circuit_breaker: true            # Penalize models that fail repeatedly
+  # Per-agent overrides (set to "inherit" to use routing, or a specific model to pin)
+  # agent_overrides:
+  #   security-architect: opus     # Always use opus for security
+  #   researcher: sonnet           # Pin research to sonnet
 `;
 
   fs.writeFileSync(configPath, yaml, 'utf-8');
