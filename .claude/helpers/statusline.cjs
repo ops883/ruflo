@@ -458,12 +458,13 @@ function getHooksStatus() {
   return { enabled, total };
 }
 
-// AgentDB stats (pure stat calls)
+// AgentDB stats — queries real count from sqlite when possible, falls back to file size estimate
 function getAgentDBStats() {
   let vectorCount = 0;
   let dbSizeKB = 0;
   let namespaces = 0;
   let hasHnsw = false;
+  let dbPath = null;
 
   const dbFiles = [
     path.join(CWD, '.swarm', 'memory.db'),
@@ -476,31 +477,25 @@ function getAgentDBStats() {
     const stat = safeStat(f);
     if (stat) {
       dbSizeKB = stat.size / 1024;
-      vectorCount = Math.floor(dbSizeKB / 2);
-      namespaces = 1;
+      dbPath = f;
       break;
     }
   }
 
-  if (vectorCount === 0) {
-    const dbDirs = [
-      path.join(CWD, '.claude-flow', 'agentdb'),
-      path.join(CWD, '.swarm', 'agentdb'),
-      path.join(CWD, '.agentdb'),
-    ];
-    for (const dir of dbDirs) {
+  // Try to get real count from sqlite (fast — single COUNT query)
+  if (dbPath) {
+    const countOutput = safeExec(`node -e "const S=require('sql.js');const f=require('fs');S().then(Q=>{const d=new Q.Database(f.readFileSync('${dbPath.replace(/\\/g, '/')}'));const s=d.prepare('SELECT COUNT(*) as c FROM memory_entries WHERE status=\\"active\\" AND embedding IS NOT NULL');s.step();console.log(JSON.stringify(s.getAsObject()));s.free();const n=d.prepare('SELECT COUNT(DISTINCT namespace) as n FROM memory_entries WHERE status=\\"active\\"');n.step();console.log(JSON.stringify(n.getAsObject()));n.free();d.close();})"`, 3000);
+    if (countOutput) {
       try {
-        if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
-          const files = fs.readdirSync(dir);
-          namespaces = files.filter(f => f.endsWith('.db') || f.endsWith('.sqlite')).length;
-          for (const file of files) {
-            const stat = safeStat(path.join(dir, file));
-            if (stat?.isFile()) dbSizeKB += stat.size / 1024;
-          }
-          vectorCount = Math.floor(dbSizeKB / 2);
-          break;
-        }
-      } catch { /* ignore */ }
+        const lines = countOutput.trim().split('\n');
+        vectorCount = JSON.parse(lines[0]).c || 0;
+        namespaces = lines[1] ? JSON.parse(lines[1]).n || 0 : 0;
+      } catch { /* fall back to estimate */ }
+    }
+    // Fallback to file size estimate if query failed
+    if (vectorCount === 0) {
+      vectorCount = Math.floor(dbSizeKB / 2);
+      namespaces = 1;
     }
   }
 
@@ -509,10 +504,8 @@ function getAgentDBStats() {
     path.join(CWD, '.claude-flow', 'hnsw.index'),
   ];
   for (const p of hnswPaths) {
-    const stat = safeStat(p);
-    if (stat) {
+    if (safeStat(p)) {
       hasHnsw = true;
-      vectorCount = Math.max(vectorCount, Math.floor(stat.size / 512));
       break;
     }
   }
