@@ -199,8 +199,9 @@ Inside your AI client, the `/flo` (or `/fl`) slash command drives GitHub issue w
 /flo <issue>                  # Full workflow (research → implement → test → PR)
 /flo -e <issue>               # Enhance only (research and update ticket, then stop)
 /flo -r <issue>               # Research only (analyze issue, output findings)
-/flo -n <issue>               # Naked mode (single agent, no swarm)
+/flo -sw <issue>              # Swarm mode (default, multi-agent coordination)
 /flo -hv <issue>              # Hive-mind mode (consensus-based coordination)
+/flo -n <issue>               # Naked mode (single agent, no swarm)
 /flo <epic-issue>             # Detects epics, processes stories sequentially
 ```
 
@@ -210,13 +211,15 @@ For full options and details, type `/flo` with no arguments — your AI client w
 
 When you pass an issue number, `/flo` automatically checks if it's an epic — no extra flag needed. An issue is treated as an epic if any of these are true:
 
-- It has the `epic` label
+- It has a label matching `epic`, `tracking`, `parent`, or `umbrella` (case-insensitive)
 - Its body contains a `## Stories` or `## Tasks` section
-- Its body has linked issues in checklist format: `- [ ] #101`
+- Its body has checklist-linked issues: `- [ ] #101`
+- Its body has numbered issue references: `1. #101`
+- The issue has GitHub sub-issues (via the API)
 
-When an epic is detected, `/flo` processes each child story sequentially — full workflow per story (research → implement → test → PR), one at a time, in the order listed. The `-e`, `-r`, `-n`, and `-hv` flags still apply and get passed through to each story.
+When an epic is detected, `/flo` processes each child story sequentially — full workflow per story (research → implement → test → PR), one at a time, in the order listed. The `-e`, `-r`, `-n`, `-sw`, and `-hv` flags still apply and get passed through to each story.
 
-Stories are extracted from the markdown checklist format (`- [ ] #101`, `- [ ] #102`). Note that GitHub's sub-issue feature (the "Sub-issues" panel) uses a different mechanism than markdown checklists — those won't be auto-detected. For reliable epic detection, use the checklist format in the issue body.
+Stories are extracted from markdown checklists (`- [ ] #101`) or numbered lists (`1. #101`), processed top-to-bottom.
 
 ### System
 

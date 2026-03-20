@@ -40,7 +40,12 @@ Also available as `/fl` (shorthand alias).
 /flo 42                               # If #42 is an epic, processes all stories sequentially
 ```
 
-**Epic Detection:** Issues with `epic` label or containing `## Stories` / `## Tasks` sections are automatically detected as epics.
+**Epic Detection:** An issue is automatically detected as an epic if ANY of these are true:
+- Has a label matching: `epic`, `tracking`, `parent`, or `umbrella` (case-insensitive)
+- Body contains `## Stories` or `## Tasks` sections
+- Body has checklist-linked issues: `- [ ] #123`
+- Body has numbered issue references: `1. #123`
+- The issue has GitHub sub-issues (via `subIssues` API field)
 
 **Sequential Processing:** When an epic is selected:
 1. List all child stories/tasks (from checklist or linked issues)
@@ -271,19 +276,34 @@ Each story must complete (PR created) before starting next.
 
 ```javascript
 function isEpic(issue) {
-  if (issue.labels?.some(l => l.name === 'epic')) return true;
+  // Label-based detection (case-insensitive)
+  const epicLabels = ['epic', 'tracking', 'parent', 'umbrella'];
+  if (issue.labels?.some(l => epicLabels.includes(l.name.toLowerCase()))) return true;
+  // Section-based detection
   if (issue.body?.includes('## Stories') || issue.body?.includes('## Tasks')) return true;
-  const linkedIssuePattern = /- \[[ x]\] #\d+/;
-  if (linkedIssuePattern.test(issue.body)) return true;
+  // Checklist-linked issues: - [ ] #123 or - [x] #123
+  if (/- \[[ x]\] #\d+/.test(issue.body)) return true;
+  // Numbered issue references: 1. #123
+  if (/\d+\.\s+#\d+/.test(issue.body)) return true;
+  // GitHub sub-issues API
+  if (issue.subIssues?.length > 0) return true;
   return false;
 }
 
 function extractStories(epicBody) {
   const stories = [];
-  const pattern = /- \[[ ]\] #(\d+)/g;
+  // Checklist format: - [ ] #123
+  const checklistPattern = /- \[[ ]\] #(\d+)/g;
   let match;
-  while ((match = pattern.exec(epicBody)) !== null) {
+  while ((match = checklistPattern.exec(epicBody)) !== null) {
     stories.push(parseInt(match[1]));
+  }
+  // Numbered format: 1. #123
+  if (stories.length === 0) {
+    const numberedPattern = /\d+\.\s+#(\d+)/g;
+    while ((match = numberedPattern.exec(epicBody)) !== null) {
+      stories.push(parseInt(match[1]));
+    }
   }
   return stories;
 }
