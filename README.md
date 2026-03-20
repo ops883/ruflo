@@ -141,6 +141,18 @@ auto_index:
   guidance: true                     # Auto-index docs on session start
   code_map: true                     # Auto-index code on session start
 
+# Hook toggles (all on by default — disable to slim down)
+hooks:
+  pre_edit: true                     # Track file edits for learning
+  post_edit: true                    # Record edit outcomes, train neural patterns
+  pre_task: true                     # Get agent routing before task spawn
+  post_task: true                    # Record task results for learning
+  gate: true                         # Workflow gate enforcement
+  route: true                        # Intelligent task routing on each prompt
+  stop_hook: true                    # Session-end persistence
+  session_restore: true              # Restore session state on start
+  notification: true                 # Hook into Claude Code notifications
+
 models:
   default: opus        # General tasks
   research: sonnet     # Research/exploration agents
@@ -153,6 +165,19 @@ model_routing:
   confidence_threshold: 0.85
   cost_optimization: true
   circuit_breaker: true
+
+# Status line display
+status_line:
+  enabled: true
+  branding: "Moflo V4"
+  mode: single-line                # single-line or dashboard
+  show_git: true
+  show_model: true
+  show_session: true
+  show_intelligence: true
+  show_swarm: true
+  show_hooks: true
+  show_mcp: true
 ```
 
 ### Model Routing
@@ -181,11 +206,45 @@ model_routing:
 
 ## How It Works
 
-### For Humans
+MoFlo sits between Claude Code and your project. It uses Claude Code's native hook system to enforce good habits, store knowledge, and learn from outcomes — so Claude gets better at working in your codebase over time.
 
-MoFlo sits between Claude Code and your project. When Claude starts a session, MoFlo's hooks enforce good habits: search memory before exploring files, create tasks before spawning agents, and track how depleted the context window is. Over time, MoFlo learns which agent types work best for which tasks and routes accordingly.
+### The Gate System
 
-The `/flo <issue>` skill (or `/fl`) gives Claude a full automated workflow for executing GitHub issues — from research through PR creation — with mandatory testing and code review gates.
+MoFlo installs Claude Code hooks that run on every tool call. Together, these gates create a **feedback loop** that prevents Claude from wasting tokens on blind exploration and ensures it builds on prior knowledge.
+
+**Memory-first gate** — Before Claude can use Glob, Grep, or Read on guidance files, it must first search the memory database. This forces Claude to check what it already knows (or what was learned in prior sessions) before re-exploring from scratch. The gate automatically classifies each prompt — simple directives like "commit" or "yes" skip the gate, while task-oriented prompts like "fix the auth bug" enforce it.
+
+**Task-create gate** — Before Claude can spawn sub-agents via the Task tool, it must call TaskCreate first. This ensures every agent spawn is tracked, preventing runaway agent proliferation and making it possible to review what work was delegated.
+
+**Context tracking** — Each interaction increments a counter. As the conversation grows, MoFlo warns Claude about context depletion (FRESH → MODERATE → DEPLETED → CRITICAL) and advises it to checkpoint progress, compact, or start a fresh session before quality degrades.
+
+**Routing** — On each prompt, MoFlo's route hook analyzes the task and recommends the optimal agent type and model tier (haiku for simple tasks, sonnet for moderate, opus for complex). This saves cost without sacrificing quality.
+
+All gates are configurable via `moflo.yaml` — you can disable any individual hook if it doesn't suit your workflow.
+
+### The Task System
+
+MoFlo integrates Claude Code's native Task tool with its own coordination layer:
+
+1. **Pre-task hook** — Before a sub-agent spawns, MoFlo records what's about to happen and can inject context (prior learnings, routing recommendations) into the agent's prompt.
+2. **Post-task hook** — After a sub-agent completes, MoFlo records the outcome. Successful patterns are stored in the memory database for future reference. Failed patterns feed into the routing circuit breaker.
+3. **The `/flo` skill** — Wraps the entire lifecycle of a GitHub issue: research the issue → enhance the ticket → implement the solution → run tests → simplify the code → create a PR. Each phase can use sub-agents, and all learning feeds back into memory.
+
+### Memory & Knowledge Storage
+
+MoFlo uses a SQLite database (via sql.js/WASM — no native deps) to store three types of knowledge:
+
+| Namespace | What's Stored | How It Gets There |
+|-----------|---------------|-------------------|
+| `guidance` | Chunked project docs (`.claude/guidance/`, `docs/`) with 384-dim embeddings | `flo-index` on session start |
+| `code-map` | Structural index of source files (exports, classes, functions) | `flo-codemap` on session start |
+| `patterns` | Learned patterns from successful task outcomes | Post-task hooks after agent work |
+
+**Semantic search** uses cosine similarity on neural embeddings (MiniLM-L6-v2, 384 dimensions). When Claude searches memory, it gets the most relevant chunks ranked by semantic similarity — not keyword matching.
+
+**Session start indexing** — Three background processes run on every session start: the guidance indexer, the code map generator, and the learning service. All three are incremental (unchanged files are skipped) and run in parallel so they don't block the session.
+
+**Cross-session persistence** — Everything stored in the database survives across sessions. Patterns learned on Monday are available on Friday. The stop hook exports session metrics, and the session-restore hook loads prior state.
 
 ### For Claude
 
@@ -193,7 +252,6 @@ When `flo init` runs, it appends a workflow section to your CLAUDE.md that teach
 - Always search memory before Glob/Grep/Read (enforced by gates)
 - Use `mcp__claude-flow__memory_search` for knowledge retrieval
 - Use `/flo <issue>` (or `/fl`) for issue execution
-- Follow the agent icon convention for task visibility
 - Store learnings after task completion
 
 ## Architecture

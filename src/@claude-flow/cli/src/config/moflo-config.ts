@@ -46,9 +46,14 @@ export interface MofloConfig {
 
   hooks: {
     pre_edit: boolean;
+    post_edit: boolean;
+    pre_task: boolean;
+    post_task: boolean;
     gate: boolean;
+    route: boolean;
     stop_hook: boolean;
     session_restore: boolean;
+    notification: boolean;
   };
 
   models: {
@@ -118,9 +123,14 @@ const DEFAULT_CONFIG: MofloConfig = {
   },
   hooks: {
     pre_edit: true,
+    post_edit: true,
+    pre_task: true,
+    post_task: true,
     gate: true,
+    route: true,
     stop_hook: true,
     session_restore: true,
+    notification: true,
   },
   models: {
     default: 'opus',
@@ -207,9 +217,14 @@ function mergeConfig(raw: Record<string, any>, root: string): MofloConfig {
     },
     hooks: {
       pre_edit: raw.hooks?.pre_edit ?? raw.hooks?.preEdit ?? DEFAULT_CONFIG.hooks.pre_edit,
+      post_edit: raw.hooks?.post_edit ?? raw.hooks?.postEdit ?? DEFAULT_CONFIG.hooks.post_edit,
+      pre_task: raw.hooks?.pre_task ?? raw.hooks?.preTask ?? DEFAULT_CONFIG.hooks.pre_task,
+      post_task: raw.hooks?.post_task ?? raw.hooks?.postTask ?? DEFAULT_CONFIG.hooks.post_task,
       gate: raw.hooks?.gate ?? DEFAULT_CONFIG.hooks.gate,
+      route: raw.hooks?.route ?? DEFAULT_CONFIG.hooks.route,
       stop_hook: raw.hooks?.stop_hook ?? raw.hooks?.stopHook ?? DEFAULT_CONFIG.hooks.stop_hook,
       session_restore: raw.hooks?.session_restore ?? raw.hooks?.sessionRestore ?? DEFAULT_CONFIG.hooks.session_restore,
+      notification: raw.hooks?.notification ?? DEFAULT_CONFIG.hooks.notification,
     },
     models: {
       default: raw.models?.default || DEFAULT_CONFIG.models.default,
@@ -346,12 +361,17 @@ memory:
   embedding_model: Xenova/all-MiniLM-L6-v2
   namespace: default
 
-# Hook toggles
+# Hook toggles (all on by default — disable to slim down)
 hooks:
-  pre_edit: true               # Track file edits
-  gate: true                   # Workflow gate enforcement
-  stop_hook: true              # Session-end persistence
+  pre_edit: true               # Track file edits for learning
+  post_edit: true              # Record edit outcomes, train neural patterns
+  pre_task: true               # Get agent routing before task spawn
+  post_task: true              # Record task results for learning
+  gate: true                   # Workflow gate enforcement (memory-first, task-create-first)
+  route: true                  # Intelligent task routing on each prompt
+  stop_hook: true              # Session-end persistence and metric export
   session_restore: true        # Restore session state on start
+  notification: true           # Hook into Claude Code notifications
 
 # Model preferences (haiku, sonnet, opus)
 models:

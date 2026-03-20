@@ -499,12 +499,17 @@ memory:
   embedding_model: Xenova/all-MiniLM-L6-v2   # 384-dim neural embeddings
   namespace: default              # Default namespace for memory operations
 
-# Hook toggles
+# Hook toggles (all on by default — disable to slim down)
 hooks:
-  pre_edit: true                  # Track file edits
-  gate: true                     # Workflow gate enforcement
-  stop_hook: true                # Session-end persistence
-  session_restore: true          # Restore session state on start
+  pre_edit: true                  # Track file edits for learning
+  post_edit: true                 # Record edit outcomes, train neural patterns
+  pre_task: true                  # Get agent routing before task spawn
+  post_task: true                 # Record task results for learning
+  gate: true                      # Workflow gate enforcement (memory-first, task-create-first)
+  route: true                     # Intelligent task routing on each prompt
+  stop_hook: true                 # Session-end persistence and metric export
+  session_restore: true           # Restore session state on start
+  notification: true              # Hook into Claude Code notifications
 
 # Model preferences (haiku, sonnet, opus)
 models:
@@ -547,7 +552,17 @@ status_line:
 |--------|--------|
 | `auto_index.guidance: false` | Skip guidance indexing on session start |
 | `auto_index.code_map: false` | Skip code map generation on session start |
-| `gates.memory_first: true` | Agents search memory before reading files |
+| `gates.memory_first: true` | Block Glob/Grep/Read until memory is searched first |
+| `gates.task_create_first: true` | Block Agent/Task tool until TaskCreate is called |
+| `gates.context_tracking: true` | Show FRESH/MODERATE/DEPLETED/CRITICAL context bracket |
+| `hooks.pre_edit: false` | Disable file-edit tracking (skips pre-edit hook) |
+| `hooks.post_edit: false` | Disable edit outcome recording and neural training |
+| `hooks.pre_task: false` | Disable agent routing recommendations before spawn |
+| `hooks.post_task: false` | Disable task result recording for learning |
+| `hooks.gate: false` | Disable all workflow gates (memory-first, task-create-first) |
+| `hooks.route: false` | Disable intelligent task routing on each prompt |
+| `hooks.stop_hook: false` | Disable session-end persistence and metric export |
+| `hooks.notification: false` | Disable notification hook |
 | `model_routing.enabled: true` | Auto-select haiku/sonnet/opus based on task complexity |
 | `status_line.mode: dashboard` | Switch to multi-line status display |
 | `status_line.show_swarm: false` | Hide swarm agent count from status bar |

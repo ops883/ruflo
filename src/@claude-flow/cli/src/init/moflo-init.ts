@@ -219,12 +219,17 @@ memory:
   embedding_model: Xenova/all-MiniLM-L6-v2
   namespace: default
 
-# Hook toggles
+# Hook toggles (all on by default — disable to slim down)
 hooks:
-  pre_edit: true
-  gate: ${gatesEnabled}
-  stop_hook: ${answers?.stopHook ?? true}
-  session_restore: true
+  pre_edit: true               # Track file edits for learning
+  post_edit: true              # Record edit outcomes, train neural patterns
+  pre_task: true               # Get agent routing before task spawn
+  post_task: true              # Record task results for learning
+  gate: ${gatesEnabled}                   # Workflow gate enforcement (memory-first, task-create-first)
+  route: true                  # Intelligent task routing on each prompt
+  stop_hook: ${answers?.stopHook ?? true}              # Session-end persistence and metric export
+  session_restore: true        # Restore session state on start
+  notification: true           # Hook into Claude Code notifications
 
 # Model preferences (haiku, sonnet, opus)
 models:
@@ -292,60 +297,105 @@ function generateHooks(root: string, force?: boolean, answers?: MofloInitAnswers
     }
   }
 
-  // Build hooks config
-  const hooks = {
+  // Build hooks config — all on by default (opinionated pit-of-success)
+  const hooks: Record<string, any[]> = {
     "PreToolUse": [
       {
-        "matcher": "Glob|Grep",
+        "matcher": "^(Write|Edit|MultiEdit)$",
         "hooks": [{
           "type": "command",
-          "command": "npx flo gate check-before-scan"
+          "command": "npx flo hooks pre-edit",
+          "timeout": 5000
         }]
       },
       {
-        "matcher": "Read",
+        "matcher": "^(Glob|Grep)$",
         "hooks": [{
           "type": "command",
-          "command": "npx flo gate check-before-read"
+          "command": "npx flo gate check-before-scan",
+          "timeout": 3000
         }]
       },
       {
-        "matcher": "Agent",
+        "matcher": "^Read$",
         "hooks": [{
           "type": "command",
-          "command": "npx flo gate check-before-agent"
+          "command": "npx flo gate check-before-read",
+          "timeout": 3000
         }]
+      },
+      {
+        "matcher": "^Task$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx flo gate check-before-agent",
+            "timeout": 3000
+          },
+          {
+            "type": "command",
+            "command": "npx flo hooks pre-task",
+            "timeout": 5000
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "TaskCreate",
+        "matcher": "^(Write|Edit|MultiEdit)$",
         "hooks": [{
           "type": "command",
-          "command": "npx flo gate record-task-created"
+          "command": "npx flo hooks post-edit",
+          "timeout": 5000
         }]
       },
       {
-        "matcher": "Bash",
+        "matcher": "^Task$",
         "hooks": [{
           "type": "command",
-          "command": "npx flo gate check-bash-memory"
+          "command": "npx flo hooks post-task",
+          "timeout": 5000
         }]
       },
       {
-        "matcher": "mcp__claude-flow__memory_search",
+        "matcher": "^TaskCreate$",
         "hooks": [{
           "type": "command",
-          "command": "npx flo gate record-memory-searched"
+          "command": "npx flo gate record-task-created",
+          "timeout": 2000
+        }]
+      },
+      {
+        "matcher": "^Bash$",
+        "hooks": [{
+          "type": "command",
+          "command": "npx flo gate check-bash-memory",
+          "timeout": 2000
+        }]
+      },
+      {
+        "matcher": "^mcp__claude-flow__memory_(search|retrieve)$",
+        "hooks": [{
+          "type": "command",
+          "command": "npx flo gate record-memory-searched",
+          "timeout": 2000
         }]
       }
     ],
     "UserPromptSubmit": [
       {
-        "hooks": [{
-          "type": "command",
-          "command": "npx flo gate prompt-reminder"
-        }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx flo gate prompt-reminder",
+            "timeout": 2000
+          },
+          {
+            "type": "command",
+            "command": "npx flo hooks route",
+            "timeout": 5000
+          }
+        ]
       }
     ],
     "SessionStart": [
@@ -353,20 +403,28 @@ function generateHooks(root: string, force?: boolean, answers?: MofloInitAnswers
         "hooks": [
           {
             "type": "command",
-            "command": "npx flo-index",
-            "timeout": 30000
-          },
-          {
-            "type": "command",
-            "command": "npx flo-codemap",
-            "timeout": 30000
-          },
-          {
-            "type": "command",
-            "command": "npx flo-learn",
-            "timeout": 30000
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/scripts/session-start-launcher.mjs\"",
+            "timeout": 3000
           }
         ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{
+          "type": "command",
+          "command": "npx flo hooks session-end",
+          "timeout": 5000
+        }]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [{
+          "type": "command",
+          "command": "npx flo hooks notification",
+          "timeout": 3000
+        }]
       }
     ]
   };
@@ -375,7 +433,7 @@ function generateHooks(root: string, force?: boolean, answers?: MofloInitAnswers
   existing.hooks = hooks;
 
   fs.writeFileSync(settingsPath, JSON.stringify(existing, null, 2), 'utf-8');
-  return { name: '.claude/settings.json', status: existing.hooks ? 'updated' : 'created', detail: '7 workflow gate hooks configured' };
+  return { name: '.claude/settings.json', status: existing.hooks ? 'updated' : 'created', detail: '14 hooks configured (gates, lifecycle, routing, session)' };
 }
 
 // ============================================================================

@@ -225,14 +225,18 @@ function checkSecurityFile(filename, minLines = 100) {
  */
 function countProcesses() {
   try {
-    const ps = execSync('ps aux 2>/dev/null || echo ""', { encoding: 'utf-8' });
+    const isWin = process.platform === 'win32';
+    const cmd = isWin
+      ? 'tasklist.exe /FO CSV /NH 2>NUL'
+      : 'ps aux 2>/dev/null || echo ""';
+    const ps = execSync(cmd, { encoding: 'utf-8', timeout: 3000, windowsHide: true });
 
     const agenticFlow = (ps.match(/agentic-flow/g) || []).length;
     const mcp = (ps.match(/mcp.*start/g) || []).length;
     const agents = (ps.match(/agent|swarm|coordinator/g) || []).length;
 
     return {
-      agenticFlow: Math.max(0, agenticFlow - 1), // Exclude grep itself
+      agenticFlow: Math.max(0, agenticFlow - 1),
       mcp,
       agents: Math.max(0, agents - 1)
     };
