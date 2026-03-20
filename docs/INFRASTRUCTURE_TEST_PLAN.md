@@ -189,6 +189,63 @@ npx moflo hive-mind shutdown
 
 ---
 
+## Test 6c: Cross-Agent Memory Sharing
+
+Verify that patterns stored by one swarm/hive-mind agent are immediately visible to another agent. This tests the shared memory contract that underpins multi-agent coordination.
+
+### Step 1: Store a pattern from "agent alpha"
+
+Spawn an Explore agent that stores a unique test pattern in the `patterns` namespace:
+
+```
+Agent(subagent_type="Explore", name="memory-writer", prompt="""
+You are agent ALPHA in a memory sharing test. Do the following:
+1. Store a pattern via CLI:
+   npx moflo memory store --key "cross-agent-test-alpha" --value "Agent alpha stored this at $(date +%s)" --namespace patterns
+2. Verify it was stored:
+   npx moflo memory retrieve --key "cross-agent-test-alpha" --namespace patterns
+3. Report: key, value, and whether Vector: Yes appears in the store output.
+This is a WRITE test — store the pattern, then verify.
+""")
+```
+
+### Step 2: Read the pattern from "agent beta"
+
+After alpha completes, spawn a second agent that retrieves alpha's pattern:
+
+```
+Agent(subagent_type="Explore", name="memory-reader", prompt="""
+You are agent BETA in a memory sharing test. Do the following:
+1. Retrieve a key stored by another agent:
+   npx moflo memory retrieve --key "cross-agent-test-alpha" --namespace patterns
+2. Search for it semantically:
+   npx moflo memory search --query "cross-agent-test-alpha" --namespace patterns --limit 3
+3. Also try via MCP if available:
+   Use mcp__claude-flow__memory_retrieve with key "cross-agent-test-alpha", namespace "patterns"
+4. Report: Did retrieve return the value? Did search find it? What was the search score?
+This is a READ test — do not modify any files.
+""")
+```
+
+### Step 3: Verify learning propagation
+
+After both agents complete, check that the post-task hooks recorded learning:
+
+```bash
+npx moflo hooks post-task -t "memory-writer"
+npx moflo hooks post-task -t "memory-reader"
+```
+
+**Pass criteria:**
+- Agent alpha stores a pattern with `Vector: Yes (384-dim)`
+- Agent beta retrieves the exact same value via CLI `memory retrieve`
+- Agent beta finds it via `memory search` with a score > 0.50 (not exactly 0.500)
+- If MCP is available, MCP retrieve also returns the value
+- Post-task hooks record SUCCESS for both agents
+- This confirms: shared sql.js database, real-time visibility across agents, semantic embeddings generated on store
+
+---
+
 ## Test 7: MCP Server
 
 ```bash
