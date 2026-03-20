@@ -282,7 +282,9 @@ function getEntriesNeedingEmbeddings(db, namespace = null, forceAll = false) {
   const params = [];
 
   if (!forceAll) {
-    sql += ` AND (embedding IS NULL OR embedding = '')`;
+    // Include entries with no embedding OR entries with hash/fallback embeddings
+    // that should be upgraded to Xenova when available
+    sql += ` AND (embedding IS NULL OR embedding = '' OR embedding_model IN ('domain-aware-hash-v1', 'hash-fallback', 'local'))`;
   }
 
   if (namespace) {
@@ -408,7 +410,22 @@ async function main() {
   const stats = getEmbeddingStats(db);
 
   // Write changes back to disk (sql.js operates in-memory)
-  if (embedded > 0) saveDb(db);
+  if (embedded > 0) {
+    saveDb(db);
+
+    // Delete stale HNSW index so the CLI rebuilds from fresh vectors
+    const hnswPaths = [
+      resolve(projectRoot, '.swarm/hnsw.index'),
+      resolve(projectRoot, '.swarm/hnsw.metadata.json'),
+    ];
+    for (const p of hnswPaths) {
+      if (existsSync(p)) {
+        const { unlinkSync } = await import('fs');
+        unlinkSync(p);
+        log(`Deleted stale HNSW index: ${p}`);
+      }
+    }
+  }
   db.close();
 
   console.log('');

@@ -665,20 +665,26 @@ async function main() {
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   log(`Done in ${elapsed}s — ${allChunks.length} chunks written to code-map namespace`);
 
-  // 7. Trigger embedding generation in background
+  // 7. Generate embeddings inline (not detached — ensures Xenova runs reliably)
   if (!skipEmbeddings) {
-    // Look for build-embeddings script in project's .claude/scripts/
-    const embedScript = resolve(projectRoot, '.claude/scripts/build-embeddings.mjs');
-    if (existsSync(embedScript)) {
-      log('Starting background embedding generation...');
-      const proc = spawn('node', [embedScript, '--namespace', 'code-map'], {
-        cwd: projectRoot,
-        stdio: 'ignore',
-        detached: true,
-        shell: false,
-        windowsHide: true,
-      });
-      proc.unref();
+    // Prefer moflo's own bin script, fall back to project's .claude/scripts/
+    const embedCandidates = [
+      resolve(dirname(fileURLToPath(import.meta.url)), 'build-embeddings.mjs'),
+      resolve(projectRoot, '.claude/scripts/build-embeddings.mjs'),
+    ];
+    const embedScript = embedCandidates.find(p => existsSync(p));
+    if (embedScript) {
+      log('Generating embeddings for code-map...');
+      try {
+        execSync(`node "${embedScript}" --namespace code-map`, {
+          cwd: projectRoot,
+          stdio: 'inherit',
+          timeout: 120000,
+          windowsHide: true,
+        });
+      } catch (err) {
+        log(`Warning: embedding generation failed: ${err.message?.split('\n')[0]}`);
+      }
     }
   }
 }
