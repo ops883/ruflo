@@ -276,6 +276,26 @@ MoFlo installs Claude Code hooks that run on every tool call. Together, these ga
 
 All gates are configurable via `moflo.yaml` — you can disable any individual hook if it doesn't suit your workflow.
 
+### Intelligent Agent Routing
+
+MoFlo ships with 12 built-in task patterns that map common work to the right agent type:
+
+| Pattern | Keywords | Primary Agent |
+|---------|----------|---------------|
+| security-task | auth, password, encryption, CVE | security-architect |
+| testing-task | test, spec, coverage, e2e | tester |
+| database-task | schema, migration, SQL, ORM | architect |
+| feature-task | implement, add, create, build | architect → coder |
+| bugfix-task | bug, fix, error, crash, debug | coder |
+| api-task | endpoint, REST, route, handler | architect → coder |
+| ... | | *(12 patterns total)* |
+
+When you route a task (`flo hooks route --task "..."` or via MCP), MoFlo runs semantic similarity against these patterns using HNSW vector search and returns a ranked recommendation with confidence scores.
+
+**The routing gets smarter over time.** Every time a task completes successfully, MoFlo's post-task hook records the outcome — the full task description, which agent handled it, and whether it succeeded. These learned patterns are combined with the built-in seeds on every future route call. Because learned patterns contain rich task descriptions (not just short keywords), they discriminate better as they accumulate.
+
+Routing outcomes are stored in `.claude-flow/routing-outcomes.json` and persist across sessions. You can inspect them with `flo hooks patterns` or transfer them between projects with `flo hooks transfer`.
+
 ### The Two-Layer Task System
 
 MoFlo doesn't replace your AI client's task system — it wraps it. Your client (Claude Code, Cursor, or any MCP-capable tool) handles spawning agents and running code. MoFlo adds a coordination layer on top that handles memory, routing, and learning.
