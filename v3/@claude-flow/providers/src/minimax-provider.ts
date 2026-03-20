@@ -1,8 +1,8 @@
 /**
  * V3 MiniMax Provider
  *
- * Supports MiniMax-M2.5 and MiniMax-M2.5-highspeed models via
- * MiniMax's OpenAI-compatible API.
+ * Supports MiniMax-M2.7, MiniMax-M2.7-highspeed, MiniMax-M2.5, and
+ * MiniMax-M2.5-highspeed models via MiniMax's OpenAI-compatible API.
  *
  * API Documentation: https://platform.minimax.io/docs/api-reference/text-openai-api
  *
@@ -83,14 +83,20 @@ export class MiniMaxProvider extends BaseProvider {
   readonly name: LLMProvider = 'minimax';
   readonly capabilities: ProviderCapabilities = {
     supportedModels: [
+      'MiniMax-M2.7',
+      'MiniMax-M2.7-highspeed',
       'MiniMax-M2.5',
       'MiniMax-M2.5-highspeed',
     ],
     maxContextLength: {
+      'MiniMax-M2.7': 1048576,
+      'MiniMax-M2.7-highspeed': 1048576,
       'MiniMax-M2.5': 204800,
       'MiniMax-M2.5-highspeed': 204800,
     },
     maxOutputTokens: {
+      'MiniMax-M2.7': 131072,
+      'MiniMax-M2.7-highspeed': 131072,
       'MiniMax-M2.5': 192000,
       'MiniMax-M2.5-highspeed': 192000,
     },
@@ -108,6 +114,16 @@ export class MiniMaxProvider extends BaseProvider {
       concurrentRequests: 100,
     },
     pricing: {
+      'MiniMax-M2.7': {
+        promptCostPer1k: 0.0003,
+        completionCostPer1k: 0.0012,
+        currency: 'USD',
+      },
+      'MiniMax-M2.7-highspeed': {
+        promptCostPer1k: 0.0006,
+        completionCostPer1k: 0.0024,
+        currency: 'USD',
+      },
       'MiniMax-M2.5': {
         promptCostPer1k: 0.0003,
         completionCostPer1k: 0.0012,
@@ -272,6 +288,8 @@ export class MiniMaxProvider extends BaseProvider {
 
   async getModelInfo(model: LLMModel): Promise<ModelInfo> {
     const descriptions: Record<string, string> = {
+      'MiniMax-M2.7': 'Latest MiniMax model with 1M context window',
+      'MiniMax-M2.7-highspeed': 'Faster MiniMax-M2.7 variant optimized for speed',
       'MiniMax-M2.5': 'Peak Performance. Ultimate Value. Master the Complex',
       'MiniMax-M2.5-highspeed': 'Same performance, faster and more agile',
     };
@@ -324,12 +342,10 @@ export class MiniMaxProvider extends BaseProvider {
       stream,
     };
 
-    // MiniMax temperature must be in (0.0, 1.0], default to 1.0
+    // MiniMax temperature range: [0.0, 1.0]
     const temp = request.temperature ?? this.config.temperature;
     if (temp !== undefined) {
-      miniMaxRequest.temperature = Math.max(0.01, Math.min(temp, 1.0));
-    } else {
-      miniMaxRequest.temperature = 1.0;
+      miniMaxRequest.temperature = Math.max(0, Math.min(temp, 1.0));
     }
 
     if (request.maxTokens || this.config.maxTokens) {

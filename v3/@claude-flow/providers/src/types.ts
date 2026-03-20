@@ -50,6 +50,8 @@ export type LLMModel =
   | 'command-light'
   | 'command'
   // MiniMax Models
+  | 'MiniMax-M2.7'
+  | 'MiniMax-M2.7-highspeed'
   | 'MiniMax-M2.5'
   | 'MiniMax-M2.5-highspeed'
   // Ollama (Local) Models

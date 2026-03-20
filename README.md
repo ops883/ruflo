@@ -1409,7 +1409,7 @@ All configurations support these environment variables:
 | `ANTHROPIC_API_KEY` | Your Anthropic API key | Yes (for Claude models) |
 | `OPENAI_API_KEY` | OpenAI API key | Optional (for GPT models) |
 | `GOOGLE_API_KEY` | Google AI API key | Optional (for Gemini) |
-| `MINIMAX_API_KEY` | MiniMax API key | Optional (for MiniMax-M2.5) |
+| `MINIMAX_API_KEY` | MiniMax API key | Optional (for MiniMax-M2.7/M2.5) |
 | `CLAUDE_FLOW_LOG_LEVEL` | Logging level (debug, info, warn, error) | Optional |
 | `CLAUDE_FLOW_TOOL_GROUPS` | MCP tool groups to enable (comma-separated) | Optional |
 | `CLAUDE_FLOW_TOOL_MODE` | Preset tool mode (develop, pr-review, devops, etc.) | Optional |

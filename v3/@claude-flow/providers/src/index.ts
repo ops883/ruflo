@@ -8,7 +8,7 @@
  * - OpenAI (GPT-4o, o1, GPT-4, GPT-3.5)
  * - Google (Gemini 2.0, 1.5 Pro, Flash)
  * - Cohere (Command R+, R, Light)
- * - MiniMax (MiniMax-M2.5, MiniMax-M2.5-highspeed)
+ * - MiniMax (MiniMax-M2.7, MiniMax-M2.7-highspeed, MiniMax-M2.5, MiniMax-M2.5-highspeed)
  * - Ollama (Local: Llama, Mistral, CodeLlama, Phi)
  *
  * Features:
