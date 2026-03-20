@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/eric-cielo/moflo/main/docs/moflo.png?v=2" alt="MoFlo" />
+  <img src="https://raw.githubusercontent.com/eric-cielo/moflo/main/docs/moflo.png?v=3" alt="MoFlo" />
 </p>
 
 # MoFlo
