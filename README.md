@@ -23,29 +23,82 @@ Install it as a dev dependency and run `flo init`.
 | **Context Tracking** | Monitors context window usage (FRESH → MODERATE → DEPLETED → CRITICAL) and advises accordingly. |
 | **Cross-Platform** | Works on macOS, Linux, and Windows. |
 
-## Quick Start
+## Getting Started
+
+### 1. Install and init
 
 ```bash
-# Install as a dev dependency
 npm install --save-dev moflo
-
-# Initialize your project (generates config, hooks, skill, CLAUDE.md section)
 npx flo init
-
-# Index your project's knowledge base
-npx flo memory index-guidance
-npx flo memory code-map
-
-# Verify everything works
-npx flo doctor
 ```
 
-That's it. `flo init` sets up everything:
-- `moflo.yaml` — project config (auto-detects source dirs, languages, guidance paths)
-- `.claude/settings.json` — workflow gate hooks
-- `.claude/skills/flo/` — the `/flo` issue execution skill (with `/fl` alias)
-- `CLAUDE.md` — appends a MoFlo workflow section so Claude knows how to use it
-- `.gitignore` — adds state directories
+`flo init` scans your project and generates everything it needs:
+
+| Generated File | Purpose |
+|----------------|---------|
+| `moflo.yaml` | Project config — where your code and guidance live |
+| `.claude/settings.json` | Workflow gate hooks for Claude Code |
+| `.claude/skills/flo/` | The `/flo` issue execution skill (also `/fl`) |
+| `CLAUDE.md` section | Teaches Claude how to use MoFlo |
+| `.gitignore` entries | Excludes MoFlo state directories |
+
+### 2. Tell MoFlo where your guidance is
+
+Guidance is any documentation that helps Claude understand your project — coding conventions, architecture decisions, domain context, API references. Open `moflo.yaml` and check the `guidance` section:
+
+```yaml
+guidance:
+  directories:
+    - .claude/guidance    # project rules, patterns, conventions
+    - docs                # general documentation
+```
+
+MoFlo chunks these files, generates semantic embeddings, and stores them so Claude can search your knowledge base before touching any code. Add whatever directories contain useful context for your project:
+
+```yaml
+# Monorepo with shared docs
+guidance:
+  directories: [.claude/guidance, docs, packages/shared/docs]
+
+# Simple project
+guidance:
+  directories: [docs]
+```
+
+### 3. Tell MoFlo where your code is
+
+The code map indexes your source files — types, classes, functions, exports — so Claude can answer "where does X live?" without scanning the filesystem.
+
+```yaml
+code_map:
+  directories:
+    - src                 # your source code
+    - packages            # shared packages (monorepo)
+  extensions: [".ts", ".tsx"]
+  exclude: [node_modules, dist, .next, coverage]
+```
+
+`flo init` auto-detects your source directories and languages, but you can adjust them:
+
+```yaml
+# Monorepo
+code_map:
+  directories: [packages, apps, libs]
+
+# Backend + frontend
+code_map:
+  directories: [server/src, client/src]
+```
+
+### 4. Index and verify
+
+```bash
+npx flo memory index-guidance    # Index your guidance docs
+npx flo memory code-map          # Index your code structure
+npx flo doctor                   # Verify everything works
+```
+
+Both indexes run automatically at session start after this, so you only need to run them manually on first setup or after major structural changes.
 
 ## Commands
 
@@ -120,60 +173,6 @@ flo doctor                       # Health check
 flo --version                    # Show version
 ```
 
-## Telling MoFlo About Your Project
-
-MoFlo needs to know two things: **where your knowledge lives** and **where your code lives**. Both are configured in `moflo.yaml` at your project root (`flo init` generates this for you).
-
-### Where your guidance is
-
-Guidance is any markdown, documentation, or reference material that helps Claude understand your project — coding conventions, architecture decisions, domain context, API references, etc.
-
-```yaml
-guidance:
-  directories:
-    - .claude/guidance       # project-specific rules and patterns
-    - docs                   # general documentation
-  namespace: guidance
-```
-
-MoFlo chunks these files, generates 384-dim neural embeddings, and stores them in a local database. When Claude starts a task, it searches this knowledge base first — before touching any files — so it already knows your conventions, patterns, and prior decisions.
-
-You can put guidance anywhere. Just list the directories. Common setups:
-
-- **Monorepo**: `[.claude/guidance, docs, packages/shared/docs]`
-- **Simple project**: `[docs]` or even just `[.claude/guidance]`
-- **Multiple doc sources**: `[docs/architecture, docs/api, .claude/guidance]`
-
-### Where your code is
-
-The code map is a structural index of your source files — what types, classes, functions, and exports live where. Claude uses this to answer "where does X live?" without running Glob/Grep.
-
-```yaml
-code_map:
-  directories:
-    - src                    # your main source directory
-    - packages               # shared packages in a monorepo
-  extensions: [".ts", ".tsx"]  # which file types to index
-  exclude: [node_modules, dist, .next, coverage, build]
-  namespace: code-map
-```
-
-`flo init` auto-detects your source directories and languages, but you can adjust these to match your project layout. Common setups:
-
-- **Monorepo**: `directories: [packages, apps, libs]`
-- **Single app**: `directories: [src]`
-- **Backend + frontend**: `directories: [server/src, client/src]`
-
-### Indexing
-
-Both indexes run automatically at session start (controlled by `auto_index` in `moflo.yaml`). You can also run them manually:
-
-```bash
-npx flo memory index-guidance    # Re-index guidance docs
-npx flo memory code-map          # Re-index code structure
-```
-
-Both are incremental — unchanged files are skipped, so subsequent runs are fast.
 
 ## Full Configuration Reference
 
