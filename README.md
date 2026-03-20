@@ -18,7 +18,14 @@ MoFlo makes deliberate choices so you don't have to:
 - **Node.js runtime** — Targets Node.js specifically. All scripts, hooks, and tooling are JavaScript/TypeScript. No Python, no Rust binaries, no native compilation.
 - **sql.js (WASM)** — The memory database uses sql.js, a pure WebAssembly build of SQLite. No native `better-sqlite3` bindings to compile, no platform-specific build steps. Works identically on Windows, macOS, and Linux.
 - **Simplified embeddings pipeline** — 384-dimensional neural embeddings via Transformers.js (MiniLM-L6-v2, WASM). Same model and precision as the upstream multi-provider pipeline, but simpler — two scripts instead of an abstraction layer. Runs locally, no API calls.
-- **SONA + MicroLoRA learning** — Successful task outcomes train SONA (Self-Optimizing Neural Architecture) trajectories and MicroLoRA rank-2 adaptations. EWC++ (Elastic Weight Consolidation) prevents catastrophic forgetting across sessions. All WASM-based, no GPU required.
+- **Full learning stack wired up OOTB** — The following are all configured and functional from `flo init`, no manual setup:
+  - **SONA** (Self-Optimizing Neural Architecture) — learns from task trajectories via `@ruvector/sona` (Rust/NAPI)
+  - **MicroLoRA** — rank-2 LoRA weight adaptations at ~1µs per adapt via `@ruvector/learning-wasm` (WASM)
+  - **EWC++** (Elastic Weight Consolidation) — prevents catastrophic forgetting across sessions
+  - **HNSW Vector Search** — fast nearest-neighbor search via `@ruvector/core` VectorDb
+  - **Semantic Routing** — maps tasks to agents via `@ruvector/router` SemanticRouter
+  - **Trajectory Persistence** — outcomes stored in `routing-outcomes.json`, survive across sessions
+  - All WASM/NAPI-based, no GPU, no API keys, no external services.
 - **Memory-first workflow** — Claude must search what it already knows before exploring files. Enforced by hooks, not just instructions.
 - **Task registration before agents** — Sub-agents can't spawn until work is tracked. Prevents runaway agent proliferation.
 - **Learned routing** — Task outcomes feed back into the routing system automatically. No manual configuration needed — it gets smarter with use.

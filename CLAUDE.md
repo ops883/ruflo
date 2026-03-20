@@ -1040,6 +1040,12 @@ npx claude-flow@v3alpha plugins publish
 
 Registry source: IPFS via Pinata (`QmXbfEAaR7D2Ujm4GAkbwcGZQMHqAMpwDoje4583uNP834`)
 
+## Infrastructure Testing
+
+Run `docs/INFRASTRUCTURE_TEST_PLAN.md` before major work or after upgrading moflo. It validates all 11 subsystems: memory, semantic scores, gates, hooks, subagent guidance, swarm coordination, MCP, MCP/CLI parity, SONA learning, MicroLoRA WASM, and HNSW vector search.
+
+Quick smoke test: `npx moflo doctor`
+
 ## Upstream Sync
 
 MoFlo tracks cherry-picks from the upstream Ruflo/Claude Flow repository. The sync log lives in `UPSTREAM_SYNC.md` at the project root. Check it before merging upstream changes to see what's already been reviewed, applied, or intentionally skipped.
