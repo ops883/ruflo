@@ -126,6 +126,8 @@ Both indexes run automatically at session start after this, so you only need to 
 
 ## Commands
 
+You don't need to run these for normal use — `flo init` sets everything up, and the hooks handle memory, routing, and learning automatically. These commands are here for manual setup, debugging, and tweaking.
+
 ### Memory
 
 ```bash
