@@ -65,6 +65,23 @@ export interface MofloConfig {
     circuit_breaker: boolean;
     agent_overrides: Record<string, string>;
   };
+
+  status_line: {
+    enabled: boolean;
+    branding: string;
+    show_git: boolean;
+    show_model: boolean;
+    show_session: boolean;
+    show_intelligence: boolean;
+    show_swarm: boolean;
+    show_hooks: boolean;
+    show_mcp: boolean;
+    show_security: boolean;
+    show_adrs: boolean;
+    show_agentdb: boolean;
+    show_tests: boolean;
+    mode: 'single-line' | 'dashboard';
+  };
 }
 
 // ============================================================================
@@ -117,6 +134,22 @@ const DEFAULT_CONFIG: MofloConfig = {
     cost_optimization: true,
     circuit_breaker: true,
     agent_overrides: {},
+  },
+  status_line: {
+    enabled: true,
+    branding: 'Moflo V4',
+    show_git: true,
+    show_model: true,
+    show_session: true,
+    show_intelligence: true,
+    show_swarm: true,
+    show_hooks: true,
+    show_mcp: true,
+    show_security: true,
+    show_adrs: true,
+    show_agentdb: true,
+    show_tests: true,
+    mode: 'single-line',
   },
 };
 
@@ -190,6 +223,22 @@ function mergeConfig(raw: Record<string, any>, root: string): MofloConfig {
       cost_optimization: raw.model_routing?.cost_optimization ?? raw.modelRouting?.costOptimization ?? DEFAULT_CONFIG.model_routing.cost_optimization,
       circuit_breaker: raw.model_routing?.circuit_breaker ?? raw.modelRouting?.circuitBreaker ?? DEFAULT_CONFIG.model_routing.circuit_breaker,
       agent_overrides: raw.model_routing?.agent_overrides ?? raw.modelRouting?.agentOverrides ?? DEFAULT_CONFIG.model_routing.agent_overrides,
+    },
+    status_line: {
+      enabled: raw.status_line?.enabled ?? raw.statusLine?.enabled ?? DEFAULT_CONFIG.status_line.enabled,
+      branding: raw.status_line?.branding ?? raw.statusLine?.branding ?? DEFAULT_CONFIG.status_line.branding,
+      show_git: raw.status_line?.show_git ?? raw.statusLine?.showGit ?? DEFAULT_CONFIG.status_line.show_git,
+      show_model: raw.status_line?.show_model ?? raw.statusLine?.showModel ?? DEFAULT_CONFIG.status_line.show_model,
+      show_session: raw.status_line?.show_session ?? raw.statusLine?.showSession ?? DEFAULT_CONFIG.status_line.show_session,
+      show_intelligence: raw.status_line?.show_intelligence ?? raw.statusLine?.showIntelligence ?? DEFAULT_CONFIG.status_line.show_intelligence,
+      show_swarm: raw.status_line?.show_swarm ?? raw.statusLine?.showSwarm ?? DEFAULT_CONFIG.status_line.show_swarm,
+      show_hooks: raw.status_line?.show_hooks ?? raw.statusLine?.showHooks ?? DEFAULT_CONFIG.status_line.show_hooks,
+      show_mcp: raw.status_line?.show_mcp ?? raw.statusLine?.showMcp ?? DEFAULT_CONFIG.status_line.show_mcp,
+      show_security: raw.status_line?.show_security ?? raw.statusLine?.showSecurity ?? DEFAULT_CONFIG.status_line.show_security,
+      show_adrs: raw.status_line?.show_adrs ?? raw.statusLine?.showAdrs ?? DEFAULT_CONFIG.status_line.show_adrs,
+      show_agentdb: raw.status_line?.show_agentdb ?? raw.statusLine?.showAgentdb ?? DEFAULT_CONFIG.status_line.show_agentdb,
+      show_tests: raw.status_line?.show_tests ?? raw.statusLine?.showTests ?? DEFAULT_CONFIG.status_line.show_tests,
+      mode: raw.status_line?.mode ?? raw.statusLine?.mode ?? DEFAULT_CONFIG.status_line.mode,
     },
   };
 }
@@ -322,6 +371,23 @@ model_routing:
   # agent_overrides:
   #   security-architect: opus     # Always use opus for security
   #   researcher: sonnet           # Pin research to sonnet
+
+# Status line items (show/hide individual sections)
+status_line:
+  enabled: true
+  branding: "Moflo V4"            # Text shown in status bar
+  show_git: true                  # Git branch, changes, ahead/behind
+  show_model: true                # Current model name
+  show_session: true              # Session duration
+  show_intelligence: true         # Intelligence % indicator
+  show_swarm: true                # Active swarm agents count
+  show_hooks: true                # Enabled hooks count
+  show_mcp: true                  # MCP server count
+  show_security: true             # CVE/security status (dashboard only)
+  show_adrs: true                 # ADR compliance (dashboard only)
+  show_agentdb: true              # AgentDB vectors/size (dashboard only)
+  show_tests: true                # Test file count (dashboard only)
+  mode: single-line              # single-line (default) or dashboard (multi-line)
 `;
 
   return config;

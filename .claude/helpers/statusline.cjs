@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * RuFlo V3 Statusline Generator (Optimized)
+ * Moflo V4 Statusline Generator (Optimized)
  * Displays real-time V3 implementation progress and system status
  *
  * Usage: node statusline.cjs [--json] [--compact]
@@ -25,6 +25,68 @@ const CONFIG = {
 };
 
 const CWD = process.cwd();
+
+// Load status_line config from moflo.yaml (show/hide individual items)
+function loadStatusLineConfig() {
+  const defaults = {
+    enabled: true,
+    branding: 'Moflo V4',
+    show_git: true,
+    show_model: true,
+    show_session: true,
+    show_intelligence: true,
+    show_swarm: true,
+    show_hooks: true,
+    show_mcp: true,
+    show_security: true,
+    show_adrs: true,
+    show_agentdb: true,
+    show_tests: true,
+    mode: 'single-line',
+  };
+
+  // Try moflo.yaml
+  const yamlPath = path.join(CWD, 'moflo.yaml');
+  if (fs.existsSync(yamlPath)) {
+    try {
+      const content = fs.readFileSync(yamlPath, 'utf-8');
+      // Parse status_line block with simple regex
+      const block = content.match(/status_line:\s*\n((?:\s+\w+:.*\n?)+)/);
+      if (block) {
+        const lines = block[1].split('\n');
+        for (const line of lines) {
+          const m = line.match(/^\s+(\w+):\s*(.+)/);
+          if (!m) continue;
+          const [, key, val] = m;
+          const v = val.trim().replace(/^["']|["']$/g, '');
+          if (key === 'enabled') defaults.enabled = v !== 'false';
+          else if (key === 'branding') defaults.branding = v;
+          else if (key === 'mode') defaults.mode = v;
+          else if (key.startsWith('show_')) defaults[key] = v !== 'false';
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Try moflo.config.json
+  const jsonPath = path.join(CWD, 'moflo.config.json');
+  if (!fs.existsSync(yamlPath) && fs.existsSync(jsonPath)) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+      const sl = raw.status_line || raw.statusLine || {};
+      for (const key of Object.keys(defaults)) {
+        if (sl[key] !== undefined) defaults[key] = sl[key];
+        // Also check camelCase variants
+        const camel = key.replace(/_(\w)/g, (_, c) => c.toUpperCase());
+        if (sl[camel] !== undefined) defaults[key] = sl[camel];
+      }
+    } catch { /* ignore */ }
+  }
+
+  return defaults;
+}
+
+const SL_CONFIG = loadStatusLineConfig();
 
 // ANSI colors
 const c = {
@@ -546,17 +608,19 @@ function generateStatusline() {
   const hooks = getHooksStatus();
   const integration = getIntegrationStatus();
 
+  if (!SL_CONFIG.enabled) return '';
+
   const parts = [];
 
-  // Branding
-  parts.push(`${c.bold}${c.brightPurple}\u258A RuFlo V3${c.reset}`);
+  // Branding (always shown when enabled)
+  parts.push(`${c.bold}${c.brightPurple}\u258A ${SL_CONFIG.branding}${c.reset}`);
 
   // User + swarm indicator
   const dot = swarm.coordinationActive ? `${c.brightGreen}\u25CF${c.reset}` : `${c.brightCyan}\u25CF${c.reset}`;
   parts.push(`${dot} ${c.brightCyan}${git.name}${c.reset}`);
 
   // Git branch + changes
-  if (git.gitBranch) {
+  if (SL_CONFIG.show_git && git.gitBranch) {
     let branchPart = `${c.brightBlue}\u23C7 ${git.gitBranch}${c.reset}`;
     const changes = [];
     if (git.staged > 0) changes.push(`${c.brightGreen}+${git.staged}${c.reset}`);
@@ -569,29 +633,33 @@ function generateStatusline() {
   }
 
   // Model
-  parts.push(`${c.purple}${modelName}${c.reset}`);
+  if (SL_CONFIG.show_model) {
+    parts.push(`${c.purple}${modelName}${c.reset}`);
+  }
 
   // Session duration
-  if (session.duration) {
+  if (SL_CONFIG.show_session && session.duration) {
     parts.push(`${c.cyan}\u23F1 ${session.duration}${c.reset}`);
   }
 
   // Intelligence %
-  const intellColor = system.intelligencePct >= 80 ? c.brightGreen : system.intelligencePct >= 40 ? c.brightYellow : c.dim;
-  parts.push(`${intellColor}\u25CF ${system.intelligencePct}%${c.reset}`);
+  if (SL_CONFIG.show_intelligence) {
+    const intellColor = system.intelligencePct >= 80 ? c.brightGreen : system.intelligencePct >= 40 ? c.brightYellow : c.dim;
+    parts.push(`${intellColor}\u25CF ${system.intelligencePct}%${c.reset}`);
+  }
 
   // Swarm agents (only if active)
-  if (swarm.activeAgents > 0 || swarm.coordinationActive) {
+  if (SL_CONFIG.show_swarm && (swarm.activeAgents > 0 || swarm.coordinationActive)) {
     parts.push(`${c.brightYellow}\u25C9 ${swarm.activeAgents}/${swarm.maxAgents}${c.reset}`);
   }
 
   // Hooks (compact)
-  if (hooks.enabled > 0) {
+  if (SL_CONFIG.show_hooks && hooks.enabled > 0) {
     parts.push(`${c.brightGreen}\u2713${hooks.enabled}h${c.reset}`);
   }
 
   // MCP (compact)
-  if (integration.mcpServers.total > 0) {
+  if (SL_CONFIG.show_mcp && integration.mcpServers.total > 0) {
     const mcpCol = integration.mcpServers.enabled === integration.mcpServers.total ? c.brightGreen : c.brightYellow;
     parts.push(`${mcpCol}MCP${integration.mcpServers.enabled}${c.reset}`);
   }
@@ -616,7 +684,7 @@ function generateDashboard() {
   const lines = [];
 
   // Header
-  let header = `${c.bold}${c.brightPurple}\u258A RuFlo V3 ${c.reset}`;
+  let header = `${c.bold}${c.brightPurple}\u258A ${SL_CONFIG.branding}${c.reset}`;
   header += `${swarm.coordinationActive ? c.brightCyan : c.dim}\u25CF ${c.brightCyan}${git.name}${c.reset}`;
   if (git.gitBranch) {
     header += `  ${c.dim}\u2502${c.reset}  ${c.brightBlue}\u23C7 ${git.gitBranch}${c.reset}`;
@@ -734,9 +802,9 @@ if (process.argv.includes('--json')) {
   console.log(JSON.stringify(generateJSON(), null, 2));
 } else if (process.argv.includes('--compact')) {
   console.log(JSON.stringify(generateJSON()));
-} else if (process.argv.includes('--single-line')) {
-  console.log(generateStatusline());
-} else {
-  // Default: multi-line dashboard
+} else if (process.argv.includes('--dashboard') || SL_CONFIG.mode === 'dashboard') {
   console.log(generateDashboard());
+} else {
+  // Default: single-line statusline
+  console.log(generateStatusline());
 }

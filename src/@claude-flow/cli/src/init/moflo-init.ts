@@ -347,6 +347,27 @@ function generateHooks(root: string, force?: boolean, answers?: MofloInitAnswers
           "command": "npx flo gate prompt-reminder"
         }]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx flo-index",
+            "timeout": 30000
+          },
+          {
+            "type": "command",
+            "command": "npx flo-codemap",
+            "timeout": 30000
+          },
+          {
+            "type": "command",
+            "command": "npx flo-learn",
+            "timeout": 30000
+          }
+        ]
+      }
     ]
   };
 

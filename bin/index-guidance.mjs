@@ -41,13 +41,67 @@ function findProjectRoot() {
 
 const projectRoot = findProjectRoot();
 
+// Locate the moflo package root (for bundled guidance that ships with moflo)
+const mofloRoot = resolve(__dirname, '..');
+
 const NAMESPACE = 'guidance';
 const DB_PATH = resolve(projectRoot, '.swarm/memory.db');
 
-// Files to index
-const GUIDANCE_DIRS = [
-  { path: '.claude/guidance', prefix: 'guidance' },
-];
+// ============================================================================
+// Load guidance directories from moflo.yaml, falling back to defaults
+// ============================================================================
+
+function loadGuidanceDirs() {
+  const dirs = [];
+
+  // 1. Read moflo.yaml / moflo.config.json for user-configured directories
+  let configDirs = null;
+  const yamlPath = resolve(projectRoot, 'moflo.yaml');
+  const jsonPath = resolve(projectRoot, 'moflo.config.json');
+
+  if (existsSync(yamlPath)) {
+    try {
+      const content = readFileSync(yamlPath, 'utf-8');
+      // Simple YAML array extraction — avoids needing js-yaml at runtime
+      // Matches:  guidance:\n    directories:\n      - .claude/guidance\n      - docs/guides
+      const guidanceBlock = content.match(/guidance:\s*\n\s+directories:\s*\n((?:\s+-\s+.+\n?)+)/);
+      if (guidanceBlock) {
+        const items = guidanceBlock[1].match(/-\s+(.+)/g);
+        if (items && items.length > 0) {
+          configDirs = items.map(item => item.replace(/^-\s+/, '').trim());
+        }
+      }
+    } catch { /* ignore parse errors, fall through to defaults */ }
+  } else if (existsSync(jsonPath)) {
+    try {
+      const raw = JSON.parse(readFileSync(jsonPath, 'utf-8'));
+      if (raw.guidance?.directories && Array.isArray(raw.guidance.directories)) {
+        configDirs = raw.guidance.directories;
+      }
+    } catch { /* ignore parse errors */ }
+  }
+
+  // Use config dirs or fall back to defaults
+  const userDirs = configDirs || ['.claude/guidance', 'docs/guides'];
+  for (const d of userDirs) {
+    dirs.push({ path: d, prefix: 'guidance' });
+  }
+
+  // 2. Include moflo's own bundled guidance (ships with the package)
+  //    Only when running inside a consumer project (not moflo itself)
+  const bundledGuidanceDir = resolve(mofloRoot, '.claude/guidance');
+  const projectGuidanceDir = resolve(projectRoot, '.claude/guidance');
+  if (
+    existsSync(bundledGuidanceDir) &&
+    resolve(bundledGuidanceDir) !== resolve(projectGuidanceDir)
+  ) {
+    dirs.push({ path: bundledGuidanceDir, prefix: 'moflo-bundled', absolute: true });
+  }
+
+  return dirs;
+}
+
+const GUIDANCE_DIRS = loadGuidanceDirs();
 
 // Chunking config - optimized for Claude's retrieval
 const MIN_CHUNK_SIZE = 50;    // Lower minimum to avoid mega-chunks
@@ -573,11 +627,11 @@ function indexFile(db, filePath, keyPrefix) {
 }
 
 function indexDirectory(db, dirConfig) {
-  const dirPath = resolve(projectRoot, dirConfig.path);
+  const dirPath = dirConfig.absolute ? dirConfig.path : resolve(projectRoot, dirConfig.path);
   const results = [];
 
   if (!existsSync(dirPath)) {
-    log(`Directory not found: ${dirConfig.path}`);
+    if (verbose) debug(`Directory not found: ${dirConfig.path}`);
     return results;
   }
 
@@ -607,14 +661,24 @@ function cleanStaleEntries(db) {
 
   let staleCount = 0;
 
+  // Build a lookup of all indexed directory configs for stale detection
+  const prefixToDirMap = {};
+  for (const dirConfig of GUIDANCE_DIRS) {
+    const dirPath = dirConfig.absolute ? dirConfig.path : resolve(projectRoot, dirConfig.path);
+    prefixToDirMap[dirConfig.prefix] = dirPath;
+  }
+
   for (const { key } of docs) {
-    // Convert key back to file path
+    // Convert key back to file path by matching doc-{prefix}-{filename}
     let filePath;
-    if (key.startsWith('doc-guidance-')) {
-      filePath = resolve(projectRoot, '.claude/guidance', key.replace('doc-guidance-', '') + '.md');
-    } else {
-      continue; // Unknown prefix, skip
+    for (const [prefix, dirPath] of Object.entries(prefixToDirMap)) {
+      const docPrefix = `doc-${prefix}-`;
+      if (key.startsWith(docPrefix)) {
+        filePath = resolve(dirPath, key.replace(docPrefix, '') + '.md');
+        break;
+      }
     }
+    if (!filePath) continue; // Unknown prefix, skip
 
     if (!existsSync(filePath)) {
       const chunkPrefix = key.replace('doc-', 'chunk-');
@@ -651,6 +715,12 @@ function cleanStaleEntries(db) {
 console.log('');
 log('Indexing guidance files with FULL RAG linked segments...');
 log(`  Context overlap: ${overlapPercent}%`);
+log(`  Directories (${GUIDANCE_DIRS.length}):`);
+for (const d of GUIDANCE_DIRS) {
+  const dirPath = d.absolute ? d.path : resolve(projectRoot, d.path);
+  const exists = existsSync(dirPath);
+  log(`    ${exists ? '✓' : '✗'} ${d.absolute ? dirPath : d.path} [${d.prefix}]`);
+}
 console.log('');
 
 const db = await getDb();

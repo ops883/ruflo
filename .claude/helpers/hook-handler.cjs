@@ -127,7 +127,8 @@ const handlers = {
         session.start && session.start();
       }
     } else {
-      console.log('[OK] Session restored: session-' + Date.now());
+      console.log('No session to restore');
+      console.log('Session started: session-' + Date.now());
     }
     if (intelligence && intelligence.init) {
       try {
@@ -137,6 +138,87 @@ const handlers = {
         }
       } catch (e) { /* non-fatal */ }
     }
+
+    // Auto-index guidance, code map, and patterns on session start
+    try {
+      var projectDir = path.resolve(path.dirname(helpersDir), '..');
+      var cp = require('child_process');
+
+      // Read moflo.yaml auto_index flags (default: both true)
+      var autoGuidance = true;
+      var autoCodeMap = true;
+      var mofloConfigPath = path.join(projectDir, 'moflo.yaml');
+      var mofloJsonPath = path.join(projectDir, 'moflo.config.json');
+
+      if (fs.existsSync(mofloConfigPath)) {
+        try {
+          var content = fs.readFileSync(mofloConfigPath, 'utf-8');
+          if (/auto_index:\s*\n\s+guidance:\s*false/i.test(content)) autoGuidance = false;
+          if (/auto_index:\s*\n(?:\s+guidance:\s*\w+\n)?\s+code_map:\s*false/i.test(content)) autoCodeMap = false;
+        } catch (e) { /* ignore */ }
+      } else if (fs.existsSync(mofloJsonPath)) {
+        try {
+          var config = JSON.parse(fs.readFileSync(mofloJsonPath, 'utf-8'));
+          var ai = config.auto_index || config.autoIndex || {};
+          if (ai.guidance === false) autoGuidance = false;
+          if (ai.code_map === false || ai.codeMap === false) autoCodeMap = false;
+        } catch (e) { /* ignore */ }
+      }
+
+      // Helper: find a moflo bin script by filename
+      function findMofloScript(scriptName) {
+        var candidates = [
+          path.join(projectDir, 'bin', scriptName),
+          path.join(projectDir, 'node_modules', 'moflo', 'bin', scriptName),
+        ];
+        for (var i = 0; i < candidates.length; i++) {
+          if (fs.existsSync(candidates[i])) return candidates[i];
+        }
+        try {
+          var resolved = require.resolve('moflo/bin/' + scriptName, { paths: [projectDir] });
+          if (fs.existsSync(resolved)) return resolved;
+        } catch (e) { /* not installed */ }
+        return null;
+      }
+
+      function spawnBackground(script, extraArgs) {
+        var args = [script].concat(extraArgs || []);
+        cp.spawn('node', args, {
+          stdio: 'ignore',
+          cwd: projectDir,
+          detached: true,
+          windowsHide: true
+        }).unref();
+      }
+
+      // 1. Index guidance docs (with embeddings for semantic search)
+      if (autoGuidance) {
+        var guidanceScript = findMofloScript('index-guidance.mjs');
+        if (guidanceScript) spawnBackground(guidanceScript);
+      }
+
+      // 2. Generate code map (structural index of source files)
+      if (autoCodeMap) {
+        var codeMapScript = findMofloScript('generate-code-map.mjs');
+        if (codeMapScript) spawnBackground(codeMapScript);
+      }
+
+      // 3. Start learning service (pattern research on codebase)
+      var learnScript = findMofloScript('../.claude/helpers/learning-service.mjs');
+      if (!learnScript) learnScript = findMofloScript('learning-service.mjs');
+      // Also check the .claude/helpers location directly
+      if (!learnScript) {
+        var localLearn = path.join(projectDir, '.claude', 'helpers', 'learning-service.mjs');
+        if (fs.existsSync(localLearn)) learnScript = localLearn;
+      }
+      // Check inside node_modules/moflo/.claude/helpers
+      if (!learnScript) {
+        var nmLearn = path.join(projectDir, 'node_modules', 'moflo', '.claude', 'helpers', 'learning-service.mjs');
+        if (fs.existsSync(nmLearn)) learnScript = nmLearn;
+      }
+      if (learnScript) spawnBackground(learnScript);
+
+    } catch (e) { /* non-fatal: session-start indexing is best-effort */ }
   },
 
   'session-end': () => {
