@@ -20,11 +20,6 @@ import { generateStatuslineScript, generateStatuslineHook } from './statusline-g
 import {
   generatePreCommitHook,
   generatePostCommitHook,
-  generateSessionManager,
-  generateAgentRouter,
-  generateMemoryHelper,
-  generateHookHandler,
-  generateIntelligenceStub,
   generateAutoMemoryHook,
 } from './helpers-generator.js';
 import { generateClaudeMd } from './claudemd-generator.js';
@@ -437,8 +432,6 @@ export async function executeUpgrade(targetDir: string, upgradeSettings = false)
     } else {
       // Source not found (npx with broken paths) — use generated fallbacks
       const generatedCritical: Record<string, string> = {
-        'hook-handler.cjs': generateHookHandler(),
-        'intelligence.cjs': generateIntelligenceStub(),
         'auto-memory-hook.mjs': generateAutoMemoryHook(),
       };
       for (const [helperName, content] of Object.entries(generatedCritical)) {

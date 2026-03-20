@@ -43,13 +43,8 @@ export {
 export {
   generatePreCommitHook,
   generatePostCommitHook,
-  generateSessionManager,
-  generateAgentRouter,
-  generateMemoryHelper,
+  generateAutoMemoryHook,
   generateHelpers,
-  generateWindowsDaemonManager,
-  generateWindowsBatchWrapper,
-  generateCrossPlatformSessionManager,
 } from './helpers-generator.js';
 
 export {
