@@ -1,8 +1,14 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eric-cielo/moflo/main/docs/moflo.png" alt="MoFlo" width="480" />
+</p>
+
 # MoFlo
 
-**AI agent orchestration for Claude Code.** MoFlo gives your project semantic memory, workflow enforcement, learned routing, and automated issue execution — install it as a dev dependency and run `flo init`.
+**An opinionated, maintained fork of [Ruflo/Claude Flow](https://github.com/ruvnet/ruflo) that just works.**
 
-Forked from [ruflo/claude-flow](https://github.com/ruvnet/ruflo) with all patches applied to source and wrapper scripts merged into the CLI.
+MoFlo adds automatic code and guidance cataloging along with memory gating on top of the original Claude Flow orchestration engine. Where the upstream project provides raw building blocks, MoFlo ships opinionated defaults — workflow gates that enforce memory-first patterns, semantic indexing that runs at session start, and learned routing that improves over time — so you get a productive setup from `flo init` without manual tuning.
+
+Install it as a dev dependency and run `flo init`.
 
 ## Features
 

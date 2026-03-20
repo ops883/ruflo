@@ -95,6 +95,27 @@ const startCommand: Command = {
         fs.mkdirSync(stateDir, { recursive: true });
       }
 
+      // Check if another foreground daemon is already running (prevents duplicate daemons)
+      if (fs.existsSync(pidFile)) {
+        try {
+          const existingPid = parseInt(fs.readFileSync(pidFile, 'utf-8').trim(), 10);
+          if (!isNaN(existingPid) && existingPid !== process.pid) {
+            try {
+              process.kill(existingPid, 0); // Check if alive
+              // Another daemon is running — exit silently
+              if (!quiet) {
+                output.printWarning(`Daemon already running (PID: ${existingPid})`);
+              }
+              return { success: true };
+            } catch {
+              // Process not running — stale PID file, continue startup
+            }
+          }
+        } catch {
+          // Can't read PID file — continue startup
+        }
+      }
+
       // Write PID file for foreground mode
       fs.writeFileSync(pidFile, String(process.pid));
 
