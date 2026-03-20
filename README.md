@@ -257,6 +257,10 @@ auto_index:
   guidance: true                     # Auto-index docs on session start
   code_map: true                     # Auto-index code on session start
 
+mcp:
+  tool_defer: true                   # Defer 150+ tool schemas; loaded on demand via ToolSearch
+  auto_start: false                  # Auto-start MCP server on session begin
+
 hooks:
   pre_edit: true                     # Track file edits for learning
   post_edit: true                    # Record edit outcomes
@@ -290,6 +294,12 @@ status_line:
   show_agentdb: true
   show_mcp: true
 ```
+
+### Tool Deferral
+
+By default, `tool_defer` is `true`. MoFlo exposes 150+ MCP tools — loading all their schemas at conversation start consumes significant context. With deferral enabled, only tool **names** are listed at startup (compact), and full schemas are fetched on demand via `ToolSearch` when actually needed. Hooks and CLI commands continue to work normally since they call the daemon directly, not through MCP tool schemas.
+
+Set `tool_defer: false` if you want all tool schemas available immediately (useful for offline/air-gapped environments where `ToolSearch` may not work).
 
 ### Model Routing
 

@@ -1,38 +1,25 @@
 /**
  * MCP Configuration Generator
  * Creates .mcp.json for Claude Code MCP server integration
- * Handles cross-platform compatibility (Windows requires cmd /c wrapper)
+ *
+ * Note: Claude Code spawns MCP servers as child processes using the
+ * command/args from .mcp.json. On all platforms (including Windows),
+ * using `npx` directly works correctly. The previous `cmd /c` wrapper
+ * on Windows caused MCP servers to fail to start.
  */
 
 import type { InitOptions, MCPConfig } from './types.js';
 
 /**
- * Check if running on Windows
- */
-function isWindows(): boolean {
-  return process.platform === 'win32';
-}
-
-/**
- * Generate platform-specific MCP server entry
- * - Windows: uses 'cmd /c npx' directly
- * - Unix: uses 'npx' directly (simple, reliable)
+ * Generate MCP server entry
+ * Uses `npx` directly on all platforms — Claude Code handles process
+ * spawning correctly without needing a cmd.exe wrapper.
  */
 function createMCPServerEntry(
   npxArgs: string[],
   env: Record<string, string>,
   additionalProps: Record<string, unknown> = {}
 ): object {
-  if (isWindows()) {
-    return {
-      command: 'cmd',
-      args: ['/c', 'npx', '-y', ...npxArgs],
-      env,
-      ...additionalProps,
-    };
-  }
-
-  // Unix: direct npx invocation — simple and reliable
   return {
     command: 'npx',
     args: ['-y', ...npxArgs],
@@ -52,6 +39,10 @@ export function generateMCPConfig(options: InitOptions): object {
     npm_config_update_notifier: 'false',
   };
 
+  // When toolDefer is true, emit "deferred" so Claude Code loads schemas on
+  // demand via ToolSearch instead of putting 150+ schemas into context at startup.
+  const deferProps = config.toolDefer ? { toolDefer: 'deferred' } : {};
+
   // Claude Flow MCP server (core)
   if (config.claudeFlow) {
     mcpServers['claude-flow'] = createMCPServerEntry(
@@ -64,7 +55,7 @@ export function generateMCPConfig(options: InitOptions): object {
         CLAUDE_FLOW_MAX_AGENTS: String(options.runtime.maxAgents),
         CLAUDE_FLOW_MEMORY_BACKEND: options.runtime.memoryBackend,
       },
-      { autoStart: config.autoStart }
+      { autoStart: config.autoStart, ...deferProps }
     );
   }
 
@@ -73,7 +64,7 @@ export function generateMCPConfig(options: InitOptions): object {
     mcpServers['ruv-swarm'] = createMCPServerEntry(
       ['ruv-swarm', 'mcp', 'start'],
       { ...npmEnv },
-      { optional: true }
+      { optional: true, ...deferProps }
     );
   }
 
@@ -82,7 +73,7 @@ export function generateMCPConfig(options: InitOptions): object {
     mcpServers['flow-nexus'] = createMCPServerEntry(
       ['flow-nexus@latest', 'mcp', 'start'],
       { ...npmEnv },
-      { optional: true, requiresAuth: true }
+      { optional: true, requiresAuth: true, ...deferProps }
     );
   }
 
@@ -104,26 +95,14 @@ export function generateMCPCommands(options: InitOptions): string[] {
   const commands: string[] = [];
   const config = options.mcp;
 
-  if (isWindows()) {
-    if (config.claudeFlow) {
-      commands.push('claude mcp add claude-flow -- cmd /c npx -y @claude-flow/cli@latest mcp start');
-    }
-    if (config.ruvSwarm) {
-      commands.push('claude mcp add ruv-swarm -- cmd /c npx -y ruv-swarm mcp start');
-    }
-    if (config.flowNexus) {
-      commands.push('claude mcp add flow-nexus -- cmd /c npx -y flow-nexus@latest mcp start');
-    }
-  } else {
-    if (config.claudeFlow) {
-      commands.push("claude mcp add claude-flow -- npx -y @claude-flow/cli@latest mcp start");
-    }
-    if (config.ruvSwarm) {
-      commands.push("claude mcp add ruv-swarm -- npx -y ruv-swarm mcp start");
-    }
-    if (config.flowNexus) {
-      commands.push("claude mcp add flow-nexus -- npx -y flow-nexus@latest mcp start");
-    }
+  if (config.claudeFlow) {
+    commands.push('claude mcp add claude-flow -- npx -y @claude-flow/cli@latest mcp start');
+  }
+  if (config.ruvSwarm) {
+    commands.push('claude mcp add ruv-swarm -- npx -y ruv-swarm mcp start');
+  }
+  if (config.flowNexus) {
+    commands.push('claude mcp add flow-nexus -- npx -y flow-nexus@latest mcp start');
   }
 
   return commands;
@@ -133,14 +112,11 @@ export function generateMCPCommands(options: InitOptions): string[] {
  * Get platform-specific setup instructions
  */
 export function getPlatformInstructions(): { platform: string; note: string } {
-  if (isWindows()) {
-    return {
-      platform: 'Windows',
-      note: 'MCP configuration uses cmd /c wrapper for npx compatibility.',
-    };
-  }
+  const platform = process.platform === 'win32'
+    ? 'Windows'
+    : process.platform === 'darwin' ? 'macOS' : 'Linux';
   return {
-    platform: process.platform === 'darwin' ? 'macOS' : 'Linux',
+    platform,
     note: 'MCP configuration uses npx directly.',
   };
 }

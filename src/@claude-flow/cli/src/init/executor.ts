@@ -454,25 +454,34 @@ export async function executeUpgrade(targetDir: string, upgradeSettings = false)
     }
 
     // 1. ALWAYS update statusline helper (force overwrite)
+    // Prefer the shipped file (supports single-line mode + moflo.yaml config)
     const statuslinePath = path.join(targetDir, '.claude', 'helpers', 'statusline.cjs');
-    // Use default options with statusline config
-    const upgradeOptions: InitOptions = {
-      ...DEFAULT_INIT_OPTIONS,
-      targetDir,
-      force: true,
-      statusline: {
-        ...DEFAULT_INIT_OPTIONS.statusline,
-        refreshInterval: 5000,
-      },
-    };
-    const statuslineContent = generateStatuslineScript(upgradeOptions);
+    const sourceHelpersForStatusline = findSourceHelpersDir();
+    const shippedStatusline = sourceHelpersForStatusline
+      ? path.join(sourceHelpersForStatusline, 'statusline.cjs')
+      : null;
 
     if (fs.existsSync(statuslinePath)) {
       result.updated.push('.claude/helpers/statusline.cjs');
     } else {
       result.created.push('.claude/helpers/statusline.cjs');
     }
-    fs.writeFileSync(statuslinePath, statuslineContent, 'utf-8');
+
+    if (shippedStatusline && fs.existsSync(shippedStatusline)) {
+      fs.copyFileSync(shippedStatusline, statuslinePath);
+    } else {
+      // Fallback: generate if shipped file not available
+      const upgradeOptions: InitOptions = {
+        ...DEFAULT_INIT_OPTIONS,
+        targetDir,
+        force: true,
+        statusline: {
+          ...DEFAULT_INIT_OPTIONS.statusline,
+          refreshInterval: 5000,
+        },
+      };
+      fs.writeFileSync(statuslinePath, generateStatuslineScript(upgradeOptions), 'utf-8');
+    }
 
     // 2. Create MISSING metrics files only (preserve existing data)
     const metricsDir = path.join(targetDir, '.claude-flow', 'metrics');
@@ -1131,14 +1140,22 @@ async function writeStatusline(
     }
   }
 
-  // ALWAYS generate statusline.cjs — the generated version includes AgentDB
-  // vectors/size, tests, ADRs, hooks, and integration stats that the
-  // pre-installed static copy in the npm package lacks.
-  // This must overwrite any copy from writeHelpers() which copies the legacy file.
-  const statuslineScript = generateStatuslineScript(options);
+  // Prefer the shipped statusline.cjs from the package (supports single-line
+  // mode, moflo.yaml config, and stdin session data). Only fall back to the
+  // generated version if the shipped file is not found.
   const statuslinePath = path.join(helpersDir, 'statusline.cjs');
+  const sourceHelpersDir = findSourceHelpersDir();
+  const shippedStatusline = sourceHelpersDir
+    ? path.join(sourceHelpersDir, 'statusline.cjs')
+    : null;
 
-  fs.writeFileSync(statuslinePath, statuslineScript, 'utf-8');
+  if (shippedStatusline && fs.existsSync(shippedStatusline)) {
+    fs.copyFileSync(shippedStatusline, statuslinePath);
+  } else {
+    // Fallback: generate statusline if shipped file not available
+    const statuslineScript = generateStatuslineScript(options);
+    fs.writeFileSync(statuslinePath, statuslineScript, 'utf-8');
+  }
   result.created.files.push('.claude/helpers/statusline.cjs');
 }
 

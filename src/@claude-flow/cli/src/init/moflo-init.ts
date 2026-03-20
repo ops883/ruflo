@@ -231,6 +231,11 @@ hooks:
   session_restore: true        # Restore session state on start
   notification: true           # Hook into Claude Code notifications
 
+# MCP server options
+mcp:
+  tool_defer: deferred           # Defer 150+ tool schemas; loaded on demand via ToolSearch
+  auto_start: false              # Auto-start MCP server on session begin
+
 # Status line display (shown at bottom of Claude Code)
 # mode: "compact" (default), "single-line", or "dashboard" (full multi-line)
 status_line:

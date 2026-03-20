@@ -163,26 +163,20 @@ export function generateSettings(options: InitOptions): object {
 }
 
 /**
- * Detect if we're on Windows for platform-aware hook commands.
- */
-const IS_WINDOWS = process.platform === 'win32';
-
-/**
- * Build a cross-platform hook command.
- * On Windows, wraps with `cmd /c` to avoid PowerShell stdin/process issues
- * that cause "UserPromptSubmit hook error" in Claude Code.
+ * Build a hook command.
+ * Claude Code always executes hooks in a bash shell (even on Windows),
+ * so we must NOT wrap with `cmd /c` — doing so causes bash to mangle
+ * the command (e.g. `node` becomes `ode`).
  */
 function hookCmd(script: string, subcommand: string): string {
-  const cmd = `node ${script} ${subcommand}`.trim();
-  return IS_WINDOWS ? `cmd /c ${cmd}` : cmd;
+  return `node ${script} ${subcommand}`.trim();
 }
 
 /**
- * Build a cross-platform hook command for ESM scripts (.mjs).
+ * Build a hook command for ESM scripts (.mjs).
  */
 function hookCmdEsm(script: string, subcommand: string): string {
-  const cmd = `node ${script} ${subcommand}`.trim();
-  return IS_WINDOWS ? `cmd /c ${cmd}` : cmd;
+  return `node ${script} ${subcommand}`.trim();
 }
 
 /** Shorthand for CJS hook-handler commands */

@@ -166,6 +166,8 @@ export interface MCPConfig {
   autoStart: boolean;
   /** Server port */
   port: number;
+  /** Defer tool schema loading — schemas loaded on demand via ToolSearch */
+  toolDefer: boolean;
 }
 
 /**
@@ -383,6 +385,7 @@ export const DEFAULT_INIT_OPTIONS: InitOptions = {
     flowNexus: false,
     autoStart: false,
     port: 3000,
+    toolDefer: true,
   },
   runtime: {
     topology: 'hierarchical-mesh',
@@ -512,6 +515,7 @@ export const FULL_INIT_OPTIONS: InitOptions = {
     flowNexus: true,
     autoStart: false,
     port: 3000,
+    toolDefer: true,
   },
   embeddings: {
     enabled: true,
