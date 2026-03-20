@@ -4,9 +4,9 @@
 
 # MoFlo
 
-**An opinionated, maintained fork of [Ruflo/Claude Flow](https://github.com/ruvnet/ruflo) that just works.**
+**An opinionated fork of [Ruflo/Claude Flow](https://github.com/ruvnet/ruflo), optimized for local development with Claude Code.**
 
-MoFlo adds automatic code and guidance cataloging along with memory gating on top of the original Claude Flow orchestration engine. Where the upstream project provides raw building blocks, MoFlo ships opinionated defaults — workflow gates that enforce memory-first patterns, semantic indexing that runs at session start, and learned routing that improves over time — so you get a productive setup from `flo init` without manual tuning.
+MoFlo adds automatic code and guidance cataloging along with memory gating on top of the original Ruflo/Claude Flow orchestration engine. Where the upstream project provides raw building blocks, MoFlo ships opinionated defaults — workflow gates that enforce memory-first patterns, semantic indexing that runs at session start, and learned routing that improves over time — so you get a productive setup from `flo init` without manual tuning.
 
 Install it as a dev dependency and run `flo init`.
 
@@ -276,13 +276,20 @@ MoFlo installs Claude Code hooks that run on every tool call. Together, these ga
 
 All gates are configurable via `moflo.yaml` — you can disable any individual hook if it doesn't suit your workflow.
 
-### The Task System
+### How MoFlo and Claude Code Work Together
 
-MoFlo integrates Claude Code's native Task tool with its own coordination layer:
+Claude Code has its own task system — the Agent/Task tools that spawn sub-agents, track their progress, and return results. MoFlo doesn't replace this. Instead, it wraps Claude Code's native task system with a coordination layer that adds memory, routing, and learning.
 
-1. **Pre-task hook** — Before a sub-agent spawns, MoFlo records what's about to happen and can inject context (prior learnings, routing recommendations) into the agent's prompt.
-2. **Post-task hook** — After a sub-agent completes, MoFlo records the outcome. Successful patterns are stored in the memory database for future reference. Failed patterns feed into the routing circuit breaker.
-3. **The `/flo` skill** — Wraps the entire lifecycle of a GitHub issue: research the issue → enhance the ticket → implement the solution → run tests → simplify the code → create a PR. Each phase can use sub-agents, and all learning feeds back into memory.
+Here's how a typical task flows through both systems:
+
+1. **MoFlo routes the task** — Before any work starts, MoFlo's route hook analyzes the prompt and recommends an agent type and model tier. This happens via a Claude Code hook that fires on every prompt.
+2. **MoFlo gates the spawn** — Before Claude Code's Agent tool can spawn a sub-agent, MoFlo's gate verifies that memory was searched and a task was registered. This prevents blind exploration.
+3. **Claude Code spawns the agent** — The actual sub-agent runs through Claude Code's native Task tool. MoFlo doesn't manage the agent itself — Claude Code handles execution, output streaming, and completion.
+4. **MoFlo records the outcome** — After the agent finishes, MoFlo's post-task hook stores what worked (or didn't) in the memory database. Successful patterns feed into future routing decisions.
+
+The key insight: **Claude Code handles execution, MoFlo handles knowledge.** Claude Code is good at spawning agents and running code. MoFlo is good at remembering what happened, routing to the right agent, and making sure Claude checks what it knows before exploring from scratch.
+
+The `/flo` skill ties both systems together for GitHub issues — it drives a full workflow (research → enhance → implement → test → simplify → PR) using Claude Code's agents for execution and MoFlo's memory for continuity.
 
 ### Memory & Knowledge Storage
 

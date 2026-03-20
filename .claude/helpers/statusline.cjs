@@ -42,7 +42,7 @@ function loadStatusLineConfig() {
     show_adrs: true,
     show_agentdb: true,
     show_tests: true,
-    mode: 'single-line',
+    mode: 'compact',
   };
 
   // Try moflo.yaml

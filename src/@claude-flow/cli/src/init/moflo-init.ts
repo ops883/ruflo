@@ -232,14 +232,16 @@ hooks:
   notification: true           # Hook into Claude Code notifications
 
 # Status line display (shown at bottom of Claude Code)
-# mode: "single-line" (concise, default) or "dashboard" (full multi-line)
+# mode: "compact" (default), "single-line", or "dashboard" (full multi-line)
 status_line:
   enabled: true
-  mode: single-line
+  mode: compact
   branding: "MoFlo V4"
   show_git: true
-  show_model: true
   show_session: true
+  show_swarm: true
+  show_agentdb: true
+  show_mcp: true
 
 # Model preferences (haiku, sonnet, opus)
 models:
