@@ -48,3 +48,8 @@ Tracks which Ruflo/Claude Flow upstream commits have been reviewed and their dis
 ### From auto-memory-hook.mjs
 - Suppress unhandled rejection warnings from dynamic import failures
 - Added `process.exit(0)` for clean hook exit
+
+### From ruvector WASM integration (#1374) — partial
+- Added `@ruvector/learning-wasm` as a direct dependency (was missing, blocking MicroLoRA)
+- SONA and EWC++ were already wired in via `agentic-flow` → `@ruvector/sona`
+- Did NOT adopt the multi-provider embedding abstraction — our simplified pipeline (Transformers.js direct) works with same precision

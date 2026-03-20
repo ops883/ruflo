@@ -17,11 +17,13 @@ MoFlo makes deliberate choices so you don't have to:
 - **Fully self-contained** — No external services, no cloud dependencies, no API keys. Everything runs locally on your machine.
 - **Node.js runtime** — Targets Node.js specifically. All scripts, hooks, and tooling are JavaScript/TypeScript. No Python, no Rust binaries, no native compilation.
 - **sql.js (WASM)** — The memory database uses sql.js, a pure WebAssembly build of SQLite. No native `better-sqlite3` bindings to compile, no platform-specific build steps. Works identically on Windows, macOS, and Linux.
-- **MiniLM-L6-v2 embeddings** — 384-dimensional neural embeddings via Transformers.js (also WASM). Runs locally, no API calls for vector generation.
+- **Simplified embeddings pipeline** — 384-dimensional neural embeddings via Transformers.js (MiniLM-L6-v2, WASM). Same model and precision as the upstream multi-provider pipeline, but simpler — two scripts instead of an abstraction layer. Runs locally, no API calls.
+- **SONA + MicroLoRA learning** — Successful task outcomes train SONA (Self-Optimizing Neural Architecture) trajectories and MicroLoRA rank-2 adaptations. EWC++ (Elastic Weight Consolidation) prevents catastrophic forgetting across sessions. All WASM-based, no GPU required.
 - **Memory-first workflow** — Claude must search what it already knows before exploring files. Enforced by hooks, not just instructions.
 - **Task registration before agents** — Sub-agents can't spawn until work is tracked. Prevents runaway agent proliferation.
 - **Learned routing** — Task outcomes feed back into the routing system automatically. No manual configuration needed — it gets smarter with use.
 - **Incremental indexing** — Guidance and code map indexes run on every session start but skip unchanged files. Fast after the first run.
+- **AI client agnostic** — Works with any MCP-capable AI client. We develop and test with Claude Code, but the MCP tools, memory system, and hooks are client-independent.
 - **GitHub-oriented** — The `/flo` skill, PR workflows, and issue tracking are built around GitHub. With Claude's help, you can adapt them to your own issue tracker and source control system.
 - **Cross-platform** — Forward-slash path normalization, no `sh -c` shell commands, `windowsHide` on all spawn calls.
 
@@ -311,6 +313,27 @@ When you route a task (`flo hooks route --task "..."` or via MCP), MoFlo runs se
 **The routing gets smarter over time.** Every time a task completes successfully, MoFlo's post-task hook records the outcome — the full task description, which agent handled it, and whether it succeeded. These learned patterns are combined with the built-in seeds on every future route call. Because learned patterns contain rich task descriptions (not just short keywords), they discriminate better as they accumulate.
 
 Routing outcomes are stored in `.claude-flow/routing-outcomes.json` and persist across sessions. You can inspect them with `flo hooks patterns` or transfer them between projects with `flo hooks transfer`.
+
+### What Ships Out of the Box
+
+`flo init` wires up the following systems automatically — no configuration needed:
+
+| System | What It Does | Technology |
+|--------|-------------|------------|
+| **Semantic Memory** | Store and search knowledge with 384-dim embeddings | sql.js (WASM SQLite) + Transformers.js (MiniLM-L6-v2) |
+| **HNSW Vector Search** | Fast nearest-neighbor search across all stored knowledge | `@ruvector/core` VectorDb |
+| **Semantic Routing** | Match tasks to agent types using vector similarity | `@ruvector/router` SemanticRouter |
+| **SONA Learning** | Learn from task trajectories — what agent handled what, and whether it succeeded | `@ruvector/sona` SonaEngine (Rust/NAPI) |
+| **MicroLoRA Adaptation** | Rank-2 LoRA weight updates from successful patterns (~1µs per adapt) | `@ruvector/learning-wasm` |
+| **EWC++ Consolidation** | Prevent catastrophic forgetting — new learning doesn't overwrite old patterns | Built into hooks-tools |
+| **Workflow Gates** | Memory-first and task-registration enforcement via Claude Code hooks | `.claude/settings.json` hooks |
+| **Context Tracking** | Monitor context window depletion (FRESH → CRITICAL) | Session interaction counter |
+| **Guidance Indexing** | Chunk and embed your project docs on session start | `flo-index` bin script |
+| **Code Map** | Index source file structure (types, exports, functions) on session start | `flo-codemap` bin script |
+| **Learned Routing** | Task outcomes feed back into routing — gets smarter over time | `routing-outcomes.json` persistence |
+| **Status Line** | Live dashboard showing git, swarm, memory, and MCP status | `statusline.cjs` hook |
+
+All of these run locally with zero external dependencies. The SONA, MicroLoRA, and HNSW components are WASM/NAPI binaries that ship with the npm package — no compilation, no GPU, no API keys.
 
 ### The Two-Layer Task System
 
