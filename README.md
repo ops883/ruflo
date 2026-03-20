@@ -206,6 +206,18 @@ Inside your AI client, the `/flo` (or `/fl`) slash command drives GitHub issue w
 
 For full options and details, type `/flo` with no arguments — your AI client will display the complete skill documentation. Also available as `/fl`.
 
+#### Epic handling
+
+When you pass an issue number, `/flo` automatically checks if it's an epic — no extra flag needed. An issue is treated as an epic if any of these are true:
+
+- It has the `epic` label
+- Its body contains a `## Stories` or `## Tasks` section
+- Its body has linked issues in checklist format: `- [ ] #101`
+
+When an epic is detected, `/flo` processes each child story sequentially — full workflow per story (research → implement → test → PR), one at a time, in the order listed. The `-e`, `-r`, `-n`, and `-hv` flags still apply and get passed through to each story.
+
+Stories are extracted from the markdown checklist format (`- [ ] #101`, `- [ ] #102`). Note that GitHub's sub-issue feature (the "Sub-issues" panel) uses a different mechanism than markdown checklists — those won't be auto-detected. For reliable epic detection, use the checklist format in the issue body.
+
 ### System
 
 ```bash
