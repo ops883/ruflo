@@ -22,6 +22,7 @@ MoFlo makes deliberate choices so you don't have to:
 - **Task registration before agents** — Sub-agents can't spawn until work is tracked. Prevents runaway agent proliferation.
 - **Learned routing** — Task outcomes feed back into the routing system automatically. No manual configuration needed — it gets smarter with use.
 - **Incremental indexing** — Guidance and code map indexes run on every session start but skip unchanged files. Fast after the first run.
+- **GitHub-oriented** — The `/flo` skill, PR workflows, and issue tracking are built around GitHub. With Claude's help, you can adapt them to your own issue tracker and source control system.
 - **Cross-platform** — Forward-slash path normalization, no `sh -c` shell commands, `windowsHide` on all spawn calls.
 
 ## Features
