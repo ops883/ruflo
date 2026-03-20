@@ -301,9 +301,10 @@ console.log('adapt_count after reset:', Number(lora.adapt_count()));
 - WASM initializes without error
 - `WasmMicroLoRA(384, 0.1, 0.01)` creates successfully
 - `adapt()` increments `adapt_count` from 0 to 1
-- `forward_array()` returns 384 dims and modifies input (output differs from input)
+- `forward_array()` returns 384 dims and modifies input (output differs)
 - `adapt_with_reward()` increments `adapt_count` to 2
 - `reset()` resets `adapt_count` to 0
+- Note: `dim()` returns internal LoRA rank (256), not input dimension (384)
 
 ---
 
@@ -313,26 +314,29 @@ Verify the HNSW vector database from `@ruvector/core` initializes and performs s
 
 ```bash
 node -e "
+(async () => {
 const { VectorDb, JsDistanceMetric } = require('@ruvector/core');
 const db = new VectorDb({ dimensions: 384, distanceMetric: JsDistanceMetric.Cosine });
 
-// Insert test vectors
+// Insert test vectors (Float32Array required)
 for (let i = 0; i < 5; i++) {
-  const vec = Array.from({length: 384}, (_, j) => Math.sin((i + 1) * j * 0.01));
-  db.insert('test-' + i, vec, JSON.stringify({label: 'item-' + i}));
+  const vec = new Float32Array(384);
+  for (let j = 0; j < 384; j++) vec[j] = Math.sin((i + 1) * j * 0.01);
+  db.insert({ key: 'test-' + i, vector: vec, metadata: JSON.stringify({label: 'item-' + i}) });
 }
 
-// Search
-const query = Array.from({length: 384}, (_, j) => Math.sin(3 * j * 0.01));
-const results = db.search(query, 3);
+// Search (async, returns {id, score} objects)
+const query = new Float32Array(384);
+for (let j = 0; j < 384; j++) query[j] = Math.sin(3 * j * 0.01);
+const results = await db.search({ vector: query, k: 3 });
 console.log('Results:', results.length);
-results.forEach(r => console.log('  key:', r.key, 'distance:', r.distance.toFixed(4)));
-console.log('Top result is test-2 (closest to query):', results[0].key === 'test-2');
+results.forEach((r, i) => console.log('  rank', i, '- score:', r.score?.toFixed(6) || 'N/A'));
+})();
 "
 ```
 
 **Pass criteria:**
 - VectorDb creates with 384 dims + Cosine metric
 - 5 vectors insert without error
-- Search returns 3 results sorted by distance
-- Top result is `test-2` (the vector most similar to the query)
+- Search returns 3 results with scores
+- Scores are near 0 (cosine distance — closer to 0 = more similar)
