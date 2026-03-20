@@ -31,6 +31,7 @@ function loadStatusLineConfig() {
   const defaults = {
     enabled: true,
     branding: 'Moflo V4',
+    show_dir: true,
     show_git: true,
     show_model: true,
     show_session: true,
@@ -663,8 +664,9 @@ function generateDashboard() {
   const session = getSessionStats();
   const lines = [];
 
-  // Header: branding + git
+  // Header: branding + dir + git
   let header = `${c.bold}${c.brightPurple}\u258A ${SL_CONFIG.branding}${c.reset}`;
+  if (SL_CONFIG.show_dir) header += `  ${c.brightWhite}${path.basename(CWD)}${c.reset}`;
   if (SL_CONFIG.show_git && git.gitBranch) {
     header += `  ${c.brightBlue}\u23C7 ${git.gitBranch}${c.reset}`;
     const changes = git.modified + git.staged + git.untracked;
@@ -733,8 +735,9 @@ function generateCompactDashboard() {
   const session = getSessionStats();
   const lines = [];
 
-  // Header: branding + git + session
+  // Header: branding + dir + git + session
   let header = `${c.bold}${c.brightPurple}\u258A ${SL_CONFIG.branding}${c.reset}`;
+  if (SL_CONFIG.show_dir) header += `  ${c.brightWhite}${path.basename(CWD)}${c.reset}`;
   if (SL_CONFIG.show_git && git.gitBranch) {
     header += `  ${c.brightBlue}\u23C7 ${git.gitBranch}${c.reset}`;
     const changes = git.modified + git.staged + git.untracked;
@@ -806,15 +809,23 @@ function generateJSON() {
 }
 
 // ─── Main ───────────────────────────────────────────────────────
-if (process.argv.includes('--json')) {
+// CLI flags take precedence over moflo.yaml mode
+const cliMode = process.argv.includes('--json') ? 'json'
+  : process.argv.includes('--json-compact') ? 'json-compact'
+  : process.argv.includes('--dashboard') ? 'dashboard'
+  : process.argv.includes('--compact') ? 'compact'
+  : process.argv.includes('--single-line') ? 'single-line'
+  : null;
+const mode = cliMode || SL_CONFIG.mode || 'compact';
+
+if (mode === 'json') {
   console.log(JSON.stringify(generateJSON(), null, 2));
-} else if (process.argv.includes('--json-compact')) {
+} else if (mode === 'json-compact') {
   console.log(JSON.stringify(generateJSON()));
-} else if (process.argv.includes('--compact') || SL_CONFIG.mode === 'compact') {
-  console.log(generateCompactDashboard());
-} else if (process.argv.includes('--dashboard') || SL_CONFIG.mode === 'dashboard') {
+} else if (mode === 'dashboard') {
   console.log(generateDashboard());
+} else if (mode === 'compact') {
+  console.log(generateCompactDashboard());
 } else {
-  // Default: single-line statusline
   console.log(generateStatusline());
 }

@@ -227,6 +227,7 @@ status_line:
   enabled: true
   branding: "MoFlo V4"
   mode: compact                      # single-line, compact, or dashboard
+  show_dir: true                      # current directory name (compact/dashboard only)
   show_git: true
   show_session: true
   show_swarm: true
