@@ -272,12 +272,6 @@ async function main() {
         break;
       }
 
-      case 'patch-mcp-memory': {
-        // Deprecated - use claude-flow-upgrade.mjs instead
-        console.log('[hook:patch-mcp-memory] Deprecated. Use: node .claude/scripts/claude-flow-upgrade.mjs');
-        break;
-      }
-
       case 'session-restore': {
         const sessionId = getArg('session-id') || process.env.SESSION_ID;
         if (sessionId) {
@@ -328,17 +322,6 @@ async function main() {
         break;
       }
 
-      case 'statusline': {
-        // Use local statusline helper (not CLI - that subcommand doesn't exist)
-        const statuslineScript = resolve(projectRoot, '.claude/helpers/statusline.js');
-        if (existsSync(statuslineScript)) {
-          await runCommand('node', [statuslineScript], { silent: false });
-        } else {
-          // Fallback - just show basic info
-          console.log('Claude Flow V3');
-        }
-        break;
-      }
 
       case 'semantic-search': {
         // Semantic search using embeddings
@@ -383,8 +366,6 @@ async function main() {
 
   process.exit(0);
 }
-
-// patchMcpMemory removed - use claude-flow-upgrade.mjs instead
 
 // Run the guidance indexer (blocking - used for specific file updates)
 async function runIndexGuidance(specificFile = null) {

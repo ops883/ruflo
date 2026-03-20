@@ -51,12 +51,6 @@ try {
 const localCli = resolve(projectRoot, 'node_modules/moflo/src/@claude-flow/cli/bin/cli.js');
 const hasLocalCli = existsSync(localCli);
 
-// update-claude-flow (version check + RuVector init)
-const updateScript = resolve(projectRoot, '.claude/scripts/update-claude-flow.mjs');
-if (existsSync(updateScript)) {
-  fireAndForget('node', [updateScript], 'update-claude-flow');
-}
-
 // hooks.mjs session-start (daemon, indexer, pretrain, HNSW, neural patterns)
 const hooksScript = resolve(projectRoot, '.claude/scripts/hooks.mjs');
 if (existsSync(hooksScript)) {
