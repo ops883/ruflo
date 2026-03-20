@@ -120,21 +120,76 @@ flo doctor                       # Health check
 flo --version                    # Show version
 ```
 
-## Configuration
+## Telling MoFlo About Your Project
 
-`flo init` generates a `moflo.yaml` at your project root:
+MoFlo needs to know two things: **where your knowledge lives** and **where your code lives**. Both are configured in `moflo.yaml` at your project root (`flo init` generates this for you).
+
+### Where your guidance is
+
+Guidance is any markdown, documentation, or reference material that helps Claude understand your project — coding conventions, architecture decisions, domain context, API references, etc.
+
+```yaml
+guidance:
+  directories:
+    - .claude/guidance       # project-specific rules and patterns
+    - docs                   # general documentation
+  namespace: guidance
+```
+
+MoFlo chunks these files, generates 384-dim neural embeddings, and stores them in a local database. When Claude starts a task, it searches this knowledge base first — before touching any files — so it already knows your conventions, patterns, and prior decisions.
+
+You can put guidance anywhere. Just list the directories. Common setups:
+
+- **Monorepo**: `[.claude/guidance, docs, packages/shared/docs]`
+- **Simple project**: `[docs]` or even just `[.claude/guidance]`
+- **Multiple doc sources**: `[docs/architecture, docs/api, .claude/guidance]`
+
+### Where your code is
+
+The code map is a structural index of your source files — what types, classes, functions, and exports live where. Claude uses this to answer "where does X live?" without running Glob/Grep.
+
+```yaml
+code_map:
+  directories:
+    - src                    # your main source directory
+    - packages               # shared packages in a monorepo
+  extensions: [".ts", ".tsx"]  # which file types to index
+  exclude: [node_modules, dist, .next, coverage, build]
+  namespace: code-map
+```
+
+`flo init` auto-detects your source directories and languages, but you can adjust these to match your project layout. Common setups:
+
+- **Monorepo**: `directories: [packages, apps, libs]`
+- **Single app**: `directories: [src]`
+- **Backend + frontend**: `directories: [server/src, client/src]`
+
+### Indexing
+
+Both indexes run automatically at session start (controlled by `auto_index` in `moflo.yaml`). You can also run them manually:
+
+```bash
+npx flo memory index-guidance    # Re-index guidance docs
+npx flo memory code-map          # Re-index code structure
+```
+
+Both are incremental — unchanged files are skipped, so subsequent runs are fast.
+
+## Full Configuration Reference
+
+`flo init` generates a `moflo.yaml` at your project root. Here's the complete set of options:
 
 ```yaml
 project:
   name: "my-project"
 
 guidance:
-  directories: [.claude/guidance]    # Where your knowledge docs live
+  directories: [.claude/guidance]
   namespace: guidance
 
 code_map:
-  directories: [src, packages]       # Source dirs to index
-  extensions: [".ts", ".tsx"]        # Auto-detected from your project
+  directories: [src, packages]
+  extensions: [".ts", ".tsx"]
   exclude: [node_modules, dist]
   namespace: code-map
 
@@ -147,42 +202,36 @@ auto_index:
   guidance: true                     # Auto-index docs on session start
   code_map: true                     # Auto-index code on session start
 
-# Hook toggles (all on by default — disable to slim down)
 hooks:
   pre_edit: true                     # Track file edits for learning
-  post_edit: true                    # Record edit outcomes, train neural patterns
-  pre_task: true                     # Get agent routing before task spawn
+  post_edit: true                    # Record edit outcomes
+  pre_task: true                     # Agent routing before task spawn
   post_task: true                    # Record task results for learning
   gate: true                         # Workflow gate enforcement
-  route: true                        # Intelligent task routing on each prompt
+  route: true                        # Intelligent task routing
   stop_hook: true                    # Session-end persistence
   session_restore: true              # Restore session state on start
-  notification: true                 # Hook into Claude Code notifications
 
 models:
-  default: opus        # General tasks
-  research: sonnet     # Research/exploration agents
-  review: opus         # Code review agents
-  test: sonnet         # Test-writing agents
+  default: opus
+  research: sonnet
+  review: opus
+  test: sonnet
 
-# Optional: intelligent model routing (off by default)
 model_routing:
-  enabled: false                   # Set to true to enable
+  enabled: false                     # Set to true for automatic model selection
   confidence_threshold: 0.85
   cost_optimization: true
   circuit_breaker: true
 
-# Status line display
 status_line:
   enabled: true
-  branding: "Moflo V4"
-  mode: single-line                # single-line or dashboard
+  branding: "MoFlo V4"
+  mode: compact                      # single-line, compact, or dashboard
   show_git: true
-  show_model: true
   show_session: true
-  show_intelligence: true
   show_swarm: true
-  show_hooks: true
+  show_agentdb: true
   show_mcp: true
 ```
 
