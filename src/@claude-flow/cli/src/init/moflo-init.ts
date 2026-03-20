@@ -615,6 +615,8 @@ ${MOFLO_MARKER_END}
 // ============================================================================
 
 const SCRIPT_MAP: Record<string, string> = {
+  'hooks.mjs': 'hooks.mjs',
+  'session-start-launcher.mjs': 'session-start-launcher.mjs',
   'index-guidance.mjs': 'index-guidance.mjs',
   'build-embeddings.mjs': 'build-embeddings.mjs',
   'generate-code-map.mjs': 'generate-code-map.mjs',
