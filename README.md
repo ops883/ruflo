@@ -262,17 +262,9 @@ When `flo init` runs, it appends a workflow section to your CLAUDE.md that teach
 
 ## Architecture
 
-MoFlo is a maintained fork of [ruflo 3.x](https://github.com/ruvnet/ruflo) with:
-
-- **3 patches applied to TypeScript source** (no more monkey-patching node_modules):
-  - 384-dim domain-aware embeddings for consistent CLI ↔ MCP search
-  - `windowsHide: true` on all spawn/exec calls (Windows UX)
-  - Routing learned patterns (task outcomes feed back into routing)
 - **7 standalone bin scripts** shipped with npm: `flo-search`, `flo-embeddings`, `flo-index`, `flo-codemap`, `flo-learn`, `flo-setup`, plus the main `flo` CLI
 - **Project config system**: `moflo.yaml` for per-project settings
 - **One-stop init**: `flo init` generates everything needed for OOTB operation
-
-Upstream remote preserved for cherry-picking future ruflo fixes.
 
 ## License
 
