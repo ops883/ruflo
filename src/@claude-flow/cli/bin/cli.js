@@ -22,7 +22,26 @@ if (isMCPMode) {
   // Run MCP server mode
   const { listMCPTools, callMCPTool, hasTool } = await import('../dist/src/mcp-client.js');
 
-  const VERSION = '3.0.0';
+  // Read version from the root moflo package.json dynamically
+  const { readFileSync } = await import('fs');
+  const { dirname: _dirname, join: _join } = await import('path');
+  const { fileURLToPath: _fileURLToPath } = await import('url');
+  let VERSION = '4.6.2';
+  try {
+    const _thisDir = _dirname(_fileURLToPath(import.meta.url));
+    // Walk up to find root moflo package.json
+    let _dir = _thisDir;
+    for (;;) {
+      const _candidate = _join(_dir, 'package.json');
+      try {
+        const _pkg = JSON.parse(readFileSync(_candidate, 'utf8'));
+        if (_pkg.name === 'moflo' && _pkg.version) { VERSION = _pkg.version; break; }
+      } catch {}
+      const _parent = _dirname(_dir);
+      if (_parent === _dir) break;
+      _dir = _parent;
+    }
+  } catch {}
   const sessionId = `mcp-${Date.now()}-${randomUUID().slice(0, 8)}`;
 
   console.error(

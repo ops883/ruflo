@@ -309,7 +309,23 @@ export class MCPServerManager extends EventEmitter {
     // Import the tool registry
     const { listMCPTools, callMCPTool, hasTool } = await import('./mcp-client.js');
 
-    const VERSION = '3.0.0';
+    // Read version dynamically from root moflo package.json
+    let VERSION = '4.6.3';
+    try {
+      const { readFileSync } = await import('fs');
+      const { dirname: _d, join: _j } = await import('path');
+      const { fileURLToPath: _f } = await import('url');
+      let _dir = _d(_f(import.meta.url));
+      for (;;) {
+        try {
+          const _pkg = JSON.parse(readFileSync(_j(_dir, 'package.json'), 'utf8'));
+          if (_pkg.name === 'moflo' && _pkg.version) { VERSION = _pkg.version; break; }
+        } catch {}
+        const _p = _d(_dir);
+        if (_p === _dir) break;
+        _dir = _p;
+      }
+    } catch {}
     const sessionId = `mcp-${Date.now()}-${randomUUID().slice(0, 8)}`;
 
     // Log to stderr to not corrupt stdout
