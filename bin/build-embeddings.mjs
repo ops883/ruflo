@@ -501,6 +501,25 @@ async function main() {
 
   log('═══════════════════════════════════════════════════════════');
 
+  // Update vector-stats cache for statusline display
+  try {
+    const dbSizeKB = Math.floor(readFileSync(DB_PATH).length / 1024);
+    const hnswExists = existsSync(resolve(projectRoot, '.swarm', 'hnsw.index'))
+      || existsSync(resolve(projectRoot, '.claude-flow', 'hnsw.index'));
+    const cacheData = {
+      vectorCount: stats.withEmbeddings,
+      dbSizeKB,
+      namespaces: nsStats.length,
+      hasHnsw: hnswExists,
+      updatedAt: Date.now(),
+    };
+    // Write to both locations so statusline finds it regardless of which dir it checks
+    for (const cacheDir of [resolve(projectRoot, '.claude-flow'), resolve(projectRoot, '.swarm')]) {
+      if (!existsSync(cacheDir)) mkdirSync(cacheDir, { recursive: true });
+      writeFileSync(resolve(cacheDir, 'vector-stats.json'), JSON.stringify(cacheData));
+    }
+  } catch { /* non-fatal */ }
+
   db.close();
 }
 
