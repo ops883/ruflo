@@ -1411,8 +1411,8 @@ describe('Init System', () => {
     it('should have fewer components enabled', () => {
       expect(MINIMAL_INIT_OPTIONS.components.commands).toBe(false);
       expect(MINIMAL_INIT_OPTIONS.components.agents).toBe(false);
-      expect(MINIMAL_INIT_OPTIONS.components.helpers).toBe(false);
-      expect(MINIMAL_INIT_OPTIONS.components.statusline).toBe(false);
+      expect(MINIMAL_INIT_OPTIONS.components.helpers).toBe(true);
+      expect(MINIMAL_INIT_OPTIONS.components.statusline).toBe(true);
     });
 
     it('should have simpler topology', () => {
