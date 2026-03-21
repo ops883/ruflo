@@ -6,7 +6,7 @@
 import type { Command, CommandContext, CommandResult } from '../types.js';
 import { output } from '../output.js';
 import { WorkerDaemon, getDaemon, startDaemon, stopDaemon, type WorkerType, type DaemonConfig } from '../services/worker-daemon.js';
-import { acquireDaemonLock, releaseDaemonLock, getDaemonLockHolder, lockPath } from '../services/daemon-lock.js';
+import { acquireDaemonLock, releaseDaemonLock, getDaemonLockHolder, transferDaemonLock, lockPath } from '../services/daemon-lock.js';
 import { spawn, execFile } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve, isAbsolute } from 'path';
@@ -77,16 +77,16 @@ const startCommand: Command = {
 
     // Foreground mode: run in current process (blocks terminal)
     try {
-      // Acquire atomic daemon lock (prevents duplicate daemons)
-      // Skip lock acquisition if we're the spawned child — parent already holds it
-      if (!isDaemonProcess) {
-        const lockResult = acquireDaemonLock(projectRoot);
-        if (!lockResult.acquired) {
-          if (!quiet) {
-            output.printWarning(`Daemon already running (PID: ${lockResult.holder})`);
-          }
-          return { success: true };
+      // Acquire atomic daemon lock (prevents duplicate daemons).
+      // Always acquire here — even when spawned as a child (CLAUDE_FLOW_DAEMON=1)
+      // because on Windows the parent's child.pid is the shell PID (cmd.exe),
+      // not the actual node process. The child must write its own real PID.
+      const lockResult = acquireDaemonLock(projectRoot);
+      if (!lockResult.acquired) {
+        if (!quiet) {
+          output.printWarning(`Daemon already running (PID: ${lockResult.holder})`);
         }
+        return { success: true };
       }
 
       // Clean up lock file on exit
@@ -293,11 +293,20 @@ async function startBackgroundDaemon(projectRoot: string, quiet: boolean, maxCpu
   // Small delay to let the child process fully detach on macOS
   await new Promise(resolve => setTimeout(resolve, 100));
 
-  // Update the lock file with the child's PID (parent acquired it, child owns it)
-  // We force-release our lock and re-acquire with the child PID so the lock
-  // accurately reflects the running daemon process.
-  releaseDaemonLock(resolvedRoot, process.pid, true);
-  acquireDaemonLock(resolvedRoot, pid);
+  // On Windows with shell: true, child.pid is the cmd.exe shell PID, not the
+  // actual node daemon. The child will acquire the lock itself with its real PID
+  // (see foreground start path). Release the parent's lock so the child can take it.
+  //
+  // On POSIX (no shell), child.pid IS the real daemon PID, so we can transfer
+  // atomically to avoid any gap where the lock is absent.
+  if (isWin) {
+    releaseDaemonLock(resolvedRoot, process.pid, true);
+  } else {
+    if (!transferDaemonLock(resolvedRoot, pid)) {
+      releaseDaemonLock(resolvedRoot, process.pid, true);
+      acquireDaemonLock(resolvedRoot, pid);
+    }
+  }
 
   if (!quiet) {
     output.printSuccess(`Daemon started in background (PID: ${pid})`);

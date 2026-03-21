@@ -91,20 +91,20 @@ async function checkConfigFile() {
     }
     return { name: 'Config File', status: 'warn', message: 'No config file (using defaults)', fix: 'claude-flow config init' };
 }
-// Check daemon status
+// Check daemon status — delegates to daemon-lock module for proper
+// PID + command-line verification (avoids Windows PID-recycling false positives).
 async function checkDaemonStatus() {
     try {
+        const holderPid = getDaemonLockHolder(process.cwd());
+        if (holderPid) {
+            return { name: 'Daemon Status', status: 'pass', message: `Running (PID: ${holderPid})` };
+        }
+        // getDaemonLockHolder auto-cleans stale locks, but check for legacy PID file
         const lockFile = '.claude-flow/daemon.lock';
         if (existsSync(lockFile)) {
-            try {
-                const data = JSON.parse(readFileSync(lockFile, 'utf8'));
-                const pid = data.pid;
-                process.kill(pid, 0); // Check if process exists
-                return { name: 'Daemon Status', status: 'pass', message: `Running (PID: ${pid})` };
-            }
-            catch {
-                return { name: 'Daemon Status', status: 'warn', message: 'Stale lock file', fix: 'rm .claude-flow/daemon.lock && claude-flow daemon start' };
-            }
+            // Lock exists but holder is null — getDaemonLockHolder already cleaned it,
+            // but if it persists it means cleanup failed (permissions, etc.)
+            return { name: 'Daemon Status', status: 'warn', message: 'Stale lock file', fix: 'rm .claude-flow/daemon.lock && claude-flow daemon start' };
         }
         // Also check legacy PID file
         const pidFile = '.claude-flow/daemon.pid';

@@ -20,7 +20,7 @@
  */
 
 import { spawn } from 'child_process';
-import { existsSync, appendFileSync, readFileSync } from 'fs';
+import { existsSync, appendFileSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -306,10 +306,13 @@ async function main() {
       }
 
       case 'daemon-start': {
-        if (!isDaemonLockHeld()) {
-          await runClaudeFlow('daemon', ['start', '--quiet']);
-        } else {
+        if (isDaemonLockHeld()) {
           log('info', 'Daemon already running (lock held), skipping start');
+        } else if (isDaemonSpawnRecent()) {
+          log('info', 'Daemon spawn debounced (recent attempt), skipping');
+        } else {
+          touchSpawnStamp();
+          await runClaudeFlow('daemon', ['start', '--quiet']);
         }
         break;
       }
@@ -479,17 +482,30 @@ function runBackgroundTraining() {
   spawnWindowless('node', [localCli, 'neural', 'optimize'], 'neural optimize');
 }
 
-// Check if daemon lock exists — fast pre-check to avoid spawning a Node process
-// just to have it bail out via the atomic lock in daemon.ts.
-// Uses daemon.lock (atomic wx-based) instead of the old daemon.pid (TOCTOU-vulnerable).
+// Delegate to daemon-lock.js for proper PID + command-line verification.
+// Falls back to a naive kill(0) check if the import fails (e.g. dist not built).
+let _getDaemonLockHolder = null;
+try {
+  const daemonLockPath = resolve(__dirname, '..', 'src', '@claude-flow', 'cli', 'dist', 'src', 'services', 'daemon-lock.js');
+  if (existsSync(daemonLockPath)) {
+    const mod = await import('file://' + daemonLockPath.replace(/\\/g, '/'));
+    _getDaemonLockHolder = mod.getDaemonLockHolder;
+  }
+} catch { /* fallback below */ }
+
 function isDaemonLockHeld() {
+  // Prefer the real daemon-lock module (PID + command-line verification)
+  if (_getDaemonLockHolder) {
+    return _getDaemonLockHolder(projectRoot) !== null;
+  }
+
+  // Fallback: naive PID check (only if daemon-lock.js unavailable)
   const lockFile = resolve(projectRoot, '.claude-flow', 'daemon.lock');
   if (!existsSync(lockFile)) return false;
-
   try {
     const data = JSON.parse(readFileSync(lockFile, 'utf-8'));
     if (typeof data.pid === 'number' && data.pid > 0) {
-      process.kill(data.pid, 0); // check if alive
+      process.kill(data.pid, 0);
       return true;
     }
   } catch {
@@ -498,12 +514,40 @@ function isDaemonLockHeld() {
   return false;
 }
 
+// Debounce file — prevents thundering-herd spawns when multiple hooks fire
+// within the same second (e.g. subagents each triggering SessionStart).
+const SPAWN_DEBOUNCE_MS = 30_000;
+const SPAWN_STAMP_FILE = resolve(projectRoot, '.claude-flow', 'daemon-spawn.stamp');
+
+function isDaemonSpawnRecent() {
+  try {
+    if (existsSync(SPAWN_STAMP_FILE)) {
+      const age = Date.now() - statSync(SPAWN_STAMP_FILE).mtimeMs;
+      return age < SPAWN_DEBOUNCE_MS;
+    }
+  } catch { /* non-fatal */ }
+  return false;
+}
+
+function touchSpawnStamp() {
+  try {
+    const dir = resolve(projectRoot, '.claude-flow');
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    writeFileSync(SPAWN_STAMP_FILE, String(Date.now()));
+  } catch { /* non-fatal */ }
+}
+
 // Run daemon start in background (non-blocking) — skip if already running
 function runDaemonStartBackground() {
-  // Fast check: if daemon lock is held by a live process, skip spawning entirely.
-  // This avoids zombie Node processes from subagents that all fire SessionStart.
+  // 1. Check if a live daemon already holds the lock
   if (isDaemonLockHeld()) {
     log('info', 'Daemon already running (lock held), skipping start');
+    return;
+  }
+
+  // 2. Debounce: skip if we spawned recently (prevents thundering herd)
+  if (isDaemonSpawnRecent()) {
+    log('info', 'Daemon spawn debounced (recent attempt), skipping');
     return;
   }
 
@@ -512,6 +556,9 @@ function runDaemonStartBackground() {
     log('warn', 'Local CLI not found, skipping daemon start');
     return;
   }
+
+  // 3. Write stamp BEFORE spawning so concurrent callers see it immediately
+  touchSpawnStamp();
 
   spawnWindowless('node', [localCli, 'daemon', 'start', '--quiet'], 'daemon');
 }

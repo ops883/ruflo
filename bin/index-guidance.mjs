@@ -635,6 +635,29 @@ function indexFile(db, filePath, keyPrefix) {
   }
 }
 
+/**
+ * Recursively collect all .md files under a directory.
+ * Skips node_modules, .git, and other non-content directories.
+ */
+function walkMdFiles(dir) {
+  const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.next']);
+  const files = [];
+
+  function walk(current) {
+    if (!existsSync(current)) return;
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        if (!SKIP_DIRS.has(entry.name)) walk(resolve(current, entry.name));
+      } else if (entry.isFile() && entry.name.endsWith('.md')) {
+        files.push(resolve(current, entry.name));
+      }
+    }
+  }
+
+  walk(dir);
+  return files;
+}
+
 function indexDirectory(db, dirConfig) {
   const dirPath = dirConfig.absolute ? dirConfig.path : resolve(projectRoot, dirConfig.path);
   const results = [];
@@ -644,13 +667,12 @@ function indexDirectory(db, dirConfig) {
     return results;
   }
 
-  const allMdFiles = readdirSync(dirPath).filter(f => f.endsWith('.md'));
-  const files = dirConfig.fileFilter
-    ? allMdFiles.filter(f => dirConfig.fileFilter.includes(f))
+  const allMdFiles = walkMdFiles(dirPath);
+  const filtered = dirConfig.fileFilter
+    ? allMdFiles.filter(f => dirConfig.fileFilter.includes(basename(f)))
     : allMdFiles;
 
-  for (const file of files) {
-    const filePath = resolve(dirPath, file);
+  for (const filePath of filtered) {
     const result = indexFile(db, filePath, dirConfig.prefix);
     results.push(result);
   }

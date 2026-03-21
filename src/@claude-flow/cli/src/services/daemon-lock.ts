@@ -103,6 +103,39 @@ export function releaseDaemonLock(projectRoot: string, pid: number = process.pid
 }
 
 /**
+ * Atomically transfer the daemon lock to a new PID (e.g. parent → child).
+ *
+ * Overwrites the lock file in-place so there is no window where the lock
+ * is absent.  Only succeeds if the lock is currently held by `fromPid`.
+ */
+export function transferDaemonLock(
+  projectRoot: string,
+  newPid: number,
+  fromPid: number = process.pid,
+): boolean {
+  const lock = lockPath(projectRoot);
+  const existing = readLockPayload(lock);
+
+  if (!existing || existing.pid !== fromPid) {
+    return false; // We don't own the lock — can't transfer
+  }
+
+  const payload: DaemonLockPayload = {
+    pid: newPid,
+    startedAt: Date.now(),
+    label: LOCK_LABEL,
+  };
+
+  try {
+    // Atomic overwrite — no unlink/recreate gap
+    fs.writeFileSync(lock, JSON.stringify(payload));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Check if the daemon lock is currently held by a live daemon.
  * Returns the holder PID or null.
  */
