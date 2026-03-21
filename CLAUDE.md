@@ -14,6 +14,7 @@
 - Never continuously check status after spawning a swarm — wait for results
 - ALWAYS read a file before editing it
 - NEVER commit secrets, credentials, or .env files
+- ALWAYS write or update tests when changing testable code — no testable change ships without a corresponding test change
 
 ## File Organization
 
