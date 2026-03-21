@@ -1037,13 +1037,11 @@ async function writeHelpers(
       }
     }
 
-    if (copiedCount > 0) {
-      return; // Skip generating if we copied from source
-    }
+    // Don't return early — still need to generate any missing required helpers below
   }
 
-  // Fall back to generating helpers if source not available.
-  // gate.cjs and hook-handler.cjs are required — hooks call them directly
+  // Generate required helpers that weren't copied from source.
+  // gate.cjs and hook-handler.cjs are critical — hooks call them directly
   // via `node` instead of `npx flo` to avoid CLI bootstrap overhead.
   const helpers: Record<string, string> = {
     'pre-commit': generatePreCommitHook(),
