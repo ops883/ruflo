@@ -6,6 +6,7 @@
 import type { Command, CommandContext, CommandResult } from '../types.js';
 import { output } from '../output.js';
 import { WorkerDaemon, getDaemon, startDaemon, stopDaemon, type WorkerType, type DaemonConfig } from '../services/worker-daemon.js';
+import { acquireDaemonLock, releaseDaemonLock, getDaemonLockHolder, lockPath } from '../services/daemon-lock.js';
 import { spawn, execFile } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve, isAbsolute } from 'path';
@@ -69,17 +70,6 @@ const startCommand: Command = {
       }
     }
 
-    // Check if background daemon already running (skip if we ARE the daemon process)
-    if (!isDaemonProcess) {
-      const bgPid = getBackgroundDaemonPid(projectRoot);
-      if (bgPid && isProcessRunning(bgPid)) {
-        if (!quiet) {
-          output.printWarning(`Daemon already running in background (PID: ${bgPid})`);
-        }
-        return { success: true };
-      }
-    }
-
     // Background mode (default): fork a detached process
     if (!foreground) {
       return startBackgroundDaemon(projectRoot, quiet, rawMaxCpu, rawMinMem);
@@ -87,45 +77,21 @@ const startCommand: Command = {
 
     // Foreground mode: run in current process (blocks terminal)
     try {
-      const stateDir = join(projectRoot, '.claude-flow');
-      const pidFile = join(stateDir, 'daemon.pid');
-
-      // Ensure state directory exists
-      if (!fs.existsSync(stateDir)) {
-        fs.mkdirSync(stateDir, { recursive: true });
-      }
-
-      // Check if another foreground daemon is already running (prevents duplicate daemons)
-      if (fs.existsSync(pidFile)) {
-        try {
-          const existingPid = parseInt(fs.readFileSync(pidFile, 'utf-8').trim(), 10);
-          if (!isNaN(existingPid) && existingPid !== process.pid) {
-            try {
-              process.kill(existingPid, 0); // Check if alive
-              // Another daemon is running — exit silently
-              if (!quiet) {
-                output.printWarning(`Daemon already running (PID: ${existingPid})`);
-              }
-              return { success: true };
-            } catch {
-              // Process not running — stale PID file, continue startup
-            }
+      // Acquire atomic daemon lock (prevents duplicate daemons)
+      // Skip lock acquisition if we're the spawned child — parent already holds it
+      if (!isDaemonProcess) {
+        const lockResult = acquireDaemonLock(projectRoot);
+        if (!lockResult.acquired) {
+          if (!quiet) {
+            output.printWarning(`Daemon already running (PID: ${lockResult.holder})`);
           }
-        } catch {
-          // Can't read PID file — continue startup
+          return { success: true };
         }
       }
 
-      // Write PID file for foreground mode
-      fs.writeFileSync(pidFile, String(process.pid));
-
-      // Clean up PID file on exit
+      // Clean up lock file on exit
       const cleanup = () => {
-        try {
-          if (fs.existsSync(pidFile)) {
-            fs.unlinkSync(pidFile);
-          }
-        } catch { /* ignore */ }
+        releaseDaemonLock(projectRoot, process.pid, true);
       };
       process.on('exit', cleanup);
       process.on('SIGINT', () => { cleanup(); process.exit(0); });
@@ -245,13 +211,20 @@ async function startBackgroundDaemon(projectRoot: string, quiet: boolean, maxCpu
   validatePath(resolvedRoot, 'Project root');
 
   const stateDir = join(resolvedRoot, '.claude-flow');
-  const pidFile = join(stateDir, 'daemon.pid');
   const logFile = join(stateDir, 'daemon.log');
 
   // Validate all paths
   validatePath(stateDir, 'State directory');
-  validatePath(pidFile, 'PID file');
   validatePath(logFile, 'Log file');
+
+  // Acquire atomic lock BEFORE spawning to prevent races
+  const lockResult = acquireDaemonLock(resolvedRoot);
+  if (!lockResult.acquired) {
+    if (!quiet) {
+      output.printWarning(`Daemon already running in background (PID: ${lockResult.holder})`);
+    }
+    return { success: true };
+  }
 
   // Ensure state directory exists
   if (!fs.existsSync(stateDir)) {
@@ -307,19 +280,24 @@ async function startBackgroundDaemon(projectRoot: string, quiet: boolean, maxCpu
   const pid = child.pid;
 
   if (!pid || pid <= 0) {
+    // Release lock — spawn failed, no daemon running
+    releaseDaemonLock(resolvedRoot, process.pid, true);
     output.printError('Failed to get daemon PID');
     return { success: false, exitCode: 1 };
   }
 
-  // Unref BEFORE writing PID file — prevents race where parent exits
+  // Unref BEFORE updating lock — prevents race where parent exits
   // but child hasn't fully detached yet (fixes macOS daemon death #1283)
   child.unref();
 
   // Small delay to let the child process fully detach on macOS
   await new Promise(resolve => setTimeout(resolve, 100));
 
-  // Save PID only after child is detached
-  fs.writeFileSync(pidFile, String(pid));
+  // Update the lock file with the child's PID (parent acquired it, child owns it)
+  // We force-release our lock and re-acquire with the child PID so the lock
+  // accurately reflects the running daemon process.
+  releaseDaemonLock(resolvedRoot, process.pid, true);
+  acquireDaemonLock(resolvedRoot, pid);
 
   if (!quiet) {
     output.printSuccess(`Daemon started in background (PID: ${pid})`);
@@ -370,85 +348,50 @@ const stopCommand: Command = {
 };
 
 /**
- * Kill background daemon process using PID file
+ * Kill background daemon process using lock file
  */
 async function killBackgroundDaemon(projectRoot: string): Promise<boolean> {
-  const pidFile = join(projectRoot, '.claude-flow', 'daemon.pid');
+  const holderPid = getDaemonLockHolder(projectRoot);
 
-  if (!fs.existsSync(pidFile)) {
+  if (!holderPid) {
+    // No live daemon — clean up any stale lock
+    releaseDaemonLock(projectRoot, 0, true);
     return false;
   }
 
   try {
-    const pid = parseInt(fs.readFileSync(pidFile, 'utf-8').trim(), 10);
-
-    if (isNaN(pid)) {
-      fs.unlinkSync(pidFile);
-      return false;
-    }
-
-    // Check if process is running
-    try {
-      process.kill(pid, 0); // Signal 0 = check if alive
-    } catch {
-      // Process not running, clean up stale PID file
-      fs.unlinkSync(pidFile);
-      return false;
-    }
-
     // Kill the process
-    process.kill(pid, 'SIGTERM');
+    process.kill(holderPid, 'SIGTERM');
 
     // Wait a moment then force kill if needed
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     try {
-      process.kill(pid, 0);
+      process.kill(holderPid, 0);
       // Still alive, force kill
-      process.kill(pid, 'SIGKILL');
+      process.kill(holderPid, 'SIGKILL');
     } catch {
       // Process terminated
     }
 
-    // Clean up PID file
-    if (fs.existsSync(pidFile)) {
-      fs.unlinkSync(pidFile);
-    }
-
+    // Release lock
+    releaseDaemonLock(projectRoot, holderPid, true);
     return true;
   } catch (error) {
-    // Clean up PID file on any error
-    if (fs.existsSync(pidFile)) {
-      fs.unlinkSync(pidFile);
-    }
+    // Clean up lock on any error
+    releaseDaemonLock(projectRoot, 0, true);
     return false;
   }
 }
 
-/**
- * Get PID of background daemon from PID file
- */
+// Legacy aliases — delegate to daemon-lock module
 function getBackgroundDaemonPid(projectRoot: string): number | null {
-  const pidFile = join(projectRoot, '.claude-flow', 'daemon.pid');
-
-  if (!fs.existsSync(pidFile)) {
-    return null;
-  }
-
-  try {
-    const pid = parseInt(fs.readFileSync(pidFile, 'utf-8').trim(), 10);
-    return isNaN(pid) ? null : pid;
-  } catch {
-    return null;
-  }
+  return getDaemonLockHolder(projectRoot);
 }
 
-/**
- * Check if a process is running
- */
 function isProcessRunning(pid: number): boolean {
   try {
-    process.kill(pid, 0); // Signal 0 = check if alive
+    process.kill(pid, 0);
     return true;
   } catch {
     return false;

@@ -78,6 +78,12 @@ export interface MofloConfig {
     agent_overrides: Record<string, string>;
   };
 
+  auto_update: {
+    enabled: boolean;
+    scripts: boolean;
+    helpers: boolean;
+  };
+
   status_line: {
     enabled: boolean;
     branding: string;
@@ -151,6 +157,11 @@ const DEFAULT_CONFIG: MofloConfig = {
     cost_optimization: true,
     circuit_breaker: true,
     agent_overrides: {},
+  },
+  auto_update: {
+    enabled: true,
+    scripts: true,
+    helpers: true,
   },
   status_line: {
     enabled: true,
@@ -245,6 +256,11 @@ function mergeConfig(raw: Record<string, any>, root: string): MofloConfig {
       cost_optimization: raw.model_routing?.cost_optimization ?? raw.modelRouting?.costOptimization ?? DEFAULT_CONFIG.model_routing.cost_optimization,
       circuit_breaker: raw.model_routing?.circuit_breaker ?? raw.modelRouting?.circuitBreaker ?? DEFAULT_CONFIG.model_routing.circuit_breaker,
       agent_overrides: raw.model_routing?.agent_overrides ?? raw.modelRouting?.agentOverrides ?? DEFAULT_CONFIG.model_routing.agent_overrides,
+    },
+    auto_update: {
+      enabled: raw.auto_update?.enabled ?? raw.autoUpdate?.enabled ?? DEFAULT_CONFIG.auto_update.enabled,
+      scripts: raw.auto_update?.scripts ?? raw.autoUpdate?.scripts ?? DEFAULT_CONFIG.auto_update.scripts,
+      helpers: raw.auto_update?.helpers ?? raw.autoUpdate?.helpers ?? DEFAULT_CONFIG.auto_update.helpers,
     },
     status_line: {
       enabled: raw.status_line?.enabled ?? raw.statusLine?.enabled ?? DEFAULT_CONFIG.status_line.enabled,
@@ -404,6 +420,12 @@ model_routing:
   # agent_overrides:
   #   security-architect: opus     # Always use opus for security
   #   researcher: sonnet           # Pin research to sonnet
+
+# Auto-update on session start (syncs scripts and helpers when moflo version changes)
+auto_update:
+  enabled: true                  # Master toggle for version-change auto-sync
+  scripts: true                  # Sync .claude/scripts/ from moflo bin/
+  helpers: true                  # Sync .claude/helpers/ from moflo source
 
 # Status line items (show/hide individual sections)
 status_line:

@@ -108,15 +108,21 @@ async function checkConfigFile(): Promise<HealthCheck> {
 // Check daemon status
 async function checkDaemonStatus(): Promise<HealthCheck> {
   try {
-    const pidFile = '.claude-flow/daemon.pid';
-    if (existsSync(pidFile)) {
-      const pid = readFileSync(pidFile, 'utf8').trim();
+    const lockFile = '.claude-flow/daemon.lock';
+    if (existsSync(lockFile)) {
       try {
-        process.kill(parseInt(pid, 10), 0); // Check if process exists
+        const data = JSON.parse(readFileSync(lockFile, 'utf8'));
+        const pid = data.pid;
+        process.kill(pid, 0); // Check if process exists
         return { name: 'Daemon Status', status: 'pass', message: `Running (PID: ${pid})` };
       } catch {
-        return { name: 'Daemon Status', status: 'warn', message: 'Stale PID file', fix: 'rm .claude-flow/daemon.pid && claude-flow daemon start' };
+        return { name: 'Daemon Status', status: 'warn', message: 'Stale lock file', fix: 'rm .claude-flow/daemon.lock && claude-flow daemon start' };
       }
+    }
+    // Also check legacy PID file
+    const pidFile = '.claude-flow/daemon.pid';
+    if (existsSync(pidFile)) {
+      return { name: 'Daemon Status', status: 'warn', message: 'Legacy PID file found', fix: 'rm .claude-flow/daemon.pid && claude-flow daemon start' };
     }
     return { name: 'Daemon Status', status: 'warn', message: 'Not running', fix: 'claude-flow daemon start' };
   } catch {

@@ -306,10 +306,10 @@ async function main() {
       }
 
       case 'daemon-start': {
-        if (!isDaemonRunning()) {
+        if (!isDaemonLockHeld()) {
           await runClaudeFlow('daemon', ['start', '--quiet']);
         } else {
-          log('info', 'Daemon already running, skipping start');
+          log('info', 'Daemon already running (lock held), skipping start');
         }
         break;
       }
@@ -479,34 +479,37 @@ function runBackgroundTraining() {
   spawnWindowless('node', [localCli, 'neural', 'optimize'], 'neural optimize');
 }
 
-// Check if daemon is already running via PID file.
-// Returns true if a live daemon process exists, false otherwise.
-function isDaemonRunning() {
-  const pidFile = resolve(projectRoot, '.claude-flow', 'daemon.pid');
-  if (existsSync(pidFile)) {
-    try {
-      const pid = parseInt(readFileSync(pidFile, 'utf-8').trim(), 10);
-      if (pid && !isNaN(pid)) {
-        process.kill(pid, 0); // signal 0 = check if process exists, doesn't kill
-        return true;
-      }
-    } catch {
-      // Process doesn't exist — stale PID file
+// Check if daemon lock exists — fast pre-check to avoid spawning a Node process
+// just to have it bail out via the atomic lock in daemon.ts.
+// Uses daemon.lock (atomic wx-based) instead of the old daemon.pid (TOCTOU-vulnerable).
+function isDaemonLockHeld() {
+  const lockFile = resolve(projectRoot, '.claude-flow', 'daemon.lock');
+  if (!existsSync(lockFile)) return false;
+
+  try {
+    const data = JSON.parse(readFileSync(lockFile, 'utf-8'));
+    if (typeof data.pid === 'number' && data.pid > 0) {
+      process.kill(data.pid, 0); // check if alive
+      return true;
     }
+  } catch {
+    // Dead process or corrupt file — lock is stale
   }
   return false;
 }
 
 // Run daemon start in background (non-blocking) — skip if already running
 function runDaemonStartBackground() {
-  const localCli = getLocalCliPath();
-  if (!localCli) {
-    log('warn', 'Local CLI not found, skipping daemon start');
+  // Fast check: if daemon lock is held by a live process, skip spawning entirely.
+  // This avoids zombie Node processes from subagents that all fire SessionStart.
+  if (isDaemonLockHeld()) {
+    log('info', 'Daemon already running (lock held), skipping start');
     return;
   }
 
-  if (isDaemonRunning()) {
-    log('info', 'Daemon already running, skipping start');
+  const localCli = getLocalCliPath();
+  if (!localCli) {
+    log('warn', 'Local CLI not found, skipping daemon start');
     return;
   }
 

@@ -477,6 +477,44 @@ export async function executeUpgrade(targetDir: string, upgradeSettings = false)
       fs.writeFileSync(statuslinePath, generateStatuslineScript(upgradeOptions), 'utf-8');
     }
 
+    // 1b. ALWAYS sync .claude/scripts/ from moflo bin/ (derived files, not user-edited)
+    // Scripts contain critical daemon guards, hook logic, etc. that must stay in sync.
+    const scriptsDir = path.join(targetDir, '.claude', 'scripts');
+    if (!fs.existsSync(scriptsDir)) {
+      fs.mkdirSync(scriptsDir, { recursive: true });
+    }
+    const UPGRADE_SCRIPT_MAP: Record<string, string> = {
+      'hooks.mjs': 'hooks.mjs',
+      'session-start-launcher.mjs': 'session-start-launcher.mjs',
+      'index-guidance.mjs': 'index-guidance.mjs',
+      'build-embeddings.mjs': 'build-embeddings.mjs',
+      'generate-code-map.mjs': 'generate-code-map.mjs',
+      'semantic-search.mjs': 'semantic-search.mjs',
+    };
+    const binDir = findMofloBinDir();
+    if (binDir) {
+      for (const [destName, srcName] of Object.entries(UPGRADE_SCRIPT_MAP)) {
+        const srcPath = path.join(binDir, srcName);
+        const destPath = path.join(scriptsDir, destName);
+        if (!fs.existsSync(srcPath)) continue;
+        try {
+          const srcStat = fs.statSync(srcPath);
+          const destExists = fs.existsSync(destPath);
+          // Always overwrite if source is newer or dest doesn't exist
+          if (!destExists || srcStat.mtimeMs > fs.statSync(destPath).mtimeMs) {
+            fs.copyFileSync(srcPath, destPath);
+            if (destExists) {
+              result.updated.push(`.claude/scripts/${destName}`);
+            } else {
+              result.created.push(`.claude/scripts/${destName}`);
+            }
+          }
+        } catch {
+          // Non-fatal — skip individual script on error
+        }
+      }
+    }
+
     // 2. Create MISSING metrics files only (preserve existing data)
     const metricsDir = path.join(targetDir, '.claude-flow', 'metrics');
     const securityDir = path.join(targetDir, '.claude-flow', 'security');
@@ -989,6 +1027,44 @@ function findSourceHelpersDir(sourceBaseDir?: string): string | null {
     }
   }
 
+  return null;
+}
+
+/**
+ * Find the moflo bin/ directory (source of truth for .claude/scripts/).
+ * Uses the same resolution strategies as findSourceHelpersDir.
+ */
+function findMofloBinDir(): string | null {
+  const possiblePaths: string[] = [];
+  const SENTINEL_FILE = 'hooks.mjs'; // Must exist in valid bin/
+
+  // Strategy 1: require.resolve
+  try {
+    const esmRequire = createRequire(import.meta.url);
+    const pkgJsonPath = esmRequire.resolve('moflo/package.json');
+    possiblePaths.push(path.join(path.dirname(pkgJsonPath), 'bin'));
+  } catch { /* not installed as package */ }
+
+  // Strategy 2: __dirname-based (dist/src/init -> package root -> bin)
+  possiblePaths.push(path.resolve(__dirname, '..', '..', '..', 'bin'));
+
+  // Strategy 3: Walk up from __dirname
+  let currentDir = __dirname;
+  for (let i = 0; i < 10; i++) {
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) break;
+    possiblePaths.push(path.join(parentDir, 'bin'));
+    currentDir = parentDir;
+  }
+
+  // Strategy 4: cwd-relative (node_modules/moflo/bin)
+  possiblePaths.push(path.join(process.cwd(), 'node_modules', 'moflo', 'bin'));
+
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p) && fs.existsSync(path.join(p, SENTINEL_FILE))) {
+      return p;
+    }
+  }
   return null;
 }
 
