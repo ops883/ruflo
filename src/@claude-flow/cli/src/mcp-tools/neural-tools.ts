@@ -15,13 +15,14 @@
 import type { MCPTool } from './types.js';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { mofloImport } from '../services/moflo-require.js';
 
 // Try to import real embeddings — prefer agentic-flow v3 ReasoningBank, then @claude-flow/embeddings
 let realEmbeddings: { embed: (text: string) => Promise<number[]> } | null = null;
 let embeddingServiceName: string = 'none';
 try {
   // Tier 1: agentic-flow v3 ReasoningBank (fastest — WASM-accelerated)
-  const rb = await import('agentic-flow/reasoningbank').catch(() => null);
+  const rb = await mofloImport('agentic-flow/reasoningbank');
   if (rb?.computeEmbedding) {
     realEmbeddings = { embed: (text: string) => rb.computeEmbedding(text) };
     embeddingServiceName = 'agentic-flow/reasoningbank';

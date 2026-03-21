@@ -11,6 +11,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { mofloImport } from '../services/moflo-require.js';
 
 /**
  * Write vector-stats.json cache for the statusline (no subprocess needed).
@@ -407,7 +408,7 @@ export async function getHNSWIndex(options?: {
   try {
     // Import @ruvector/core dynamically
     // Handle both ESM (default export) and CJS patterns
-    const ruvectorModule = await import('@ruvector/core').catch(() => null);
+    const ruvectorModule = await mofloImport('@ruvector/core');
     if (!ruvectorModule) {
       hnswInitializing = false;
       return null; // HNSW not available
@@ -471,7 +472,7 @@ export async function getHNSWIndex(options?: {
 
     if (fs.existsSync(dbPath)) {
       try {
-        const initSqlJs = (await import('sql.js')).default;
+        const initSqlJs = (await mofloImport('sql.js')).default;
         const SQL = await initSqlJs();
         const fileBuffer = fs.readFileSync(dbPath);
         const sqlDb = new SQL.Database(fileBuffer);
@@ -1000,7 +1001,7 @@ export async function ensureSchemaColumns(dbPath: string): Promise<{
       return { success: true, columnsAdded: [] };
     }
 
-    const initSqlJs = (await import('sql.js')).default;
+    const initSqlJs = (await mofloImport('sql.js')).default;
     const SQL = await initSqlJs();
 
     const fileBuffer = fs.readFileSync(dbPath);
@@ -1085,7 +1086,7 @@ export async function checkAndMigrateLegacy(options: {
   for (const legacyPath of legacyPaths) {
     if (fs.existsSync(legacyPath) && legacyPath !== dbPath) {
       try {
-        const initSqlJs = (await import('sql.js')).default;
+        const initSqlJs = (await mofloImport('sql.js')).default;
         const SQL = await initSqlJs();
 
         const legacyBuffer = fs.readFileSync(legacyPath);
@@ -1234,7 +1235,7 @@ export async function initializeMemoryDatabase(options: {
 
     try {
       // Dynamic import of sql.js
-      const initSqlJs = (await import('sql.js')).default;
+      const initSqlJs = (await mofloImport('sql.js')).default;
       const SQL = await initSqlJs();
 
       // Load existing database or create new
@@ -1407,7 +1408,7 @@ export async function checkMemoryInitialization(dbPath?: string): Promise<{
 
   try {
     // Try to load with sql.js
-    const initSqlJs = (await import('sql.js')).default;
+    const initSqlJs = (await mofloImport('sql.js')).default;
     const SQL = await initSqlJs();
 
     const fileBuffer = fs.readFileSync(path_);
@@ -1462,7 +1463,7 @@ export async function applyTemporalDecay(dbPath?: string): Promise<{
   const path_ = dbPath || path.join(swarmDir, 'memory.db');
 
   try {
-    const initSqlJs = (await import('sql.js')).default;
+    const initSqlJs = (await mofloImport('sql.js')).default;
     const SQL = await initSqlJs();
 
     const fileBuffer = fs.readFileSync(path_);
@@ -1511,6 +1512,7 @@ interface EmbeddingModel {
   model: unknown;
   tokenizer: unknown;
   dimensions: number;
+  modelName?: string;
 }
 
 let embeddingModelState: EmbeddingModel | null = null;
@@ -1552,15 +1554,15 @@ export async function loadEmbeddingModel(options?: {
         loaded: true,
         model: null, // Bridge handles embedding
         tokenizer: null,
-        dimensions: bridgeResult.dimensions
+        dimensions: bridgeResult.dimensions,
+        modelName: bridgeResult.modelName || 'bridge'
       };
       return bridgeResult;
     }
   }
 
   try {
-    // Try to import @xenova/transformers for ONNX embeddings
-    const transformers = await import('@xenova/transformers').catch(() => null);
+    const transformers = await mofloImport('@xenova/transformers');
 
     if (transformers) {
       if (verbose) {
@@ -1575,7 +1577,8 @@ export async function loadEmbeddingModel(options?: {
         loaded: true,
         model: embedder,
         tokenizer: null,
-        dimensions: 384 // MiniLM-L6 produces 384-dim vectors
+        dimensions: 384, // MiniLM-L6 produces 384-dim vectors
+        modelName: 'Xenova/all-MiniLM-L6-v2'
       };
 
       return {
@@ -1587,7 +1590,7 @@ export async function loadEmbeddingModel(options?: {
     }
 
     // Fallback: Check for agentic-flow ReasoningBank embeddings (v3)
-    const reasoningBank = await import('agentic-flow/reasoningbank').catch(() => null);
+    const reasoningBank = await mofloImport('agentic-flow/reasoningbank');
 
     if (reasoningBank?.computeEmbedding) {
       if (verbose) {
@@ -1598,7 +1601,8 @@ export async function loadEmbeddingModel(options?: {
         loaded: true,
         model: { embed: reasoningBank.computeEmbedding },
         tokenizer: null,
-        dimensions: 768
+        dimensions: 768,
+        modelName: 'agentic-flow/reasoningbank'
       };
 
       return {
@@ -1610,7 +1614,7 @@ export async function loadEmbeddingModel(options?: {
     }
 
     // Legacy fallback: Check for agentic-flow core embeddings
-    const agenticFlow = await import('agentic-flow').catch(() => null);
+    const agenticFlow = await mofloImport('agentic-flow');
 
     if (agenticFlow && (agenticFlow as any).embeddings) {
       if (verbose) {
@@ -1621,7 +1625,8 @@ export async function loadEmbeddingModel(options?: {
         loaded: true,
         model: (agenticFlow as any).embeddings,
         tokenizer: null,
-        dimensions: 768
+        dimensions: 768,
+        modelName: 'agentic-flow'
       };
 
       return {
@@ -1637,7 +1642,8 @@ export async function loadEmbeddingModel(options?: {
       loaded: true,
       model: null, // Will use domain-aware hash fallback
       tokenizer: null,
-      dimensions: 384 // Domain-aware hash embedding dimensions
+      dimensions: 384, // Domain-aware hash embedding dimensions
+      modelName: 'domain-aware-hash-384'
     };
 
     return {
@@ -1687,7 +1693,7 @@ export async function generateEmbedding(text: string): Promise<{
       return {
         embedding,
         dimensions: embedding.length,
-        model: 'onnx'
+        model: state.modelName || 'Xenova/all-MiniLM-L6-v2'
       };
     } catch {
       // Fall through to fallback
@@ -1699,7 +1705,7 @@ export async function generateEmbedding(text: string): Promise<{
   return {
     embedding,
     dimensions: 384,
-    model: 'domain-aware-hash-384'
+    model: state.modelName || 'domain-aware-hash-384'
   };
 }
 
@@ -1932,7 +1938,7 @@ export async function verifyMemoryInit(dbPath: string, options?: {
   const tests: { name: string; passed: boolean; details?: string; duration?: number }[] = [];
 
   try {
-    const initSqlJs = (await import('sql.js')).default;
+    const initSqlJs = (await mofloImport('sql.js')).default;
     const SQL = await initSqlJs();
     const fs = await import('fs');
 
@@ -2165,7 +2171,7 @@ export async function storeEntry(options: {
     // Ensure schema has all required columns (migration for older DBs)
     await ensureSchemaColumns(dbPath);
 
-    const initSqlJs = (await import('sql.js')).default;
+    const initSqlJs = (await mofloImport('sql.js')).default;
     const SQL = await initSqlJs();
 
     const fileBuffer = fs.readFileSync(dbPath);
@@ -2324,7 +2330,7 @@ export async function searchEntries(options: {
     }
 
     // Fall back to brute-force SQLite search
-    const initSqlJs = (await import('sql.js')).default;
+    const initSqlJs = (await mofloImport('sql.js')).default;
     const SQL = await initSqlJs();
 
     const fileBuffer = fs.readFileSync(dbPath);
@@ -2471,7 +2477,7 @@ export async function listEntries(options: {
     // Ensure schema has all required columns (migration for older DBs)
     await ensureSchemaColumns(dbPath);
 
-    const initSqlJs = (await import('sql.js')).default;
+    const initSqlJs = (await mofloImport('sql.js')).default;
     const SQL = await initSqlJs();
 
     const fileBuffer = fs.readFileSync(dbPath);
@@ -2586,7 +2592,7 @@ export async function getEntry(options: {
     // Ensure schema has all required columns (migration for older DBs)
     await ensureSchemaColumns(dbPath);
 
-    const initSqlJs = (await import('sql.js')).default;
+    const initSqlJs = (await mofloImport('sql.js')).default;
     const SQL = await initSqlJs();
 
     const fileBuffer = fs.readFileSync(dbPath);
@@ -2705,7 +2711,7 @@ export async function deleteEntry(options: {
     // Ensure schema has all required columns (migration for older DBs)
     await ensureSchemaColumns(dbPath);
 
-    const initSqlJs = (await import('sql.js')).default;
+    const initSqlJs = (await mofloImport('sql.js')).default;
     const SQL = await initSqlJs();
 
     const fileBuffer = fs.readFileSync(dbPath);

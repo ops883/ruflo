@@ -12,6 +12,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { extname } from 'path';
 import { ClaudeModel, getModelRouter, ModelRouter, ModelRoutingResult } from './model-router.js';
+import { mofloImport } from '../services/moflo-require.js';
 
 // ============================================================================
 // Types
@@ -553,9 +554,8 @@ export class EnhancedModelRouter {
 
       // Try local agentic-flow agent-booster (v3 — no npx needed)
       // Note: agent-booster export declared but dist missing in alpha.1; use intelligence path as fallback
-      const boosterModule = await import('agentic-flow/agent-booster')
-        .catch(() => import(/* @vite-ignore */ 'agentic-flow/intelligence/agent-booster-enhanced'))
-        .catch(() => null);
+      const boosterModule = await mofloImport('agentic-flow/agent-booster')
+        || await mofloImport('agentic-flow/intelligence/agent-booster-enhanced');
       if (boosterModule?.enhancedApply) {
         const result = await boosterModule.enhancedApply({
           code: originalCode,

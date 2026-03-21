@@ -30,7 +30,9 @@ import { resolve, dirname, relative, basename, extname } from 'path';
 import { fileURLToPath } from 'url';
 import { createHash } from 'crypto';
 import { execSync, spawn } from 'child_process';
-import initSqlJs from 'sql.js';
+import { mofloResolveURL } from './lib/moflo-resolve.mjs';
+const initSqlJs = (await import(mofloResolveURL('sql.js'))).default;
+
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

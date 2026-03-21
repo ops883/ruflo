@@ -4,6 +4,8 @@
 
 # MoFlo
 
+**⚠️ MoFlo is experimental software. APIs, commands, and behavior may change without notice.**
+
 **An opinionated fork of [Ruflo/Claude Flow](https://github.com/ruvnet/ruflo), optimized for local development.**
 
 MoFlo adds automatic code and guidance cataloging along with memory gating on top of the original Ruflo/Claude Flow orchestration engine. Where the upstream project provides raw building blocks, MoFlo ships opinionated defaults — workflow gates that enforce memory-first patterns, semantic indexing that runs at session start, and learned routing that improves over time — so you get a productive setup from `flo init` without manual tuning.
@@ -30,7 +32,7 @@ MoFlo makes deliberate choices so you don't have to:
 - **Task registration before agents** — Sub-agents can't spawn until work is tracked. Prevents runaway agent proliferation.
 - **Learned routing** — Task outcomes feed back into the routing system automatically. No manual configuration needed — it gets smarter with use.
 - **Incremental indexing** — Guidance and code map indexes run on every session start but skip unchanged files. Fast after the first run.
-- **AI client agnostic** — Works with any MCP-capable AI client. We develop and test with Claude Code, but the MCP tools, memory system, and hooks are client-independent.
+- **Built for Claude Code, works with others** — We develop and test exclusively with Claude Code. The MCP tools, memory system, and hooks are client-independent and should work with any MCP-capable AI client, but Claude Code is the only tested target.
 - **GitHub-oriented** — The `/flo` skill, PR workflows, and issue tracking are built around GitHub. With Claude's help, you can adapt them to your own issue tracker and source control system.
 - **Cross-platform** — Forward-slash path normalization, no `sh -c` shell commands, `windowsHide` on all spawn calls.
 

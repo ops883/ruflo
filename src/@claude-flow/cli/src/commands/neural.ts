@@ -7,6 +7,7 @@
 
 import type { Command, CommandContext, CommandResult } from '../types.js';
 import { output } from '../output.js';
+import { mofloImport, mofloResolve } from '../services/moflo-require.js';
 
 // Train subcommand - REAL WASM training with RuVector
 const trainCommand: Command = {
@@ -1542,7 +1543,8 @@ const benchmarkCommand: Command = {
     spinner.start();
 
     try {
-      const attention: any = await import('@ruvector/attention');
+      const attention: any = await mofloImport('@ruvector/attention');
+      if (!attention) throw new Error('@ruvector/attention not available');
 
       // Manual benchmark since benchmarkAttention has a binding bug
       const benchmarkMechanism = async (name: string, mechanism: { computeRaw: (q: Float32Array, k: Float32Array[], v: Float32Array[]) => Float32Array }) => {
@@ -1635,12 +1637,12 @@ const benchmarkCommand: Command = {
 
       // Load WASM file directly (Node.js compatible)
       const fs = await import('fs');
-      const { createRequire } = await import('module');
-      const require = createRequire(import.meta.url);
-      const wasmPath = require.resolve('@ruvector/learning-wasm/ruvector_learning_wasm_bg.wasm');
+      const wasmPath = mofloResolve('@ruvector/learning-wasm/ruvector_learning_wasm_bg.wasm');
+      if (!wasmPath) throw new Error('@ruvector/learning-wasm not found');
       const wasmBuffer = fs.readFileSync(wasmPath);
 
-      const learningWasm = await import('@ruvector/learning-wasm');
+      const learningWasm = await mofloImport('@ruvector/learning-wasm');
+      if (!learningWasm) throw new Error('@ruvector/learning-wasm not available');
       learningWasm.initSync({ module: wasmBuffer });
 
       const lora = new learningWasm.WasmMicroLoRA(dim, 0.1, 0.01);

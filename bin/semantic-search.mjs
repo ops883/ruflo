@@ -16,7 +16,8 @@
 
 import { existsSync, readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
-import initSqlJs from 'sql.js';
+import { mofloResolveURL } from './lib/moflo-resolve.mjs';
+const initSqlJs = (await import(mofloResolveURL('sql.js'))).default;
 
 function findProjectRoot() {
   let dir = process.cwd();
@@ -34,6 +35,8 @@ const DB_PATH = resolve(projectRoot, '.swarm/memory.db');
 const EMBEDDING_DIMS = 384;
 const EMBEDDING_MODEL_NEURAL = 'Xenova/all-MiniLM-L6-v2';
 const EMBEDDING_MODEL_HASH = 'domain-aware-hash-v1';
+// 'onnx' is a legacy alias for the Xenova model — treat them as compatible vector spaces
+const NEURAL_ALIASES = new Set([EMBEDDING_MODEL_NEURAL, 'onnx']);
 
 // Parse args
 const args = process.argv.slice(2);
@@ -58,7 +61,7 @@ let useTransformers = false;
 
 async function loadTransformersModel() {
   try {
-    const { env, pipeline: createPipeline } = await import('@xenova/transformers');
+    const { env, pipeline: createPipeline } = await import(mofloResolveURL('@xenova/transformers'));
     env.allowLocalModels = false;
     env.backends.onnx.wasm.numThreads = 1;
 
@@ -251,7 +254,8 @@ async function generateQueryEmbedding(queryText, db) {
   if (debug) console.error(`[semantic-search] Stored model: ${storedModel}`);
 
   // If stored embeddings are neural, try to use neural for query too
-  if (storedModel === EMBEDDING_MODEL_NEURAL) {
+  // Accept both canonical name and legacy 'onnx' tag (both use the same Xenova pipeline)
+  if (storedModel === EMBEDDING_MODEL_NEURAL || storedModel === 'onnx') {
     await loadTransformersModel();
     if (useTransformers) {
       const neuralEmb = await generateNeuralEmbedding(queryText);
@@ -325,8 +329,9 @@ async function semanticSearch(queryText, options = {}) {
   while (stmt.step()) {
     const entry = stmt.getAsObject();
     try {
-      // Skip entries with mismatched embedding model (incompatible vector spaces)
-      if (entry.embedding_model && entry.embedding_model !== queryModel) continue;
+      const storedIsNeural = NEURAL_ALIASES.has(entry.embedding_model);
+      const queryIsNeural = NEURAL_ALIASES.has(queryModel);
+      if (entry.embedding_model && entry.embedding_model !== queryModel && !(storedIsNeural && queryIsNeural)) continue;
 
       const embedding = JSON.parse(entry.embedding);
       if (!Array.isArray(embedding) || embedding.length !== EMBEDDING_DIMS) continue;

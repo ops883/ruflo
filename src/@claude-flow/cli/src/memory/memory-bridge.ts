@@ -19,6 +19,7 @@
 
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { mofloImport } from '../services/moflo-require.js';
 // ===== Project root resolution =====
 // When run via npx, CWD may be node_modules/moflo — walk up to find actual project
 import * as fs from 'fs';
@@ -60,7 +61,9 @@ async function getFallbackEmbedder(): Promise<any> {
   if (_tfFailed) return null;
   if (_tfEmbedder) return _tfEmbedder;
   try {
-    const { pipeline } = await import('@xenova/transformers');
+    const transformersModule = await mofloImport('@xenova/transformers');
+    if (!transformersModule) throw new Error('@xenova/transformers not available');
+    const { pipeline } = transformersModule;
     _tfEmbedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
     return _tfEmbedder;
   } catch {

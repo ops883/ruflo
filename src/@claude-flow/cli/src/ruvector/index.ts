@@ -153,26 +153,21 @@ export {
   type RouterConfig,
 } from './semantic-router.js';
 
+import { mofloImport } from '../services/moflo-require.js';
+
 /**
  * Check if ruvector packages are available
  */
 export async function isRuvectorAvailable(): Promise<boolean> {
-  try {
-    await import('@ruvector/core');
-    return true;
-  } catch {
-    return false;
-  }
+  const mod = await mofloImport('@ruvector/core');
+  return mod !== null;
 }
 
 /**
  * Get ruvector version if available
  */
 export async function getRuvectorVersion(): Promise<string | null> {
-  try {
-    const ruvector = await import('@ruvector/core');
-    return (ruvector as any).version || '1.0.0';
-  } catch {
-    return null;
-  }
+  const ruvector = await mofloImport('@ruvector/core');
+  if (!ruvector) return null;
+  return (ruvector as any).version || '1.0.0';
 }

@@ -15,6 +15,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { mofloImport } from './moflo-require.js';
 
 // ============================================================================
 // Configuration
@@ -302,7 +303,7 @@ type SqlJsDatabase = any;
 
 async function loadSqlJs(): Promise<{ Database: new (data?: ArrayLike<number>) => SqlJsDatabase }> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const initSqlJs = (await import('sql.js')).default as any;
+  const initSqlJs = (await mofloImport('sql.js')).default as any;
   return initSqlJs();
 }
 

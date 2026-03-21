@@ -16,6 +16,7 @@
 import { readdir, stat } from 'node:fs/promises';
 import { join, extname, basename } from 'node:path';
 import type { GgufEngine as GgufEngineType } from './gguf-engine.js';
+import { mofloImport } from '../services/moflo-require.js';
 
 // ── Configuration ───────────────────────────────────────────
 
@@ -341,5 +342,5 @@ export function resetRuvllmBridge(): void { instance = null; }
 
 /** Check whether @ruvector/core is importable without loading the bridge. */
 export async function isRuvllmAvailable(): Promise<boolean> {
-  try { await import('@ruvector/core'); return true; } catch { return false; }
+  const mod = await mofloImport('@ruvector/core'); return mod !== null;
 }

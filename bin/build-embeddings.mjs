@@ -20,7 +20,8 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
-import initSqlJs from 'sql.js';
+import { mofloResolveURL } from './lib/moflo-resolve.mjs';
+const initSqlJs = (await import(mofloResolveURL('sql.js'))).default;
 
 function findProjectRoot() {
   let dir = process.cwd();
@@ -227,7 +228,7 @@ async function loadTransformersModel() {
   log('Attempting to load Transformers.js neural model...');
 
   try {
-    const { env, pipeline: createPipeline } = await import('@xenova/transformers');
+    const { env, pipeline: createPipeline } = await import(mofloResolveURL('@xenova/transformers'));
     env.allowLocalModels = false;
     env.backends.onnx.wasm.numThreads = 1;
 
@@ -308,6 +309,25 @@ function updateEmbedding(db, id, embedding, model) {
   );
   stmt.run([JSON.stringify(embedding), model, EMBEDDING_DIMS, Date.now(), id]);
   stmt.free();
+}
+
+function getNamespaceStats(db) {
+  const stmt = db.prepare(`
+    SELECT
+      namespace,
+      COUNT(*) as total,
+      SUM(CASE WHEN embedding IS NOT NULL AND embedding != '' AND embedding_model != 'domain-aware-hash-v1' THEN 1 ELSE 0 END) as vectorized,
+      SUM(CASE WHEN embedding IS NULL OR embedding = '' THEN 1 ELSE 0 END) as missing,
+      SUM(CASE WHEN embedding_model = 'domain-aware-hash-v1' THEN 1 ELSE 0 END) as hash_only
+    FROM memory_entries
+    WHERE status = 'active'
+    GROUP BY namespace
+    ORDER BY namespace
+  `);
+  const results = [];
+  while (stmt.step()) results.push(stmt.getAsObject());
+  stmt.free();
+  return results;
 }
 
 function getEmbeddingStats(db) {
@@ -426,7 +446,6 @@ async function main() {
       }
     }
   }
-  db.close();
 
   console.log('');
   log('═══════════════════════════════════════════════════════════');
@@ -445,7 +464,44 @@ async function main() {
       log(`    - ${m.embedding_model}: ${m.cnt}`);
     }
   }
+  log('');
+
+  // Per-namespace health report
+  const nsStats = getNamespaceStats(db);
+  if (nsStats.length > 0) {
+    log('  Namespace Health:');
+    log('  ┌─────────────────┬───────┬────────────┬─────────┬───────────┐');
+    log('  │ Namespace       │ Total │ Vectorized │ Missing │ Hash-Only │');
+    log('  ├─────────────────┼───────┼────────────┼─────────┼───────────┤');
+    let hasWarnings = false;
+    for (const ns of nsStats) {
+      const name = String(ns.namespace).padEnd(15);
+      const total = String(ns.total).padStart(5);
+      const vectorized = String(ns.vectorized).padStart(10);
+      const missing = String(ns.missing).padStart(7);
+      const hashOnly = String(ns.hash_only).padStart(9);
+      const warn = (ns.missing > 0 || ns.hash_only > 0) ? ' ⚠' : '  ';
+      log(`  │ ${name} │${total} │${vectorized} │${missing} │${hashOnly} │${warn}`);
+      if (ns.missing > 0 || ns.hash_only > 0) hasWarnings = true;
+    }
+    log('  └─────────────────┴───────┴────────────┴─────────┴───────────┘');
+    if (hasWarnings) {
+      log('');
+      log('  ⚠ Some namespaces have entries without Xenova embeddings.');
+      log('  Run with --force to re-embed all entries:');
+      log('    node node_modules/moflo/bin/build-embeddings.mjs --force');
+      if (!useTransformers) {
+        log('');
+        log('  ⚠ Xenova model not available — using hash fallback.');
+        log('  Install @xenova/transformers for neural embeddings:');
+        log('    npm install @xenova/transformers');
+      }
+    }
+  }
+
   log('═══════════════════════════════════════════════════════════');
+
+  db.close();
 }
 
 main().catch(err => {

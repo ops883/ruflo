@@ -312,7 +312,7 @@ export const memoryTools: MCPTool[] = [
       type: 'object',
       properties: {
         query: { type: 'string', description: 'Search query (semantic similarity)' },
-        namespace: { type: 'string', description: 'Namespace to search (default: "default")' },
+        namespace: { type: 'string', description: 'Namespace to search (default: all namespaces)' },
         limit: { type: 'number', description: 'Maximum results (default: 10)' },
         threshold: { type: 'number', description: 'Minimum similarity threshold 0-1 (default: 0.3)' },
       },
@@ -323,7 +323,7 @@ export const memoryTools: MCPTool[] = [
       const { searchEntries } = await getMemoryFunctions();
 
       const query = input.query as string;
-      const namespace = (input.namespace as string) || 'default';
+      const namespace = (input.namespace as string) || 'all';
       const limit = (input.limit as number) || 10;
       const threshold = (input.threshold as number) || 0.3;
 

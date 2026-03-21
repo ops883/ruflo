@@ -8,6 +8,7 @@ import { output } from '../output.js';
 import { select, confirm, input } from '../prompt.js';
 import { callMCPTool, MCPClientError } from '../mcp-client.js';
 import { storeCommand } from './transfer-store.js';
+import { mofloImport } from '../services/moflo-require.js';
 
 // Hook types
 const HOOK_TYPES = [
@@ -3748,7 +3749,7 @@ const tokenOptimizeCommand: Command = {
 
     try {
       // Check if agentic-flow v3 is available
-      const rb = await import('agentic-flow/reasoningbank').catch(() => null);
+      const rb = await mofloImport('agentic-flow/reasoningbank');
       if (rb) {
         agenticFlowAvailable = true;
         if (typeof rb.retrieveMemories === 'function') {
@@ -3756,7 +3757,7 @@ const tokenOptimizeCommand: Command = {
         }
       } else {
         // Legacy check for older agentic-flow
-        const af = await import('agentic-flow').catch(() => null);
+        const af = await mofloImport('agentic-flow');
         if (af) agenticFlowAvailable = true;
       }
 

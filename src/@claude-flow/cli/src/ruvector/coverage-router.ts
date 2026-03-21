@@ -11,6 +11,8 @@
 // Caching for Performance
 // ============================================================================
 
+import { mofloImport } from '../services/moflo-require.js';
+
 /**
  * Cache for coverage data (1 minute TTL)
  */
@@ -89,7 +91,7 @@ export class CoverageRouter {
   async initialize(): Promise<void> {
     try {
       // @ruvector/coverage is optional - gracefully fallback if not installed
-      const ruvector = await import('@ruvector/coverage' as string).catch(() => null);
+      const ruvector = await mofloImport('@ruvector/coverage');
       if (ruvector) {
         this.ruvectorEngine = (ruvector as any).createCoverageRouter?.(this.config);
         this.useNative = !!this.ruvectorEngine;

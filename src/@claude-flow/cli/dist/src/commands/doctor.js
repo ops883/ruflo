@@ -10,6 +10,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execSync, exec } from 'child_process';
 import { promisify } from 'util';
+import { getDaemonLockHolder, releaseDaemonLock } from '../services/daemon-lock.js';
 // Promisified exec with proper shell and env inheritance for cross-platform support
 const execAsync = promisify(exec);
 /**
@@ -93,16 +94,22 @@ async function checkConfigFile() {
 // Check daemon status
 async function checkDaemonStatus() {
     try {
-        const pidFile = '.claude-flow/daemon.pid';
-        if (existsSync(pidFile)) {
-            const pid = readFileSync(pidFile, 'utf8').trim();
+        const lockFile = '.claude-flow/daemon.lock';
+        if (existsSync(lockFile)) {
             try {
-                process.kill(parseInt(pid, 10), 0); // Check if process exists
+                const data = JSON.parse(readFileSync(lockFile, 'utf8'));
+                const pid = data.pid;
+                process.kill(pid, 0); // Check if process exists
                 return { name: 'Daemon Status', status: 'pass', message: `Running (PID: ${pid})` };
             }
             catch {
-                return { name: 'Daemon Status', status: 'warn', message: 'Stale PID file', fix: 'rm .claude-flow/daemon.pid && claude-flow daemon start' };
+                return { name: 'Daemon Status', status: 'warn', message: 'Stale lock file', fix: 'rm .claude-flow/daemon.lock && claude-flow daemon start' };
             }
+        }
+        // Also check legacy PID file
+        const pidFile = '.claude-flow/daemon.pid';
+        if (existsSync(pidFile)) {
+            return { name: 'Daemon Status', status: 'warn', message: 'Legacy PID file found', fix: 'rm .claude-flow/daemon.pid && claude-flow daemon start' };
         }
         return { name: 'Daemon Status', status: 'warn', message: 'Not running', fix: 'claude-flow daemon start' };
     }
@@ -400,6 +407,69 @@ async function checkAgenticFlow() {
         return { name: 'agentic-flow', status: 'warn', message: 'Check failed' };
     }
 }
+// Find and optionally kill orphaned moflo/claude-flow node processes
+async function findZombieProcesses(kill = false) {
+    const legitimatePid = getDaemonLockHolder(process.cwd());
+    const currentPid = process.pid;
+    const parentPid = process.ppid;
+    const found = [];
+    let killed = 0;
+    try {
+        if (process.platform === 'win32') {
+            // Windows: use WMIC to find node processes with moflo/claude-flow in command line
+            const result = execSync('powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \\"Name=\'node.exe\'\\" | Select-Object ProcessId,CommandLine | Format-Table -AutoSize -Wrap"', { encoding: 'utf-8', timeout: 10000, windowsHide: true });
+            const lines = result.split('\n');
+            for (const line of lines) {
+                if (/moflo|claude-flow|flo\s+(hooks|gate|mcp|daemon)/i.test(line)) {
+                    const pidMatch = line.match(/^\s*(\d+)/);
+                    if (pidMatch) {
+                        const pid = parseInt(pidMatch[1], 10);
+                        // Skip our own process, parent, and the legitimate daemon
+                        if (pid === currentPid || pid === parentPid || pid === legitimatePid)
+                            continue;
+                        found.push(pid);
+                    }
+                }
+            }
+        }
+        else {
+            // Unix/macOS: use ps to find node processes
+            const result = execSync('ps aux | grep -E "node.*(moflo|claude-flow)" | grep -v grep', { encoding: 'utf-8', timeout: 5000 });
+            const lines = result.trim().split('\n');
+            for (const line of lines) {
+                const parts = line.trim().split(/\s+/);
+                const pid = parseInt(parts[1], 10);
+                if (pid === currentPid || pid === parentPid || pid === legitimatePid)
+                    continue;
+                found.push(pid);
+            }
+        }
+    }
+    catch {
+        // No matches found (grep exits non-zero) or command failed
+    }
+    if (kill && found.length > 0) {
+        for (const pid of found) {
+            try {
+                if (process.platform === 'win32') {
+                    execSync(`taskkill /F /PID ${pid}`, { timeout: 5000, windowsHide: true });
+                }
+                else {
+                    process.kill(pid, 'SIGKILL');
+                }
+                killed++;
+            }
+            catch {
+                // Process may have already exited
+            }
+        }
+        // Clean up stale daemon lock if we killed the holder
+        if (legitimatePid && found.includes(legitimatePid)) {
+            releaseDaemonLock(process.cwd(), legitimatePid, true);
+        }
+    }
+    return { found: found.length, killed, pids: found };
+}
 // Format health check result
 function formatCheck(check) {
     const icon = check.status === 'pass' ? output.success('✓') :
@@ -438,12 +508,20 @@ export const doctorCommand = {
             description: 'Verbose output',
             type: 'boolean',
             default: false
+        },
+        {
+            name: 'kill-zombies',
+            short: 'k',
+            description: 'Find and kill orphaned moflo/claude-flow node processes',
+            type: 'boolean',
+            default: false
         }
     ],
     examples: [
         { command: 'claude-flow doctor', description: 'Run full health check' },
         { command: 'claude-flow doctor --fix', description: 'Show fixes for issues' },
         { command: 'claude-flow doctor --install', description: 'Auto-install missing dependencies' },
+        { command: 'claude-flow doctor --kill-zombies', description: 'Find and kill zombie processes' },
         { command: 'claude-flow doctor -c version', description: 'Check for stale npx cache' },
         { command: 'claude-flow doctor -c claude', description: 'Check Claude Code CLI only' }
     ],
@@ -452,11 +530,53 @@ export const doctorCommand = {
         const autoInstall = ctx.flags.install;
         const component = ctx.flags.component;
         const verbose = ctx.flags.verbose;
+        const killZombies = ctx.flags['kill-zombies'];
         output.writeln();
         output.writeln(output.bold('MoFlo Doctor'));
         output.writeln(output.dim('System diagnostics and health check'));
         output.writeln(output.dim('─'.repeat(50)));
         output.writeln();
+        // Handle --kill-zombies early
+        if (killZombies) {
+            output.writeln(output.bold('Zombie Process Scan'));
+            output.writeln();
+            // First scan without killing to show what would be killed
+            const scan = await findZombieProcesses(false);
+            if (scan.found === 0) {
+                output.writeln(output.success('  No orphaned moflo processes found'));
+            }
+            else {
+                output.writeln(output.warning(`  Found ${scan.found} orphaned process(es): PIDs ${scan.pids.join(', ')}`));
+                // Kill them
+                const result = await findZombieProcesses(true);
+                if (result.killed > 0) {
+                    output.writeln(output.success(`  Killed ${result.killed} zombie process(es)`));
+                }
+                if (result.killed < result.found) {
+                    output.writeln(output.warning(`  ${result.found - result.killed} process(es) could not be killed`));
+                }
+            }
+            output.writeln();
+            output.writeln(output.dim('─'.repeat(50)));
+            output.writeln();
+        }
+        const checkZombieProcesses = async () => {
+            try {
+                const scan = await findZombieProcesses(false);
+                if (scan.found === 0) {
+                    return { name: 'Zombie Processes', status: 'pass', message: 'No orphaned processes' };
+                }
+                return {
+                    name: 'Zombie Processes',
+                    status: 'warn',
+                    message: `${scan.found} orphaned process(es) (PIDs: ${scan.pids.join(', ')})`,
+                    fix: 'moflo doctor --kill-zombies'
+                };
+            }
+            catch {
+                return { name: 'Zombie Processes', status: 'pass', message: 'Check skipped' };
+            }
+        };
         const allChecks = [
             checkVersionFreshness,
             checkNodeVersion,
@@ -470,7 +590,8 @@ export const doctorCommand = {
             checkMcpServers,
             checkDiskSpace,
             checkBuildTools,
-            checkAgenticFlow
+            checkAgenticFlow,
+            checkZombieProcesses
         ];
         const componentMap = {
             'version': checkVersionFreshness,

@@ -2,6 +2,8 @@
  * Diff Classifier for Change Analysis
  */
 
+import { mofloImport } from '../services/moflo-require.js';
+
 export interface DiffClassifierConfig {
   maxDiffSize: number;
   classifyByImpact: boolean;
@@ -89,7 +91,7 @@ export class DiffClassifier {
   async initialize(): Promise<void> {
     try {
       // @ruvector/diff is optional - gracefully fallback if not installed
-      const ruvector = await import('@ruvector/diff' as string).catch(() => null);
+      const ruvector = await mofloImport('@ruvector/diff');
       if (ruvector) {
         this.ruvectorEngine = (ruvector as any).createDiffClassifier?.(this.config);
         this.useNative = !!this.ruvectorEngine;

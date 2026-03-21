@@ -119,22 +119,23 @@ export async function initializeTraining(config: TrainingConfig = {}): Promise<{
   try {
     // Initialize MicroLoRA with direct WASM loading (Node.js compatible)
     const fs = await import('fs');
-    const { createRequire } = await import('module');
-    const require = createRequire(import.meta.url);
+    const { mofloResolve, mofloImportRequired } = await import('./moflo-require.js');
 
     // Load WASM file directly instead of using fetch
-    const wasmPath = require.resolve('@ruvector/learning-wasm/ruvector_learning_wasm_bg.wasm');
+    const wasmPath = mofloResolve('@ruvector/learning-wasm/ruvector_learning_wasm_bg.wasm');
+    if (!wasmPath) throw new Error('@ruvector/learning-wasm not found');
     const wasmBuffer = fs.readFileSync(wasmPath);
 
-    const learningWasm = await import('@ruvector/learning-wasm');
+    const learningWasm = await mofloImportRequired('@ruvector/learning-wasm');
     learningWasm.initSync({ module: wasmBuffer });
 
     microLoRA = new learningWasm.WasmMicroLoRA(dim, alpha, lr);
     features.push(`MicroLoRA (${dim}-dim, <1μs adaptation)`);
 
     // Initialize ScopedLoRA for per-operator learning
-    scopedLoRA = new learningWasm.WasmScopedLoRA(dim, alpha, lr);
-    scopedLoRA.set_category_fallback(true);
+    const scoped = new learningWasm.WasmScopedLoRA(dim, alpha, lr);
+    scoped.set_category_fallback(true);
+    scopedLoRA = scoped;
     features.push('ScopedLoRA (17 operators)');
 
     // Initialize trajectory buffer

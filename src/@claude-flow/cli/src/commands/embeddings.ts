@@ -15,6 +15,7 @@
 
 import type { Command, CommandContext, CommandResult } from '../types.js';
 import { output } from '../output.js';
+import { mofloImport } from '../services/moflo-require.js';
 
 // Dynamic imports for embeddings package (optional — may not be installed)
 async function getEmbeddings() {
@@ -155,7 +156,7 @@ const searchCommand: Command = {
       }
 
       // Load sql.js
-      const initSqlJs = (await import('sql.js')).default;
+      const initSqlJs = (await mofloImport('sql.js')).default;
       const SQL = await initSqlJs();
 
       const fileBuffer = fs.readFileSync(fullDbPath);
@@ -434,7 +435,7 @@ const collectionsCommand: Command = {
       }
 
       // Load sql.js and query real data
-      const initSqlJs = (await import('sql.js')).default;
+      const initSqlJs = (await mofloImport('sql.js')).default;
       const SQL = await initSqlJs();
 
       const fileBuffer = fs.readFileSync(fullDbPath);
@@ -1343,7 +1344,7 @@ const cacheCommand: Command = {
 
         // Try to count real entries via sql.js
         try {
-          const initSqlJs = (await import('sql.js')).default;
+          const initSqlJs = (await mofloImport('sql.js')).default;
           const SQL = await initSqlJs();
           const fileBuffer = fs.readFileSync(resolvedDbPath);
           const db = new SQL.Database(fileBuffer);

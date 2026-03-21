@@ -31,6 +31,8 @@ function getPackageVersion(): string {
 
 export const VERSION = getPackageVersion();
 
+const LONG_RUNNING_COMMANDS = ['mcp', 'daemon'];
+
 export interface CLIOptions {
   name?: string;
   description?: string;
@@ -240,6 +242,18 @@ export class CLI {
 
         if (result && !result.success) {
           process.exit(result.exitCode || 1);
+        }
+
+        // Explicitly exit after successful non-long-running commands to prevent
+        // zombie processes on Windows where open handles keep node alive.
+        // Skip for MCP/daemon commands that need to stay running.
+        // Also skip in test environments (vitest/jest) where process.exit is mocked.
+        const isTestEnv = 'VITEST' in process.env
+          || 'JEST_WORKER_ID' in process.env
+          || process.env.NODE_ENV === 'test';
+        if (!LONG_RUNNING_COMMANDS.includes(commandName) && !isTestEnv) {
+          // Use setImmediate to let any pending I/O flush before exit
+          setImmediate(() => process.exit(0));
         }
       } else {
         // No action - show command help

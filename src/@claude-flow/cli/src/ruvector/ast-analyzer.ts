@@ -7,6 +7,8 @@
  * @module ast-analyzer
  */
 
+import { mofloImport } from '../services/moflo-require.js';
+
 export interface ASTAnalyzerConfig {
   maxFileSize: number;
   languages: string[];
@@ -71,7 +73,7 @@ export class ASTAnalyzer {
   async initialize(): Promise<void> {
     try {
       // @ruvector/ast is optional - gracefully fallback if not installed
-      const ruvector = await import('@ruvector/ast' as string).catch(() => null);
+      const ruvector = await mofloImport('@ruvector/ast');
       if (ruvector) {
         this.ruvectorEngine = (ruvector as any).createASTAnalyzer?.(this.config);
         this.useNative = !!this.ruvectorEngine;

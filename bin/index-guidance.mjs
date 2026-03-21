@@ -25,7 +25,9 @@
 import { existsSync, readdirSync, readFileSync, statSync, mkdirSync, writeFileSync } from 'fs';
 import { resolve, dirname, basename, extname } from 'path';
 import { fileURLToPath } from 'url';
-import initSqlJs from 'sql.js';
+import { mofloResolveURL } from './lib/moflo-resolve.mjs';
+const initSqlJs = (await import(mofloResolveURL('sql.js'))).default;
+
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

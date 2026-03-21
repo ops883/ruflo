@@ -16,6 +16,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
+import { mofloImport } from '../services/moflo-require.js';
 
 /**
  * Q-Learning Router Configuration
@@ -225,7 +226,8 @@ export class QLearningRouter {
    */
   async initialize(): Promise<void> {
     try {
-      const ruvector = await import('@ruvector/core');
+      const ruvector = await mofloImport('@ruvector/core');
+      if (!ruvector) throw new Error('not available');
       this.ruvectorEngine = (ruvector as any).createQLearning?.(this.config);
       this.useNative = !!this.ruvectorEngine;
     } catch {

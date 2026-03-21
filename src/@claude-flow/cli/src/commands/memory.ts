@@ -11,6 +11,7 @@ import type { Command, CommandContext, CommandResult } from '../types.js';
 import { output } from '../output.js';
 import { select, confirm, input } from '../prompt.js';
 import { callMCPTool, MCPClientError } from '../mcp-client.js';
+import { mofloImport } from '../services/moflo-require.js';
 
 // Memory backends
 const BACKENDS = [
@@ -1472,7 +1473,7 @@ const SWARM_DIR = '.swarm';
 async function openDb(cwd: string): Promise<{ db: any; dbPath: string; SQL: any }> {
   const fs = await import('fs');
   const path = await import('path');
-  const initSqlJs = (await import('sql.js')).default;
+  const initSqlJs = (await mofloImport('sql.js')).default;
   const SQL = await initSqlJs();
 
   const dbPath = path.join(cwd, SWARM_DIR, DB_FILENAME);

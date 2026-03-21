@@ -20,6 +20,7 @@ import {
   type MCPServerStatus,
 } from '../mcp-server.js';
 import { listMCPTools, callMCPTool, hasTool, getToolMetadata } from '../mcp-client.js';
+import { acquireDaemonLock, releaseDaemonLock, getDaemonLockHolder } from '../services/daemon-lock.js';
 
 // MCP tools categories
 const TOOL_CATEGORIES = [
@@ -113,15 +114,20 @@ const startCommand: Command = {
     output.printInfo('Starting MCP Server...');
     output.writeln();
 
-    // Check if already running
+    // Check daemon lock first — prevents duplicate MCP servers across all platforms
+    const projectRoot = process.cwd();
+    const lockHolder = getDaemonLockHolder(projectRoot);
+    if (lockHolder && lockHolder !== process.pid && !force) {
+      output.printWarning(`MCP Server already running (PID: ${lockHolder}, detected via daemon lock)`);
+      output.writeln(output.dim('Use --force to override, or stop the existing server first'));
+      return { success: true };
+    }
+
+    // Check if already running via server status
     const existingStatus = await getMCPServerStatus();
     if (existingStatus.running) {
-      // For stdio transport, always force restart since we can't health check it
-      // For other transports, check health unless --force is specified
-      const shouldForceRestart = force || transport === 'stdio';
-
-      if (!shouldForceRestart) {
-        // Verify the server is actually healthy/responsive
+      // For non-stdio transports, check health unless --force is specified
+      if (!force && transport !== 'stdio') {
         const manager = getServerManager();
         const health = await manager.checkHealth();
 
@@ -132,23 +138,34 @@ const startCommand: Command = {
         }
       }
 
-      // Force restart or unresponsive - auto-recover
-      output.printWarning(`MCP Server (PID: ${existingStatus.pid}) - restarting...`);
-      try {
-        // Force kill the existing process
-        if (existingStatus.pid) {
-          try {
-            process.kill(existingStatus.pid, 'SIGKILL');
-          } catch {
-            // Process may already be dead
+      if (force) {
+        // Force restart — kill existing and continue
+        output.printWarning(`MCP Server (PID: ${existingStatus.pid}) - restarting...`);
+        try {
+          if (existingStatus.pid) {
+            try {
+              process.kill(existingStatus.pid, 'SIGKILL');
+            } catch {
+              // Process may already be dead
+            }
           }
+          const manager = getServerManager();
+          await manager.stop();
+          // Release stale daemon lock from old process
+          releaseDaemonLock(projectRoot, existingStatus.pid || 0, true);
+          output.writeln(output.dim('  Cleaned up existing server'));
+        } catch {
+          // Continue anyway - the stop/cleanup may partially fail
         }
-        const manager = getServerManager();
-        await manager.stop();
-        output.writeln(output.dim('  Cleaned up existing server'));
-      } catch {
-        // Continue anyway - the stop/cleanup may partially fail
       }
+    }
+
+    // Acquire daemon lock for the new server
+    const lockResult = acquireDaemonLock(projectRoot);
+    if (!lockResult.acquired) {
+      output.printWarning(`Cannot acquire daemon lock (held by PID: ${(lockResult as any).holder})`);
+      output.writeln(output.dim('Use --force to override'));
+      return { success: true };
     }
 
     const options: MCPServerOptions = {
