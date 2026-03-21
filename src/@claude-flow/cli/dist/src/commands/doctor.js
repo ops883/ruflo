@@ -297,8 +297,8 @@ async function checkVersionFreshness() {
             (latest.major === current.major && latest.minor === current.minor && latest.patch === current.patch && latest.prerelease > current.prerelease));
         if (isOutdated) {
             const fix = isNpx
-                ? 'rm -rf ~/.npm/_npx/* && npx -y @claude-flow/cli@latest'
-                : 'npm update @claude-flow/cli';
+                ? 'rm -rf ~/.npm/_npx/* && npx -y moflo'
+                : 'npm update moflo';
             return {
                 name: 'Version Freshness',
                 status: 'warn',

@@ -21,6 +21,8 @@ import {
   generatePreCommitHook,
   generatePostCommitHook,
   generateAutoMemoryHook,
+  generateGateScript,
+  generateHookHandlerScript,
 } from './helpers-generator.js';
 import { generateClaudeMd } from './claudemd-generator.js';
 
@@ -414,7 +416,7 @@ export async function executeUpgrade(targetDir: string, upgradeSettings = false)
     // 0. ALWAYS update critical helpers (force overwrite)
     const sourceHelpersForUpgrade = findSourceHelpersDir();
     if (sourceHelpersForUpgrade) {
-      const criticalHelpers = ['auto-memory-hook.mjs', 'hook-handler.cjs', 'intelligence.cjs'];
+      const criticalHelpers = ['auto-memory-hook.mjs', 'hook-handler.cjs', 'gate.cjs', 'intelligence.cjs'];
       for (const helperName of criticalHelpers) {
         const targetPath = path.join(targetDir, '.claude', 'helpers', helperName);
         const sourcePath = path.join(sourceHelpersForUpgrade, helperName);
@@ -432,6 +434,8 @@ export async function executeUpgrade(targetDir: string, upgradeSettings = false)
       // Source not found (npx with broken paths) — use generated fallbacks
       const generatedCritical: Record<string, string> = {
         'auto-memory-hook.mjs': generateAutoMemoryHook(),
+        'gate.cjs': generateGateScript(),
+        'hook-handler.cjs': generateHookHandlerScript(),
       };
       for (const [helperName, content] of Object.entries(generatedCritical)) {
         const targetPath = path.join(targetDir, '.claude', 'helpers', helperName);
@@ -1039,13 +1043,14 @@ async function writeHelpers(
   }
 
   // Fall back to generating helpers if source not available.
-  // Only generate actively used helpers — hooks now go through npx flo CLI,
-  // so hook-handler.cjs, router.js, session.js, memory.js, intelligence.cjs
-  // are no longer needed.
+  // gate.cjs and hook-handler.cjs are required — hooks call them directly
+  // via `node` instead of `npx flo` to avoid CLI bootstrap overhead.
   const helpers: Record<string, string> = {
     'pre-commit': generatePreCommitHook(),
     'post-commit': generatePostCommitHook(),
     'auto-memory-hook.mjs': generateAutoMemoryHook(),
+    'gate.cjs': generateGateScript(),
+    'hook-handler.cjs': generateHookHandlerScript(),
   };
 
   for (const [name, content] of Object.entries(helpers)) {

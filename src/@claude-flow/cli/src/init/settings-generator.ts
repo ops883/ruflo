@@ -189,6 +189,11 @@ function autoMemoryCmd(subcommand: string): string {
   return hookCmdEsm('"$CLAUDE_PROJECT_DIR/.claude/helpers/auto-memory-hook.mjs"', subcommand);
 }
 
+/** Shorthand for gate commands (lightweight JSON state checks) */
+function gateCmd(subcommand: string): string {
+  return hookCmd('"$CLAUDE_PROJECT_DIR/.claude/helpers/gate.cjs"', subcommand);
+}
+
 /**
  * Generate statusLine configuration for Claude Code
  * Uses local helper script for cross-platform compatibility (no npx cold-start)
@@ -207,8 +212,9 @@ function generateStatusLineConfig(_options: InitOptions): object {
 
 /**
  * Generate hooks configuration
- * All hooks route through the npx flo CLI for consistent behavior.
- * The CLI handles routing, gates, learning, and session management.
+ * All hooks use direct node invocation via lightweight helper scripts
+ * (gate.cjs, hook-handler.cjs) instead of `npx flo` to avoid spawning
+ * a full CLI process on every tool call.
  */
 function generateHooksConfig(config: HooksConfig): object {
   const hooks: Record<string, unknown[]> = {};
@@ -218,26 +224,26 @@ function generateHooksConfig(config: HooksConfig): object {
     hooks.PreToolUse = [
       {
         matcher: '^(Write|Edit|MultiEdit)$',
-        hooks: [{ type: 'command', command: 'npx flo hooks pre-edit', timeout: 5000 }],
+        hooks: [{ type: 'command', command: hookHandlerCmd('post-edit'), timeout: 5000 }],
       },
       {
         matcher: '^(Glob|Grep)$',
-        hooks: [{ type: 'command', command: 'npx flo gate check-before-scan', timeout: 3000 }],
+        hooks: [{ type: 'command', command: gateCmd('check-before-scan'), timeout: 3000 }],
       },
       {
         matcher: '^Read$',
-        hooks: [{ type: 'command', command: 'npx flo gate check-before-read', timeout: 3000 }],
+        hooks: [{ type: 'command', command: gateCmd('check-before-read'), timeout: 3000 }],
       },
       {
         matcher: '^Task$',
         hooks: [
-          { type: 'command', command: 'npx flo gate check-before-agent', timeout: 3000 },
-          { type: 'command', command: 'npx flo hooks pre-task', timeout: 5000 },
+          { type: 'command', command: gateCmd('check-before-agent'), timeout: 3000 },
+          { type: 'command', command: hookHandlerCmd('pre-task'), timeout: 5000 },
         ],
       },
       {
         matcher: '^Bash$',
-        hooks: [{ type: 'command', command: 'npx flo gate check-dangerous-command', timeout: 2000 }],
+        hooks: [{ type: 'command', command: gateCmd('check-dangerous-command'), timeout: 2000 }],
       },
     ];
   }
@@ -247,23 +253,23 @@ function generateHooksConfig(config: HooksConfig): object {
     hooks.PostToolUse = [
       {
         matcher: '^(Write|Edit|MultiEdit)$',
-        hooks: [{ type: 'command', command: 'npx flo hooks post-edit', timeout: 5000 }],
+        hooks: [{ type: 'command', command: hookHandlerCmd('post-edit'), timeout: 5000 }],
       },
       {
         matcher: '^Task$',
-        hooks: [{ type: 'command', command: 'npx flo hooks post-task', timeout: 5000 }],
+        hooks: [{ type: 'command', command: hookHandlerCmd('post-task'), timeout: 5000 }],
       },
       {
         matcher: '^TaskCreate$',
-        hooks: [{ type: 'command', command: 'npx flo gate record-task-created', timeout: 2000 }],
+        hooks: [{ type: 'command', command: gateCmd('record-task-created'), timeout: 2000 }],
       },
       {
         matcher: '^Bash$',
-        hooks: [{ type: 'command', command: 'npx flo gate check-bash-memory', timeout: 2000 }],
+        hooks: [{ type: 'command', command: gateCmd('check-bash-memory'), timeout: 2000 }],
       },
       {
         matcher: '^mcp__claude-flow__memory_(search|retrieve)$',
-        hooks: [{ type: 'command', command: 'npx flo gate record-memory-searched', timeout: 2000 }],
+        hooks: [{ type: 'command', command: gateCmd('record-memory-searched'), timeout: 2000 }],
       },
     ];
   }
@@ -273,8 +279,8 @@ function generateHooksConfig(config: HooksConfig): object {
     hooks.UserPromptSubmit = [
       {
         hooks: [
-          { type: 'command', command: 'npx flo gate prompt-reminder', timeout: 2000 },
-          { type: 'command', command: 'npx flo hooks route', timeout: 5000 },
+          { type: 'command', command: gateCmd('prompt-reminder'), timeout: 2000 },
+          { type: 'command', command: hookHandlerCmd('route'), timeout: 5000 },
         ],
       },
     ];
@@ -305,7 +311,7 @@ function generateHooksConfig(config: HooksConfig): object {
     hooks.Stop = [
       {
         hooks: [
-          { type: 'command', command: 'npx flo hooks session-end', timeout: 5000 },
+          { type: 'command', command: hookHandlerCmd('session-end'), timeout: 5000 },
           { type: 'command', command: autoMemoryCmd('sync'), timeout: 10000 },
         ],
       },
@@ -316,7 +322,7 @@ function generateHooksConfig(config: HooksConfig): object {
   if (config.preCompact) {
     hooks.PreCompact = [
       {
-        hooks: [{ type: 'command', command: 'npx flo gate compact-guidance', timeout: 3000 }],
+        hooks: [{ type: 'command', command: gateCmd('compact-guidance'), timeout: 3000 }],
       },
     ];
   }
@@ -328,7 +334,7 @@ function generateHooksConfig(config: HooksConfig): object {
         hooks: [
           {
             type: 'command',
-            command: 'npx flo hooks notification',
+            command: hookHandlerCmd('notification'),
             timeout: 3000,
           },
         ],
