@@ -43,6 +43,54 @@ export interface MofloInitResult {
 // ============================================================================
 
 /**
+ * Discover source directories by walking the project tree.
+ * Finds directories named 'src' (or top-level 'packages', 'lib', etc.)
+ * that contain .ts/.tsx/.js/.jsx files. Skips node_modules, dist, etc.
+ */
+function discoverSrcDirs(root: string): string[] {
+  const SKIP = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.next', '.reports', '.swarm', '.claude-flow']);
+  // Top-level candidates that are always source roots if they exist
+  const TOP_LEVEL = ['packages', 'lib', 'app', 'apps', 'services', 'server', 'client'];
+  const found: string[] = [];
+
+  // Add top-level candidates first
+  for (const d of TOP_LEVEL) {
+    if (fs.existsSync(path.join(root, d))) found.push(d);
+  }
+
+  // Walk up to 3 levels deep looking for 'src' and 'migrations' directories
+  const SRC_NAMES = new Set(['src', 'migrations']);
+  function walk(dir: string, depth: number) {
+    if (depth > 3) return;
+    try {
+      const entries = fs.readdirSync(path.join(root, dir), { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory() || SKIP.has(entry.name)) continue;
+        const rel = dir ? `${dir}/${entry.name}` : entry.name;
+        if (SRC_NAMES.has(entry.name)) {
+          // Check it actually has source files
+          try {
+            const files = fs.readdirSync(path.join(root, rel));
+            const hasSource = files.some(f => /\.(ts|tsx|js|jsx)$/.test(f));
+            if (hasSource) found.push(rel);
+          } catch { /* skip unreadable */ }
+        } else {
+          walk(rel, depth + 1);
+        }
+      }
+    } catch { /* skip unreadable directories */ }
+  }
+
+  walk('', 0);
+
+  // Deduplicate: if 'packages' is found, don't also include 'packages/foo/src'
+  // since the code-map walker handles subdirs
+  return found.filter(d => {
+    return !found.some(other => other !== d && d.startsWith(other + '/'));
+  });
+}
+
+/**
  * Run interactive wizard to collect user preferences.
  */
 async function runWizard(root: string): Promise<MofloInitAnswers> {
@@ -52,8 +100,7 @@ async function runWizard(root: string): Promise<MofloInitAnswers> {
   const guidanceCandidates = ['.claude/guidance', 'docs/guides', 'docs', 'architecture', 'adr', '.cursor/rules'];
   const detectedGuidance = guidanceCandidates.filter(d => fs.existsSync(path.join(root, d)));
 
-  const srcCandidates = ['src', 'packages', 'lib', 'app', 'apps', 'services', 'server', 'client'];
-  const detectedSrc = srcCandidates.filter(d => fs.existsSync(path.join(root, d)));
+  const detectedSrc = discoverSrcDirs(root);
 
   // Ask questions
   const guidance = await confirm({
@@ -109,8 +156,7 @@ function defaultAnswers(root: string): MofloInitAnswers {
   const guidanceDirs = guidanceCandidates.filter(d => fs.existsSync(path.join(root, d)));
   if (guidanceDirs.length === 0) guidanceDirs.push('.claude/guidance');
 
-  const srcCandidates = ['src', 'packages', 'lib', 'app', 'apps', 'services', 'server', 'client'];
-  const srcDirs = srcCandidates.filter(d => fs.existsSync(path.join(root, d)));
+  const srcDirs = discoverSrcDirs(root);
   if (srcDirs.length === 0) srcDirs.push('src');
 
   return { guidance: true, guidanceDirs, codeMap: true, srcDirs, gates: true, stopHook: true };
