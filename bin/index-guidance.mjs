@@ -100,11 +100,16 @@ function loadGuidanceDirs() {
 
   // 2. Include moflo's own bundled guidance (ships with the package)
   //    Only when running inside a consumer project (not moflo itself)
-  const bundledGuidanceDir = resolve(mofloRoot, '.claude/guidance');
+  //    Shipped guidance lives in .claude/guidance/shipped/ — internal/ is excluded from npm
+  const bundledShippedDir = resolve(mofloRoot, '.claude/guidance/shipped');
+  const bundledGuidanceDir = existsSync(bundledShippedDir)
+    ? bundledShippedDir
+    : resolve(mofloRoot, '.claude/guidance');
   const projectGuidanceDir = resolve(projectRoot, '.claude/guidance');
   if (
     existsSync(bundledGuidanceDir) &&
-    resolve(bundledGuidanceDir) !== resolve(projectGuidanceDir)
+    resolve(bundledGuidanceDir) !== resolve(projectGuidanceDir) &&
+    resolve(bundledGuidanceDir) !== resolve(projectGuidanceDir, 'shipped')
   ) {
     dirs.push({ path: bundledGuidanceDir, prefix: 'moflo-bundled', absolute: true });
   }

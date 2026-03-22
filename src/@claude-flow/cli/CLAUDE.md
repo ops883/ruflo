@@ -85,36 +85,43 @@ When the user requests a complex task, **spawn agents in background and WAIT for
 // STEP 1: Initialize swarm coordination (anti-drift config)
 Bash("npx moflo swarm init --topology hierarchical --max-agents 8 --strategy specialized")
 
+// STEP 1b: Create visible tasks BEFORE spawning agents
+TaskCreate({ subject: "🔍 Research requirements", description: "Researcher agent", activeForm: "🔍 Researching" })
+TaskCreate({ subject: "🏗️ Design architecture", description: "Architect agent", activeForm: "🏗️ Designing" })
+TaskCreate({ subject: "💻 Implement solution", description: "Coder agent", activeForm: "💻 Implementing" })
+TaskCreate({ subject: "🧪 Write tests", description: "Tester agent", activeForm: "🧪 Testing" })
+TaskCreate({ subject: "👀 Review code", description: "Reviewer agent", activeForm: "👀 Reviewing" })
+
 // STEP 2: Spawn ALL agents IN BACKGROUND in a SINGLE message
 // Use run_in_background: true so agents work concurrently
 Task({
   prompt: "Research requirements, analyze codebase patterns, store findings in memory",
   subagent_type: "researcher",
-  description: "Research phase",
+  description: "🔍 Research phase",
   run_in_background: true  // ← CRITICAL: Run in background
 })
 Task({
   prompt: "Design architecture based on research. Document decisions.",
   subagent_type: "system-architect",
-  description: "Architecture phase",
+  description: "🏗️ Architecture phase",
   run_in_background: true
 })
 Task({
   prompt: "Implement the solution following the design. Write clean code.",
   subagent_type: "coder",
-  description: "Implementation phase",
+  description: "💻 Implementation phase",
   run_in_background: true
 })
 Task({
   prompt: "Write comprehensive tests for the implementation.",
   subagent_type: "tester",
-  description: "Testing phase",
+  description: "🧪 Testing phase",
   run_in_background: true
 })
 Task({
   prompt: "Review code quality, security, and best practices.",
   subagent_type: "reviewer",
-  description: "Review phase",
+  description: "👀 Review phase",
   run_in_background: true
 })
 

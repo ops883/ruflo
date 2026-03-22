@@ -75,9 +75,10 @@ try {
     try { cachedVersion = readFileSync(versionStampPath, 'utf-8').trim(); } catch {}
 
     if (installedVersion !== cachedVersion) {
+      const binDir = resolve(projectRoot, 'node_modules/moflo/bin');
+
       // Version changed — sync scripts from bin/
       if (autoUpdateConfig.scripts) {
-        const binDir = resolve(projectRoot, 'node_modules/moflo/bin');
         const scriptsDir = resolve(projectRoot, '.claude/scripts');
         const scriptFiles = [
           'hooks.mjs', 'session-start-launcher.mjs', 'index-guidance.mjs',
@@ -92,37 +93,42 @@ try {
         }
       }
 
-      // Sync helpers from source .claude/helpers/
+      // Sync helpers from bin/ and source .claude/helpers/
       if (autoUpdateConfig.helpers) {
-        const sourceHelpersDir = resolve(projectRoot, 'node_modules/moflo/src/@claude-flow/cli/.claude/helpers');
         const helpersDir = resolve(projectRoot, '.claude/helpers');
-        const helperFiles = [
-          'auto-memory-hook.mjs', 'statusline.cjs', 'pre-commit', 'post-commit',
+        if (!existsSync(helpersDir)) mkdirSync(helpersDir, { recursive: true });
+
+        // Gate and hook helpers — shipped as static files in bin/
+        const binHelperFiles = [
+          'gate.cjs', 'gate-hook.mjs', 'prompt-hook.mjs', 'hook-handler.cjs',
         ];
-        for (const file of helperFiles) {
-          const src = resolve(sourceHelpersDir, file);
+        for (const file of binHelperFiles) {
+          const src = resolve(binDir, file);
           const dest = resolve(helpersDir, file);
           if (existsSync(src)) {
             try { copyFileSync(src, dest); } catch { /* non-fatal */ }
           }
         }
 
-        // Also sync generated helpers via upgrade CLI (hook-handler.cjs, gate.cjs, etc.)
-        // These are generated, not shipped, so we trigger an upgrade in the background
-        const localCli = resolve(projectRoot, 'node_modules/moflo/src/@claude-flow/cli/bin/cli.js');
-        if (existsSync(localCli)) {
-          try {
-            const proc = spawn('node', [localCli, 'init', '--upgrade', '--quiet'], {
-              cwd: projectRoot, stdio: 'ignore', detached: true, windowsHide: true,
-            });
-            proc.unref();
-          } catch { /* non-fatal */ }
+        // Other helpers from source .claude/helpers/
+        const sourceHelpersDir = resolve(projectRoot, 'node_modules/moflo/src/@claude-flow/cli/.claude/helpers');
+        const sourceHelperFiles = [
+          'auto-memory-hook.mjs', 'statusline.cjs', 'pre-commit', 'post-commit',
+        ];
+        for (const file of sourceHelperFiles) {
+          const src = resolve(sourceHelpersDir, file);
+          const dest = resolve(helpersDir, file);
+          if (existsSync(src)) {
+            try { copyFileSync(src, dest); } catch { /* non-fatal */ }
+          }
         }
       }
 
       // Sync guidance bootstrap file (moflo-bootstrap.md)
       // Ensures subagents can read guidance directly from disk
-      const bootstrapSrc = resolve(projectRoot, 'node_modules/moflo/.claude/guidance/agent-bootstrap.md');
+      const shippedBootstrap = resolve(projectRoot, 'node_modules/moflo/.claude/guidance/shipped/agent-bootstrap.md');
+      const legacyBootstrap = resolve(projectRoot, 'node_modules/moflo/.claude/guidance/agent-bootstrap.md');
+      const bootstrapSrc = existsSync(shippedBootstrap) ? shippedBootstrap : legacyBootstrap;
       const guidanceDir = resolve(projectRoot, '.claude/guidance');
       const bootstrapDest = resolve(guidanceDir, 'moflo-bootstrap.md');
       if (existsSync(bootstrapSrc)) {
@@ -149,7 +155,9 @@ try {
 // ── 3b. Ensure guidance bootstrap file exists (even without version change) ──
 // Subagents need this file on disk for direct reads without memory search.
 try {
-  const bootstrapSrc = resolve(projectRoot, 'node_modules/moflo/.claude/guidance/agent-bootstrap.md');
+  const shippedBs = resolve(projectRoot, 'node_modules/moflo/.claude/guidance/shipped/agent-bootstrap.md');
+  const legacyBs = resolve(projectRoot, 'node_modules/moflo/.claude/guidance/agent-bootstrap.md');
+  const bootstrapSrc = existsSync(shippedBs) ? shippedBs : legacyBs;
   const guidanceDir = resolve(projectRoot, '.claude/guidance');
   const bootstrapDest = resolve(guidanceDir, 'moflo-bootstrap.md');
   if (existsSync(bootstrapSrc) && !existsSync(bootstrapDest)) {

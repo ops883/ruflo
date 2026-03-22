@@ -131,9 +131,9 @@ mcp__ruv-swarm__swarm_init({
 
 // STEP 2: Spawn BOTH platforms in parallel via Task tool
 // 🔵 Claude Code workers (architecture, security, testing)
-Task("Architect", "Design the implementation. Store design in memory namespace 'collaboration'.", "system-architect")
-Task("Tester", "Write tests based on architect's design. Read from 'collaboration' namespace.", "tester")
-Task("Reviewer", "Review code quality and security. Store findings in 'collaboration'.", "reviewer")
+Task("🏗️ Architect", "Design the implementation. Store design in memory namespace 'collaboration'.", "system-architect")
+Task("🧪 Tester", "Write tests based on architect's design. Read from 'collaboration' namespace.", "tester")
+Task("👀 Reviewer", "Review code quality and security. Store findings in 'collaboration'.", "reviewer")
 
 // 🟢 Codex workers (implementation, optimization)
 // Spawn via CLI for Codex platform
@@ -266,21 +266,22 @@ mcp__ruv-swarm__swarm_init({
 
 // STEP 2: Spawn agents concurrently using Claude Code's Task tool
 // ALL Task calls MUST be in the SAME message for parallel execution
+// Use role icons in description so user can track agent progress visually
 Task("Coordinator", "You are the swarm coordinator. Initialize session, coordinate other agents via memory. Run: npx moflo hooks session-start", "hierarchical-coordinator")
-Task("Researcher", "Analyze requirements and existing code patterns. Store findings in memory via hooks.", "researcher")
-Task("Architect", "Design implementation approach based on research. Document decisions in memory.", "system-architect")
-Task("Coder", "Implement the solution following architect's design. Coordinate via hooks.", "coder")
-Task("Tester", "Write tests for the implementation. Report coverage via hooks.", "tester")
-Task("Reviewer", "Review code quality and security. Document findings.", "reviewer")
+Task("🔍 Researcher", "Analyze requirements and existing code patterns. Store findings in memory via hooks.", "researcher")
+Task("🏗️ Architect", "Design implementation approach based on research. Document decisions in memory.", "system-architect")
+Task("💻 Coder", "Implement the solution following architect's design. Coordinate via hooks.", "coder")
+Task("🧪 Tester", "Write tests for the implementation. Report coverage via hooks.", "tester")
+Task("👀 Reviewer", "Review code quality and security. Document findings.", "reviewer")
 
-// STEP 3: Batch all todos
+// STEP 3: Batch all todos (role icons for visual tracking)
 TodoWrite({ todos: [
   {content: "Initialize swarm coordination", status: "in_progress", activeForm: "Initializing swarm"},
-  {content: "Research and analyze requirements", status: "in_progress", activeForm: "Researching requirements"},
-  {content: "Design architecture", status: "pending", activeForm: "Designing architecture"},
-  {content: "Implement solution", status: "pending", activeForm: "Implementing solution"},
-  {content: "Write tests", status: "pending", activeForm: "Writing tests"},
-  {content: "Review and finalize", status: "pending", activeForm: "Reviewing code"}
+  {content: "🔍 Research and analyze requirements", status: "in_progress", activeForm: "🔍 Researching requirements"},
+  {content: "🏗️ Design architecture", status: "pending", activeForm: "🏗️ Designing architecture"},
+  {content: "💻 Implement solution", status: "pending", activeForm: "💻 Implementing solution"},
+  {content: "🧪 Write tests", status: "pending", activeForm: "🧪 Writing tests"},
+  {content: "👀 Review and finalize", status: "pending", activeForm: "👀 Reviewing code"}
 ]})
 
 // STEP 4: Store swarm state in memory
@@ -296,13 +297,13 @@ mcp__claude-flow__memory_usage({
 
 | Code | Task | Agents |
 |------|------|--------|
-| 1 | Bug Fix | coordinator, researcher, coder, tester |
-| 3 | Feature | coordinator, architect, coder, tester, reviewer |
-| 5 | Refactor | coordinator, architect, coder, reviewer |
-| 7 | Performance | coordinator, perf-engineer, coder |
-| 9 | Security | coordinator, security-architect, auditor |
-| 11 | Memory | coordinator, memory-specialist, perf-engineer |
-| 13 | Docs | researcher, api-docs |
+| 1 | Bug Fix | coordinator, 🔍 researcher, 💻 coder, 🧪 tester |
+| 3 | Feature | coordinator, 🏗️ architect, 💻 coder, 🧪 tester, 👀 reviewer |
+| 5 | Refactor | coordinator, 🏗️ architect, 💻 coder, 👀 reviewer |
+| 7 | Performance | coordinator, ⚡ perf-engineer, 💻 coder |
+| 9 | Security | coordinator, 🛡️ security-architect, 🔬 auditor |
+| 11 | Memory | coordinator, 🧠 memory-specialist, ⚡ perf-engineer |
+| 13 | Docs | 🔍 researcher, 📚 api-docs |
 
 **Codes 1-11: hierarchical/specialized (anti-drift). Code 13: mesh/balanced**
 
@@ -577,9 +578,9 @@ TeamCreate({
 })
 
 // Create shared tasks
-TaskCreate({ subject: "Design API", description: "...", activeForm: "Designing" })
-TaskCreate({ subject: "Implement endpoints", description: "...", activeForm: "Implementing" })
-TaskCreate({ subject: "Write tests", description: "...", activeForm: "Testing" })
+TaskCreate({ subject: "🏗️ Design API", description: "...", activeForm: "🏗️ Designing" })
+TaskCreate({ subject: "💻 Implement endpoints", description: "...", activeForm: "💻 Implementing" })
+TaskCreate({ subject: "🧪 Write tests", description: "...", activeForm: "🧪 Testing" })
 
 // Spawn teammates (run in background for parallel work)
 Task({

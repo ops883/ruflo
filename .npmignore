@@ -42,6 +42,7 @@ docs/
 *.md
 !README.md
 !LICENSE
+!.claude/guidance/shipped/*.md
 
 # Git
 .git/
