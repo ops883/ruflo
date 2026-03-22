@@ -124,7 +124,10 @@ function findProjectRoot() {
 }
 
 function copyBootstrap(projectRoot) {
-  const source = join(mofloRoot, '.claude', 'guidance', 'agent-bootstrap.md');
+  const shippedSource = join(mofloRoot, '.claude', 'guidance', 'shipped', 'agent-bootstrap.md');
+  const source = existsSync(shippedSource)
+    ? shippedSource
+    : join(mofloRoot, '.claude', 'guidance', 'agent-bootstrap.md');
   const targetDir = join(projectRoot, '.claude', 'guidance');
   const target = join(targetDir, 'moflo-bootstrap.md');
 

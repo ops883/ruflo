@@ -17,6 +17,7 @@ export default defineConfig({
       'src/__tests__/**/*.{test,spec}.ts',
       'src/plugins/**/__tests__/**/*.{test,spec}.ts',
       'src/plugins/**/tests/**/*.{test,spec}.ts',
+      'src/@claude-flow/**/examples/**/*.{test,spec}.{ts,mts}',
       'tests/**/*.{test,spec}.{ts,mts,mjs}',
     ],
     exclude: [

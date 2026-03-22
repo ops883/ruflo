@@ -27,6 +27,26 @@
 
 ---
 
+## Agent Role Icons
+
+Use these icons in `subject` and `activeForm` when creating tasks so the user can visually identify which agent is doing what. This is required for all TaskCreate calls tied to agent work.
+
+| Icon | Agent Role | activeForm Example |
+|------|------------|-------------------|
+| 🔍 | researcher | 🔍 Researching codebase |
+| 🏗️ | system-architect | 🏗️ Designing architecture |
+| 💻 | coder | 💻 Writing code |
+| 🧪 | tester | 🧪 Writing tests |
+| 👀 | reviewer | 👀 Reviewing code |
+| 🛡️ | security-architect | 🛡️ Security audit |
+| ⚡ | performance-engineer | ⚡ Optimizing performance |
+| 📚 | api-docs | 📚 Documenting API |
+| 📋 | planner | 📋 Planning tasks |
+| 🤝 | consensus (hive-mind) | 🤝 Evaluating tradeoffs |
+| 🔬 | analyzer | 🔬 Analyzing code |
+
+---
+
 ## Integration Protocol
 
 ### Step 0: Pre-Swarm Validation (Soft Check)
@@ -60,30 +80,31 @@ TaskCreate({
 })
 
 // 2. Create subtasks for each agent role (in same message for parallel creation)
+//    Use role icons so the user can visually track agent progress at a glance.
 TaskCreate({
-  subject: "Research requirements and codebase patterns",
+  subject: "🔍 Research requirements and codebase patterns",
   description: "Researcher agent: Analyze requirements, find relevant code, document patterns.",
-  activeForm: "Researching codebase"
+  activeForm: "🔍 Researching codebase"
 })
 TaskCreate({
-  subject: "Design implementation approach",
+  subject: "🏗️ Design implementation approach",
   description: "Architect agent: Design solution, document decisions.",
-  activeForm: "Designing architecture"
+  activeForm: "🏗️ Designing architecture"
 })
 TaskCreate({
-  subject: "Implement the solution",
+  subject: "💻 Implement the solution",
   description: "Coder agent: Write code following patterns and standards.",
-  activeForm: "Writing code"
+  activeForm: "💻 Writing code"
 })
 TaskCreate({
-  subject: "Write unit tests",
+  subject: "🧪 Write unit tests",
   description: "Tester agent: Create tests that verify the implementation.",
-  activeForm: "Writing tests"
+  activeForm: "🧪 Writing tests"
 })
 TaskCreate({
-  subject: "Review code quality and security",
+  subject: "👀 Review code quality and security",
   description: "Reviewer agent: Check for issues, security, best practices.",
-  activeForm: "Reviewing code"
+  activeForm: "👀 Reviewing code"
 })
 ```
 
@@ -117,9 +138,11 @@ npx flo hive-mind init --topology hierarchical-mesh --consensus byzantine
 
 ### Step 4: Spawn Agents with Task References
 
-Include task IDs in agent prompts so they update status:
+Include task IDs in agent prompts so they update status.
+TaskCreate was already called in Step 1 — tasks are visible before agents spawn.
 
 ```javascript
+// TaskCreate already done in Step 1 above
 Task({
   prompt: `FIRST: Search memory, then read .claude/guidance/agent-bootstrap.md
 
@@ -131,7 +154,7 @@ YOUR TASK (ID: 1): Research requirements and codebase patterns
 WHEN STARTING: The coordinator has marked your task in_progress.
 WHEN COMPLETE: Report findings. Coordinator will mark task completed.`,
   subagent_type: "researcher",
-  description: "Research phase",
+  description: "🔍 Research phase",
   run_in_background: true
 })
 ```
@@ -159,30 +182,30 @@ TaskList()  // Shows task 2 is now unblocked
 
 | Task | Agent | Dependencies |
 |------|-------|--------------|
-| Investigate bug and root cause | researcher | - |
-| Implement fix | coder | researcher |
-| Write regression tests | tester | coder |
-| Review fix | reviewer | coder |
+| 🔍 Investigate bug and root cause | researcher | - |
+| 💻 Implement fix | coder | researcher |
+| 🧪 Write regression tests | tester | coder |
+| 👀 Review fix | reviewer | coder |
 
 ### Feature Implementation (5-6 tasks)
 
 | Task | Agent | Dependencies |
 |------|-------|--------------|
-| Research requirements | researcher | - |
-| Design implementation | system-architect | researcher |
-| Implement feature | coder | architect |
-| Write unit tests | tester | coder |
-| Review code | reviewer | coder |
-| Integration testing | tester | reviewer |
+| 🔍 Research requirements | researcher | - |
+| 🏗️ Design implementation | system-architect | researcher |
+| 💻 Implement feature | coder | architect |
+| 🧪 Write unit tests | tester | coder |
+| 👀 Review code | reviewer | coder |
+| 🧪 Integration testing | tester | reviewer |
 
 ### Architectural Decision (Hive-Mind) (3-4 tasks)
 
 | Task | Agent | Dependencies |
 |------|-------|--------------|
-| Analyze options | researcher | - |
-| Evaluate tradeoffs | multiple (consensus) | researcher |
-| Document decision | api-docs | consensus |
-| Create implementation plan | planner | decision |
+| 🔍 Analyze options | researcher | - |
+| 🤝 Evaluate tradeoffs | multiple (consensus) | researcher |
+| 📚 Document decision | api-docs | consensus |
+| 📋 Create implementation plan | planner | decision |
 
 ---
 
@@ -204,12 +227,12 @@ The coordinator (Claude Code main process) must:
 ```javascript
 // USER: Work on feature X with swarm
 
-// STEP 1: Create task structure
+// STEP 1: Create task structure (role icons for visual tracking)
 TaskCreate({ subject: "Implement feature X", description: "...", activeForm: "Coordinating" })
-TaskCreate({ subject: "Research patterns", description: "...", activeForm: "Researching" })
-TaskCreate({ subject: "Implement solution", description: "...", activeForm: "Implementing" })
-TaskCreate({ subject: "Write unit tests", description: "...", activeForm: "Writing tests" })
-TaskCreate({ subject: "Review changes", description: "...", activeForm: "Reviewing" })
+TaskCreate({ subject: "🔍 Research patterns", description: "...", activeForm: "🔍 Researching" })
+TaskCreate({ subject: "💻 Implement solution", description: "...", activeForm: "💻 Implementing" })
+TaskCreate({ subject: "🧪 Write unit tests", description: "...", activeForm: "🧪 Writing tests" })
+TaskCreate({ subject: "👀 Review changes", description: "...", activeForm: "👀 Reviewing" })
 
 // STEP 2: Set dependencies
 TaskUpdate({ taskId: "2", addBlockedBy: ["1"] })
@@ -248,15 +271,85 @@ TaskUpdate({ taskId: "2", status: "in_progress" })
 
 ---
 
-## When to Use This Pattern
+## When to Use TaskCreate (With or Without Swarm)
 
-| Scenario | Use Integration? |
-|----------|-----------------|
-| Swarm or hive-mind explicitly requested | **YES** - always |
-| Complex task (5+ subtasks expected) | **YES** |
-| Simple bug fix (single agent sufficient) | Optional |
-| Non-coding tasks (analysis, help) | **NO** |
-| Direct execution requested | **NO** |
+### Decision Checklist
+
+Before spawning any agent via `Task`, run through this checklist:
+
+| # | Question | If YES |
+|---|----------|--------|
+| 1 | Is this a swarm / hive-mind? | **TaskCreate required** — full integration protocol (Steps 1-5 above) |
+| 2 | Are you spawning 2+ background agents? | **TaskCreate required** — one per agent, with role icons |
+| 3 | Is this a single background agent (`run_in_background: true`)? | **TaskCreate required** — user needs visibility while it runs |
+| 4 | Will the agent touch 3+ files or take multiple steps? | **TaskCreate required** — even if foreground, the user benefits from status tracking |
+| 5 | Is this a single foreground agent for a focused task? | **TaskCreate optional** — user is already waiting inline for the result |
+| 6 | Is this a quick research/exploration agent? | **Skip TaskCreate** — result returns fast, no tracking needed |
+
+### Quick Rules
+
+- **Background agent = always TaskCreate.** The user can't see what's happening otherwise.
+- **Multiple agents = always TaskCreate for each.** Even without swarm coordination.
+- **Foreground + simple = skip.** Don't add ceremony to a 10-second lookup.
+- **When in doubt, create it.** A TaskCreate costs nothing; an invisible agent frustrates the user.
+
+### Non-Swarm Example (2 background agents, no swarm init)
+
+```javascript
+// Create visible tasks FIRST
+TaskCreate({
+  subject: "🔍 Investigate failing tests",
+  description: "Research agent: find root cause of test failures",
+  activeForm: "🔍 Investigating test failures"
+})
+TaskCreate({
+  subject: "💻 Fix authentication endpoint",
+  description: "Coder agent: implement the fix based on findings",
+  activeForm: "💻 Fixing auth endpoint"
+})
+
+// Then spawn agents
+Task({
+  prompt: "Investigate why booking-public-routes tests are failing...",
+  subagent_type: "researcher",
+  description: "🔍 Investigate test failures",
+  run_in_background: true
+})
+Task({
+  prompt: "Fix the authentication endpoint based on research findings...",
+  subagent_type: "coder",
+  description: "💻 Fix auth endpoint",
+  run_in_background: true
+})
+```
+
+### Single Background Agent (still needs TaskCreate)
+
+```javascript
+TaskCreate({
+  subject: "🧪 Write tests for booking routes",
+  description: "Tester agent: comprehensive test coverage",
+  activeForm: "🧪 Writing booking route tests"
+})
+
+Task({
+  prompt: "Write comprehensive tests for booking-public-routes...",
+  subagent_type: "tester",
+  description: "🧪 Write booking tests",
+  run_in_background: true
+})
+```
+
+### Foreground Agent (TaskCreate optional — skip for simple tasks)
+
+```javascript
+// Simple lookup — no TaskCreate needed
+Task({
+  prompt: "Find all files that import the AuthService",
+  subagent_type: "Explore",
+  description: "🔍 Find AuthService imports"
+})
+```
 
 ---
 

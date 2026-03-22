@@ -7,7 +7,7 @@
 
 import type { Command, CommandContext, CommandResult } from '../types.js';
 import { output } from '../output.js';
-import { existsSync, readFileSync, statSync } from 'fs';
+import { existsSync, readFileSync, statSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execSync, exec } from 'child_process';
@@ -393,6 +393,218 @@ async function installClaudeCode(): Promise<boolean> {
   }
 }
 
+// Check embeddings / vector index health
+async function checkEmbeddings(): Promise<HealthCheck> {
+  const dbPaths = [
+    join(process.cwd(), '.swarm', 'memory.db'),
+    join(process.cwd(), '.claude-flow', 'memory.db'),
+    join(process.cwd(), 'data', 'memory.db'),
+  ];
+
+  // 1. Fast path: read cached vector-stats.json if available
+  const statsPath = join(process.cwd(), '.claude-flow', 'vector-stats.json');
+  try {
+    if (existsSync(statsPath)) {
+      const stats = JSON.parse(readFileSync(statsPath, 'utf8'));
+      const count = stats.vectorCount ?? 0;
+      const hasHnsw = stats.hasHnsw ?? false;
+      const dbSizeKB = stats.dbSizeKB ?? 0;
+
+      if (count === 0) {
+        return {
+          name: 'Embeddings',
+          status: 'warn',
+          message: `Memory DB exists (${dbSizeKB} KB) but 0 vectors indexed — documents not embedded`,
+          fix: 'npx moflo memory init --force && npx moflo embeddings init'
+        };
+      }
+
+      const hnswLabel = hasHnsw ? ', HNSW' : '';
+      return {
+        name: 'Embeddings',
+        status: 'pass',
+        message: `${count} vectors indexed (${dbSizeKB} KB${hnswLabel})`
+      };
+    }
+  } catch {
+    // Stats file unreadable — fall through to DB check
+  }
+
+  // 2. Check if memory DB file exists at all
+  let foundDbPath: string | null = null;
+  for (const p of dbPaths) {
+    if (existsSync(p)) { foundDbPath = p; break; }
+  }
+
+  if (!foundDbPath) {
+    return {
+      name: 'Embeddings',
+      status: 'warn',
+      message: 'No memory database — embeddings not initialized',
+      fix: 'npx moflo memory init --force'
+    };
+  }
+
+  // 3. DB exists but no stats cache — try querying the DB for entry count
+  try {
+    const { checkMemoryInitialization } = await import('../memory/memory-initializer.js');
+    const info = await checkMemoryInitialization(foundDbPath);
+    if (!info.initialized) {
+      return {
+        name: 'Embeddings',
+        status: 'warn',
+        message: 'Memory DB exists but not properly initialized',
+        fix: 'npx moflo memory init --force'
+      };
+    }
+    const hasVectors = info.features?.vectorEmbeddings ?? false;
+    if (!hasVectors) {
+      return {
+        name: 'Embeddings',
+        status: 'warn',
+        message: `Memory DB initialized (v${info.version}) but no vector_indexes table`,
+        fix: 'npx moflo memory init --force && npx moflo embeddings init'
+      };
+    }
+    return {
+      name: 'Embeddings',
+      status: 'pass',
+      message: `Memory DB initialized (v${info.version}, vectors enabled)`
+    };
+  } catch {
+    // sql.js not available — fall back to file-size heuristic
+    try {
+      const stats = statSync(foundDbPath);
+      const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
+      return {
+        name: 'Embeddings',
+        status: 'warn',
+        message: `Memory DB exists (${sizeMB} MB) — cannot verify vectors (sql.js not available)`,
+        fix: 'npm install sql.js && npx moflo embeddings init'
+      };
+    } catch {
+      return { name: 'Embeddings', status: 'warn', message: 'Unable to check' };
+    }
+  }
+}
+
+/**
+ * Auto-fix: execute fix commands for a failed/warned health check.
+ * Returns true if the fix succeeded (re-check should pass).
+ */
+async function autoFixCheck(check: HealthCheck): Promise<boolean> {
+  if (!check.fix) return false;
+
+  // Map checks to programmatic fixes (not just shell commands)
+  const fixActions: Record<string, () => Promise<boolean>> = {
+    'Memory Database': async () => {
+      try {
+        const swarmDir = join(process.cwd(), '.swarm');
+        if (!existsSync(swarmDir)) mkdirSync(swarmDir, { recursive: true });
+        const { initializeMemoryDatabase } = await import('../memory/memory-initializer.js');
+        const result = await initializeMemoryDatabase({ force: true, verbose: false });
+        return result.success;
+      } catch {
+        // Fall back to CLI
+        return runFixCommand('npx moflo memory init --force');
+      }
+    },
+    'Embeddings': async () => {
+      try {
+        // Step 1: ensure memory DB exists
+        const swarmDir = join(process.cwd(), '.swarm');
+        if (!existsSync(swarmDir)) mkdirSync(swarmDir, { recursive: true });
+        const dbPath = join(swarmDir, 'memory.db');
+        if (!existsSync(dbPath)) {
+          const { initializeMemoryDatabase } = await import('../memory/memory-initializer.js');
+          await initializeMemoryDatabase({ force: true, verbose: false });
+        }
+        // Step 2: attempt embeddings init via CLI
+        return runFixCommand('npx moflo embeddings init --force');
+      } catch {
+        return runFixCommand('npx moflo memory init --force');
+      }
+    },
+    'Config File': async () => {
+      try {
+        const cfDir = join(process.cwd(), '.claude-flow');
+        if (!existsSync(cfDir)) mkdirSync(cfDir, { recursive: true });
+        return runFixCommand('npx moflo config init');
+      } catch {
+        return false;
+      }
+    },
+    'Daemon Status': async () => {
+      // Clean stale locks, then try to start daemon
+      const lockFile = join(process.cwd(), '.claude-flow', 'daemon.lock');
+      const pidFile = join(process.cwd(), '.claude-flow', 'daemon.pid');
+      try {
+        if (existsSync(lockFile)) {
+          const { unlinkSync } = await import('fs');
+          unlinkSync(lockFile);
+        }
+        if (existsSync(pidFile)) {
+          const { unlinkSync } = await import('fs');
+          unlinkSync(pidFile);
+        }
+      } catch { /* best effort */ }
+      return runFixCommand('npx moflo daemon start');
+    },
+    'MCP Servers': async () => {
+      return runFixCommand('claude mcp add claude-flow -- npx -y moflo mcp start');
+    },
+    'Claude Code CLI': async () => {
+      return installClaudeCode();
+    },
+    'Zombie Processes': async () => {
+      const result = await findZombieProcesses(true);
+      return result.killed > 0 || result.found === 0;
+    },
+  };
+
+  const fixFn = fixActions[check.name];
+  if (fixFn) {
+    try {
+      output.writeln(output.dim(`  Fixing: ${check.name}...`));
+      const success = await fixFn();
+      if (success) {
+        output.writeln(output.success(`  Fixed: ${check.name}`));
+      } else {
+        output.writeln(output.warning(`  Fix attempted but may need manual action: ${check.fix}`));
+      }
+      return success;
+    } catch (e) {
+      output.writeln(output.warning(`  Fix failed: ${e instanceof Error ? e.message : String(e)}`));
+      return false;
+    }
+  }
+
+  // Generic: try running the fix command directly if it looks like a shell command
+  if (check.fix.startsWith('npx ') || check.fix.startsWith('npm ') || check.fix.startsWith('claude ')) {
+    return runFixCommand(check.fix);
+  }
+
+  return false;
+}
+
+/**
+ * Run a shell command as a fix action. Returns true on exit code 0.
+ */
+async function runFixCommand(cmd: string): Promise<boolean> {
+  try {
+    await execAsync(cmd, {
+      encoding: 'utf8' as BufferEncoding,
+      timeout: 30000,
+      shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh',
+      env: { ...process.env },
+      windowsHide: true,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Check agentic-flow v3 integration (filesystem-based to avoid slow WASM/DB init)
 async function checkAgenticFlow(): Promise<HealthCheck> {
   try {
@@ -539,7 +751,7 @@ export const doctorCommand: Command = {
     {
       name: 'fix',
       short: 'f',
-      description: 'Show fix commands for issues',
+      description: 'Automatically fix issues where possible',
       type: 'boolean',
       default: false
     },
@@ -553,7 +765,7 @@ export const doctorCommand: Command = {
     {
       name: 'component',
       short: 'c',
-      description: 'Check specific component (version, node, npm, config, daemon, memory, api, git, mcp, claude, disk, typescript)',
+      description: 'Check specific component (version, node, npm, config, daemon, memory, embeddings, git, mcp, claude, disk, typescript)',
       type: 'string'
     },
     {
@@ -647,6 +859,7 @@ export const doctorCommand: Command = {
       checkConfigFile,
       checkDaemonStatus,
       checkMemoryDatabase,
+      checkEmbeddings,
       checkMcpServers,
       checkDiskSpace,
       checkBuildTools,
@@ -663,6 +876,7 @@ export const doctorCommand: Command = {
       'config': checkConfigFile,
       'daemon': checkDaemonStatus,
       'memory': checkMemoryDatabase,
+      'embeddings': checkEmbeddings,
       'git': checkGit,
       'mcp': checkMcpServers,
       'disk': checkDiskSpace,
@@ -751,17 +965,64 @@ export const doctorCommand: Command = {
 
     output.writeln(`Summary: ${summaryParts.join(', ')}`);
 
-    // Show fixes
+    // Auto-fix or show fixes
     if (showFix && fixes.length > 0) {
       output.writeln();
-      output.writeln(output.bold('Suggested Fixes:'));
+      output.writeln(output.bold('Auto-fixing issues...'));
       output.writeln();
-      for (const fix of fixes) {
-        output.writeln(output.dim(`  ${fix}`));
+
+      const fixableResults = results.filter(r => r.fix && (r.status === 'fail' || r.status === 'warn'));
+      let fixed = 0;
+      const unfixed: string[] = [];
+
+      for (const check of fixableResults) {
+        const success = await autoFixCheck(check);
+        if (success) {
+          fixed++;
+        } else {
+          unfixed.push(`${check.name}: ${check.fix}`);
+        }
+      }
+
+      if (fixed > 0) {
+        output.writeln();
+        output.writeln(output.success(`Auto-fixed ${fixed} issue${fixed > 1 ? 's' : ''}`));
+      }
+      if (unfixed.length > 0) {
+        output.writeln();
+        output.writeln(output.bold('Manual fixes needed:'));
+        for (const fix of unfixed) {
+          output.writeln(output.dim(`  ${fix}`));
+        }
+      }
+
+      // Re-run checks to show updated status
+      if (fixed > 0) {
+        output.writeln();
+        output.writeln(output.dim('Re-checking...'));
+        output.writeln();
+        const reResults = await Promise.allSettled(checksToRun.map(check => check()));
+        let rePassed = 0, reWarnings = 0, reFailed = 0;
+        for (const sr of reResults) {
+          if (sr.status === 'fulfilled') {
+            output.writeln(formatCheck(sr.value));
+            if (sr.value.status === 'pass') rePassed++;
+            else if (sr.value.status === 'warn') reWarnings++;
+            else reFailed++;
+          }
+        }
+        output.writeln();
+        output.writeln(output.dim('─'.repeat(50)));
+        const reSummary = [
+          output.success(`${rePassed} passed`),
+          reWarnings > 0 ? output.warning(`${reWarnings} warnings`) : null,
+          reFailed > 0 ? output.error(`${reFailed} failed`) : null
+        ].filter(Boolean);
+        output.writeln(`After fix: ${reSummary.join(', ')}`);
       }
     } else if (fixes.length > 0 && !showFix) {
       output.writeln();
-      output.writeln(output.dim(`Run with --fix to see ${fixes.length} suggested fix${fixes.length > 1 ? 'es' : ''}`));
+      output.writeln(output.dim(`Run with --fix to auto-fix ${fixes.length} issue${fixes.length > 1 ? 's' : ''}`));
     }
 
     // Overall result

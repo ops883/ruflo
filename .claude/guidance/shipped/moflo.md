@@ -43,6 +43,20 @@ When a Claude Code session starts, moflo automatically runs three background ind
 
 These run in background and are incremental (unchanged files are skipped). Controlled by `auto_index` in `moflo.yaml`.
 
+### Helper Script Auto-Sync
+
+On version change, `session-start-launcher.mjs` copies helper scripts from the installed moflo package to the consumer project's `.claude/helpers/` and `.claude/scripts/` directories. This ensures hooks always run the latest version.
+
+**Rule: static files, not dynamic generation.** If a helper script has no dynamic content (no per-project interpolation), it must be shipped as a pre-built static file in `bin/` and synced via the session-start file lists. Do not generate static content dynamically at runtime — it adds fragile moving parts (background `init --upgrade`, race conditions with session-start exit) and causes stale scripts when the sync list is incomplete.
+
+| Source | Target | Files |
+|--------|--------|-------|
+| `bin/` | `.claude/scripts/` | `hooks.mjs`, `session-start-launcher.mjs`, `index-guidance.mjs`, `build-embeddings.mjs`, `generate-code-map.mjs`, `semantic-search.mjs` |
+| `bin/` | `.claude/helpers/` | `gate.cjs`, `gate-hook.mjs`, `prompt-hook.mjs`, `hook-handler.cjs` |
+| `src/@claude-flow/cli/.claude/helpers/` | `.claude/helpers/` | `auto-memory-hook.mjs`, `statusline.cjs`, `pre-commit`, `post-commit` |
+
+When adding a new helper script: generate it once, save it to `bin/`, and add it to the appropriate list in `session-start-launcher.mjs`.
+
 ### Bundled Guidance
 
 Moflo ships its own guidance files (in `.claude/guidance/` within the package). When installed as a dependency, these are **automatically indexed** alongside the consumer project's guidance under the `guidance` namespace. This means agents in your project can search for moflo system docs (swarm patterns, memory commands, etc.) without any extra setup.
