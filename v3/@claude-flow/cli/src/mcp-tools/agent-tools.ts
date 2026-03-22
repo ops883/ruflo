@@ -9,6 +9,45 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { MCPTool } from './types.js';
 
+// Execution bridge interface (decoupled from swarm package)
+interface IExecutionBridge {
+  initialize(): Promise<void>;
+  shutdown(): Promise<void>;
+  dispatchTask(event: {
+    taskId: string;
+    agentType: string;
+    agentName?: string;
+    prompt: string;
+    priority?: 'critical' | 'high' | 'normal' | 'low';
+    timeoutMs?: number;
+    context?: Record<string, unknown>;
+  }): Promise<{
+    taskId: string;
+    agentId: string;
+    success: boolean;
+    output: string;
+    error?: string;
+    durationMs: number;
+    timedOut: boolean;
+    tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number };
+  }>;
+  listAgents(): Array<{ id: string; config: { type: string; name: string }; status: string }>;
+  getMetrics(): Record<string, unknown>;
+}
+
+// Lazy-loaded execution bridge (initialized by swarm_init)
+let executionBridge: IExecutionBridge | null = null;
+
+/** Get or create the execution bridge singleton */
+export function getExecutionBridge(): IExecutionBridge | null {
+  return executionBridge;
+}
+
+/** Set the execution bridge (called by swarm_init) */
+export function setExecutionBridge(bridge: IExecutionBridge): void {
+  executionBridge = bridge;
+}
+
 // Storage paths
 const STORAGE_DIR = '.claude-flow';
 const AGENT_DIR = 'agents';
@@ -613,6 +652,72 @@ export const agentTools: MCPTool[] = [
         agentId,
         error: 'Agent not found',
       };
+    },
+  },
+  {
+    name: 'agent_execute',
+    description: 'Execute a task on a spawned agent using real Claude subprocess. Requires swarm_init with execute=true first.',
+    category: 'agent',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        agentId: { type: 'string', description: 'ID of the agent to execute on (or agentType to auto-select)' },
+        agentType: { type: 'string', description: 'Agent type (used to find/spawn agent if agentId not provided)' },
+        prompt: { type: 'string', description: 'Task prompt to execute' },
+        taskId: { type: 'string', description: 'Optional task ID' },
+        timeoutMs: { type: 'number', description: 'Timeout in milliseconds' },
+        maxBudgetUsd: { type: 'number', description: 'Maximum budget in USD' },
+      },
+      required: ['prompt'],
+    },
+    handler: async (input) => {
+      const bridge = getExecutionBridge();
+      if (!bridge) {
+        return {
+          success: false,
+          error: 'Execution bridge not initialized. Call swarm_init with execute=true first, or use Claude Code Task tool for agent execution.',
+          hint: 'The MCP agent tools track metadata. For real execution, use Claude Code\'s Task tool to spawn agents.',
+        };
+      }
+
+      const taskId = (input.taskId as string) || `task-${Date.now()}`;
+      const agentType = (input.agentType as string) || (input.agentId as string) || 'coder';
+
+      try {
+        const result = await bridge.dispatchTask({
+          taskId,
+          agentType,
+          agentName: input.agentId as string,
+          prompt: input.prompt as string,
+          timeoutMs: input.timeoutMs as number,
+          context: {},
+        });
+
+        // Update the JSON store too
+        const store = loadAgentStore();
+        const agentRecord = Object.values(store.agents).find(a => a.agentType === agentType);
+        if (agentRecord) {
+          agentRecord.taskCount = (agentRecord.taskCount || 0) + 1;
+          agentRecord.status = result.success ? 'idle' : 'busy';
+          saveAgentStore(store);
+        }
+
+        return {
+          success: result.success,
+          taskId: result.taskId,
+          agentId: result.agentId,
+          output: result.output.slice(0, 2000), // Truncate for MCP response
+          error: result.error,
+          durationMs: result.durationMs,
+          timedOut: result.timedOut,
+          tokenUsage: result.tokenUsage,
+        };
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
     },
   },
 ];

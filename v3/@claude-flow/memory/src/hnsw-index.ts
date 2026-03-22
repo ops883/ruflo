@@ -239,6 +239,9 @@ export class HNSWIndex extends EventEmitter {
   // Quantization support
   private quantizer: Quantizer | null = null;
 
+  // Deleted nodes tracking (lazy deletion for HNSW - fixes #1122 ghost vectors)
+  private deletedNodes: Set<string> = new Set();
+
   constructor(config: Partial<HNSWConfig> = {}) {
     super();
     this.config = this.mergeConfig(config);
@@ -254,6 +257,14 @@ export class HNSWIndex extends EventEmitter {
    */
   async addPoint(id: string, vector: Float32Array): Promise<void> {
     const startTime = performance.now();
+
+    // Auto-detect dimensions from first vector (fixes #1395 Bug 5)
+    if (this.config.dimensions === 0) {
+      this.config.dimensions = vector.length;
+      if (this.quantizer) {
+        this.quantizer = new Quantizer(this.config.quantization!, this.config.dimensions);
+      }
+    }
 
     if (vector.length !== this.config.dimensions) {
       throw new Error(
@@ -374,8 +385,10 @@ export class HNSWIndex extends EventEmitter {
       0
     );
 
-    // Return top k results (already sorted by heap)
-    const results = candidates.slice(0, k);
+    // Return top k results, excluding deleted nodes (fixes #1122 ghost vectors)
+    const results = candidates
+      .filter(c => !this.deletedNodes.has(c.id))
+      .slice(0, k);
 
     const duration = performance.now() - startTime;
     this.stats.searchCount++;
@@ -475,6 +488,64 @@ export class HNSWIndex extends EventEmitter {
   }
 
   /**
+   * Delete a vector from the index (lazy deletion).
+   * The node remains in the graph for routing but is excluded from search results.
+   * Use compact() to physically remove deleted nodes and rebuild connections.
+   * Fixes #1122: HNSW ghost vectors.
+   */
+  async deletePoint(id: string): Promise<boolean> {
+    if (!this.nodes.has(id)) return false;
+    this.deletedNodes.add(id);
+    this.emit('delete', { id });
+    return true;
+  }
+
+  /**
+   * Check if a point has been deleted.
+   */
+  isDeleted(id: string): boolean {
+    return this.deletedNodes.has(id);
+  }
+
+  /**
+   * Get count of deleted nodes pending compaction.
+   */
+  get deletedCount(): number {
+    return this.deletedNodes.size;
+  }
+
+  /**
+   * Compact the index by physically removing deleted nodes and rebuilding.
+   * This is an expensive operation — call during maintenance windows.
+   */
+  async compact(): Promise<{ removed: number; remaining: number }> {
+    const removedCount = this.deletedNodes.size;
+    if (removedCount === 0) return { removed: 0, remaining: this.nodes.size };
+
+    // Collect surviving nodes
+    const surviving: Array<{ id: string; vector: Float32Array }> = [];
+    for (const [id, node] of this.nodes) {
+      if (!this.deletedNodes.has(id)) {
+        surviving.push({ id, vector: node.vector });
+      }
+    }
+
+    // Clear everything
+    this.nodes.clear();
+    this.deletedNodes.clear();
+    this.entryPoint = null;
+    this.maxLevel = 0;
+
+    // Re-insert surviving nodes
+    for (const { id, vector } of surviving) {
+      await this.addPoint(id, vector);
+    }
+
+    this.emit('compact', { removed: removedCount, remaining: this.nodes.size });
+    return { removed: removedCount, remaining: this.nodes.size };
+  }
+
+  /**
    * Get index statistics
    */
   getStats(): HNSWStats {
@@ -532,7 +603,10 @@ export class HNSWIndex extends EventEmitter {
 
   private mergeConfig(config: Partial<HNSWConfig>): HNSWConfig {
     return {
-      dimensions: config.dimensions || 1536, // OpenAI embedding size
+      // Default to 0 = auto-detect from first vector (fixes #1395 Bug 5).
+      // Previously hardcoded to 1536 (OpenAI) but common models like
+      // all-MiniLM-L6-v2 produce 384-dim vectors, causing mismatches.
+      dimensions: config.dimensions || 0,
       M: config.M || 16,
       efConstruction: config.efConstruction || 200,
       maxElements: config.maxElements || 1000000,

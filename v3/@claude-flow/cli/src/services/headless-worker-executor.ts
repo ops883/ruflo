@@ -288,17 +288,20 @@ export const HEADLESS_WORKER_CONFIGS: Record<HeadlessWorkerType, HeadlessWorkerC
     description: 'AI-powered security analysis',
     enabled: true,
     headless: {
-      promptTemplate: `Analyze this codebase for security vulnerabilities:
-- Check for hardcoded secrets (API keys, passwords)
-- Identify SQL injection risks
-- Find XSS vulnerabilities
-- Check for insecure dependencies
-- Identify authentication/authorization issues
+      promptTemplate: `Perform a security audit of this codebase. Check for:
+- Hardcoded secrets (API keys, passwords, tokens, connection strings in source files)
+- SQL injection vulnerabilities (unsanitized user input in queries)
+- XSS vulnerabilities (unescaped output rendered in HTML/templates)
+- Path traversal risks (user-controlled file paths without validation)
+- Command injection (unsanitized input passed to shell/exec calls)
+- Insecure dependencies (known CVEs in package.json dependencies)
+- Authentication/authorization issues (missing auth checks, weak token handling)
 
-Provide a JSON report with:
+Report findings with severity levels. Provide a JSON report with:
 {
-  "vulnerabilities": [{ "severity": "high|medium|low", "file": "...", "line": N, "description": "..." }],
+  "vulnerabilities": [{ "severity": "critical|high|medium|low", "type": "secret|sqli|xss|path-traversal|command-injection|dependency|auth", "file": "...", "line": N, "description": "...", "recommendation": "..." }],
   "riskScore": 0-100,
+  "summary": { "critical": N, "high": N, "medium": N, "low": N },
   "recommendations": ["..."]
 }`,
       sandbox: 'strict',
@@ -317,14 +320,17 @@ Provide a JSON report with:
     description: 'AI optimization suggestions',
     enabled: true,
     headless: {
-      promptTemplate: `Analyze this codebase for performance optimizations:
-- Identify N+1 query patterns
-- Find unnecessary re-renders in React
-- Suggest caching opportunities
-- Identify memory leaks
-- Find redundant computations
+      promptTemplate: `Analyze this codebase for performance bottlenecks. Check for:
+- N+1 query patterns (repeated DB/API calls inside loops)
+- Unnecessary re-renders (missing memoization, unstable references in React components)
+- Large bundle sizes (heavy imports that could be lazy-loaded or tree-shaken)
+- Unoptimized loops (O(n^2) patterns, redundant iterations, missing early exits)
+- Memory leaks (unclosed streams, unremoved event listeners, growing caches without eviction)
+- Missing caching opportunities (repeated expensive computations, redundant file reads)
+- Synchronous blocking operations (sync I/O in hot paths, missing async/await)
 
-Provide actionable suggestions with code examples.`,
+For each finding, suggest a specific improvement with before/after code examples where applicable.
+Prioritize findings by estimated performance impact (high/medium/low).`,
       sandbox: 'permissive',
       model: 'sonnet',
       outputFormat: 'markdown',
@@ -341,14 +347,15 @@ Provide actionable suggestions with code examples.`,
     description: 'AI test gap analysis',
     enabled: true,
     headless: {
-      promptTemplate: `Analyze test coverage and identify gaps:
-- Find untested functions and classes
-- Identify edge cases not covered
-- Suggest new test scenarios
-- Check for missing error handling tests
-- Identify integration test gaps
+      promptTemplate: `Analyze test coverage gaps in this codebase. Identify:
+- Untested exported functions and public class methods (compare src/ exports against test files)
+- Missing edge cases (null/undefined inputs, empty collections, boundary values, error paths)
+- Areas with low coverage (files with no corresponding test file, complex branches without tests)
+- Missing error handling tests (try/catch blocks, rejected promises, error event handlers)
+- Integration test gaps (API endpoint combinations, multi-service workflows, database transactions)
+- Missing regression tests for known bug patterns
 
-For each gap, provide a test skeleton.`,
+Prioritize gaps by risk (how likely a bug here would cause production issues) and complexity (how hard the code is to reason about). For each gap, provide a test skeleton with describe/it blocks and key assertions.`,
       sandbox: 'permissive',
       model: 'sonnet',
       outputFormat: 'markdown',
@@ -365,14 +372,14 @@ For each gap, provide a test skeleton.`,
     description: 'AI documentation generation',
     enabled: false,
     headless: {
-      promptTemplate: `Generate documentation for undocumented code:
-- Add JSDoc comments to functions
-- Create README sections for modules
-- Document API endpoints
-- Add inline comments for complex logic
-- Generate usage examples
+      promptTemplate: `Review code for documentation gaps. Identify and generate documentation for:
+- Public APIs and exported functions missing JSDoc comments (include @param, @returns, @throws, @example)
+- Exported classes and interfaces without description comments
+- Complex logic blocks (algorithms, state machines, recursive functions) that lack inline explanations
+- Module-level documentation (purpose, usage patterns, dependencies)
+- Type definitions that would benefit from property descriptions
 
-Focus on public APIs and exported functions.`,
+For each gap found, generate a complete JSDoc stub ready to be inserted. Focus on public-facing code first, then internal utilities. Include usage examples for non-obvious APIs.`,
       sandbox: 'permissive',
       model: 'haiku',
       outputFormat: 'markdown',
@@ -419,14 +426,16 @@ Provide insights as JSON:
     description: 'AI refactoring suggestions',
     enabled: false,
     headless: {
-      promptTemplate: `Suggest refactoring opportunities:
-- Identify code duplication
-- Suggest better abstractions
-- Find opportunities for design patterns
-- Identify overly complex functions
-- Suggest module reorganization
+      promptTemplate: `Identify refactoring opportunities in this codebase. Look for:
+- Code duplication (similar logic repeated across files or functions that should be extracted)
+- Long methods (functions exceeding 30-40 lines that should be decomposed)
+- Complex conditionals (deeply nested if/else, switch statements that could use polymorphism or lookup tables)
+- Unclear naming (variables, functions, or classes whose names do not convey their purpose)
+- Dead code (unreachable branches, unused exports, commented-out blocks)
+- God classes/modules (files doing too many things that should be split by responsibility)
+- Missing abstractions (repeated patterns that could become shared utilities or base classes)
 
-Provide before/after code examples.`,
+For each finding, suggest a specific refactoring with before/after code examples. Categorize by effort (quick-win vs. significant restructuring) and impact (readability, maintainability, testability).`,
       sandbox: 'permissive',
       model: 'sonnet',
       outputFormat: 'markdown',
@@ -467,18 +476,19 @@ Provide comprehensive report.`,
     description: 'Predictive preloading',
     enabled: false,
     headless: {
-      promptTemplate: `Based on recent activity, predict what the developer needs:
-- Files likely to be edited next
-- Tests that should be run
-- Documentation to reference
-- Dependencies to check
+      promptTemplate: `Analyze recent code changes and development activity to predict likely next tasks. Examine:
+- Recently modified files and their dependencies (what files are commonly edited together)
+- Patterns in development activity (feature branches, test additions after implementations, config changes after new modules)
+- Incomplete work indicators (TODO/FIXME comments, partial implementations, failing tests)
+- Dependency chains (if module A was updated, modules B and C likely need updates too)
 
-Provide preload suggestions as JSON:
+Suggest preloading of relevant context for the developer. Provide predictions as JSON:
 {
-  "filesToPreload": ["..."],
+  "predictedNextFiles": [{ "file": "...", "reason": "...", "confidence": 0.0-1.0 }],
+  "suggestedTasks": [{ "task": "...", "reason": "...", "priority": "high|medium|low" }],
   "testsToRun": ["..."],
   "docsToReference": ["..."],
-  "confidence": 0.0-1.0
+  "overallConfidence": 0.0-1.0
 }`,
       sandbox: 'strict',
       model: 'haiku',
@@ -1122,10 +1132,12 @@ Analyze the above codebase context and provide your response following the forma
       env.ANTHROPIC_MODEL = MODEL_IDS[options.model];
 
       // Spawn claude CLI process
+      // Fix #1395 Bug 1: Use 'ignore' for stdin since prompt is passed as CLI arg.
+      // Using 'pipe' for stdin caused claude --print to block forever waiting for input.
       const child = spawn('claude', ['--print', prompt], {
         cwd: this.projectRoot,
         env,
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true, // Prevent phantom console windows on Windows
       });
 
