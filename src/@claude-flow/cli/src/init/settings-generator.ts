@@ -194,6 +194,16 @@ function gateCmd(subcommand: string): string {
   return hookCmd('"$CLAUDE_PROJECT_DIR/.claude/helpers/gate.cjs"', subcommand);
 }
 
+/** Gate hook wrapper — reads stdin JSON for tool input, uses exit code 2 for blocking */
+function gateHookCmd(subcommand: string): string {
+  return hookCmdEsm('"$CLAUDE_PROJECT_DIR/.claude/helpers/gate-hook.mjs"', subcommand);
+}
+
+/** Prompt hook — reads stdin JSON for user prompt, classifies namespace */
+function promptHookCmd(): string {
+  return `node "$CLAUDE_PROJECT_DIR/.claude/helpers/prompt-hook.mjs"`;
+}
+
 /**
  * Generate statusLine configuration for Claude Code
  * Uses local helper script for cross-platform compatibility (no npx cold-start)
@@ -213,7 +223,7 @@ function generateStatusLineConfig(_options: InitOptions): object {
 /**
  * Generate hooks configuration
  * All hooks use direct node invocation via lightweight helper scripts
- * (gate.cjs, hook-handler.cjs) instead of `npx flo` to avoid spawning
+ * (gate.cjs, gate-hook.mjs, hook-handler.cjs) instead of `npx flo` to avoid spawning
  * a full CLI process on every tool call.
  */
 function generateHooksConfig(config: HooksConfig): object {
@@ -228,22 +238,21 @@ function generateHooksConfig(config: HooksConfig): object {
       },
       {
         matcher: '^(Glob|Grep)$',
-        hooks: [{ type: 'command', command: gateCmd('check-before-scan'), timeout: 3000 }],
+        hooks: [{ type: 'command', command: gateHookCmd('check-before-scan'), timeout: 3000 }],
       },
       {
         matcher: '^Read$',
-        hooks: [{ type: 'command', command: gateCmd('check-before-read'), timeout: 3000 }],
+        hooks: [{ type: 'command', command: gateHookCmd('check-before-read'), timeout: 3000 }],
       },
       {
-        matcher: '^Task$',
+        matcher: '^Agent$',
         hooks: [
-          { type: 'command', command: gateCmd('check-before-agent'), timeout: 3000 },
-          { type: 'command', command: hookHandlerCmd('pre-task'), timeout: 5000 },
+          { type: 'command', command: gateHookCmd('check-before-agent'), timeout: 3000 },
         ],
       },
       {
         matcher: '^Bash$',
-        hooks: [{ type: 'command', command: gateCmd('check-dangerous-command'), timeout: 2000 }],
+        hooks: [{ type: 'command', command: gateHookCmd('check-dangerous-command'), timeout: 2000 }],
       },
     ];
   }
@@ -256,20 +265,23 @@ function generateHooksConfig(config: HooksConfig): object {
         hooks: [{ type: 'command', command: hookHandlerCmd('post-edit'), timeout: 5000 }],
       },
       {
-        matcher: '^Task$',
+        matcher: '^Agent$',
         hooks: [{ type: 'command', command: hookHandlerCmd('post-task'), timeout: 5000 }],
       },
       {
+        // TaskCreate PostToolUse only fires in some Claude Code versions.
+        // The prompt-reminder and soft gate in check-before-agent handle the common case.
         matcher: '^TaskCreate$',
         hooks: [{ type: 'command', command: gateCmd('record-task-created'), timeout: 2000 }],
       },
       {
         matcher: '^Bash$',
-        hooks: [{ type: 'command', command: gateCmd('check-bash-memory'), timeout: 2000 }],
+        hooks: [{ type: 'command', command: gateHookCmd('check-bash-memory'), timeout: 2000 }],
       },
       {
-        matcher: '^mcp__claude-flow__memory_(search|retrieve)$',
-        hooks: [{ type: 'command', command: gateCmd('record-memory-searched'), timeout: 2000 }],
+        // Simplified matcher — anchored regex with parens doesn't match MCP tool names reliably
+        matcher: 'mcp__claude-flow__memory_',
+        hooks: [{ type: 'command', command: gateCmd('record-memory-searched'), timeout: 3000 }],
       },
     ];
   }
@@ -279,8 +291,7 @@ function generateHooksConfig(config: HooksConfig): object {
     hooks.UserPromptSubmit = [
       {
         hooks: [
-          { type: 'command', command: gateCmd('prompt-reminder'), timeout: 2000 },
-          { type: 'command', command: hookHandlerCmd('route'), timeout: 5000 },
+          { type: 'command', command: promptHookCmd(), timeout: 3000 },
         ],
       },
     ];

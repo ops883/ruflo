@@ -377,8 +377,8 @@ export function processGateCommand(command: string, env: Record<string, string |
     case 'check-before-agent': {
       const result = gate.checkBeforeAgent();
       if (!result.allowed) {
-        if (result.message) console.log(result.message);
-        process.exit(1);
+        if (result.message) process.stderr.write(result.message + '\n');
+        process.exit(2);  // Exit 2 = block tool call in Claude Code
       }
       process.exit(0);
     }
@@ -386,8 +386,8 @@ export function processGateCommand(command: string, env: Record<string, string |
     case 'check-before-scan': {
       const result = gate.checkBeforeScan(env.TOOL_INPUT_pattern, env.TOOL_INPUT_path);
       if (!result.allowed) {
-        if (result.message) console.log(result.message);
-        process.exit(1);
+        if (result.message) process.stderr.write(result.message + '\n');
+        process.exit(2);
       }
       process.exit(0);
     }
@@ -395,8 +395,8 @@ export function processGateCommand(command: string, env: Record<string, string |
     case 'check-before-read': {
       const result = gate.checkBeforeRead(env.TOOL_INPUT_file_path);
       if (!result.allowed) {
-        if (result.message) console.log(result.message);
-        process.exit(1);
+        if (result.message) process.stderr.write(result.message + '\n');
+        process.exit(2);
       }
       process.exit(0);
     }
@@ -436,7 +436,7 @@ export function processGateCommand(command: string, env: Record<string, string |
       const dangerous = ['rm -rf /', 'format c:', 'del /s /q c:\\', ':(){:|:&};:', 'mkfs.', '> /dev/sda'];
       for (const pattern of dangerous) {
         if (cmd.includes(pattern)) {
-          console.log(`[BLOCKED] Dangerous command detected: ${pattern}`);
+          process.stderr.write(`[BLOCKED] Dangerous command detected: ${pattern}\n`);
           process.exit(2);
         }
       }

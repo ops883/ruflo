@@ -185,6 +185,8 @@ export function generateHelpers(options: InitOptions): Record<string, string> {
     helpers['pre-commit'] = generatePreCommitHook();
     helpers['post-commit'] = generatePostCommitHook();
     helpers['gate.cjs'] = generateGateScript();
+    helpers['gate-hook.mjs'] = generateGateHookScript();
+    helpers['prompt-hook.mjs'] = generatePromptHookScript();
     helpers['hook-handler.cjs'] = generateHookHandlerScript();
   }
 
@@ -207,7 +209,7 @@ export function generateGateScript(): string {
 var fs = require('fs');
 var path = require('path');
 
-var PROJECT_DIR = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+var PROJECT_DIR = (process.env.CLAUDE_PROJECT_DIR || process.cwd()).replace(/^\\/([a-z])\\//i, '$1:/');
 var STATE_FILE = path.join(PROJECT_DIR, '.claude', 'workflow-state.json');
 
 function readState() {
@@ -251,13 +253,15 @@ var TASK_RE = /\\b(fix|bug|error|implement|add|create|build|write|refactor|debug
 switch (command) {
   case 'check-before-agent': {
     var s = readState();
-    if (config.task_create_first && !s.tasksCreated) {
-      console.log('BLOCKED: Call TaskCreate before spawning agents.');
-      process.exit(1);
+    // Hard gate: memory must be searched
+    if (config.memory_first && s.memoryRequired && !s.memorySearched) {
+      process.stderr.write('BLOCKED: Search memory (mcp__claude-flow__memory_search) before spawning agents.\\n');
+      process.exit(2);
     }
-    if (config.memory_first && !s.memorySearched) {
-      console.log('BLOCKED: Search memory before spawning agents.');
-      process.exit(1);
+    // Soft gate: TaskCreate recommended but not blocking
+    // (TaskCreate PostToolUse doesn't fire in Claude Code, so we can't track it reliably)
+    if (config.task_create_first && !s.tasksCreated) {
+      process.stdout.write('REMINDER: Use TaskCreate before spawning agents. Task tool is blocked until then.\\n');
     }
     break;
   }
@@ -267,14 +271,8 @@ switch (command) {
     if (s.memorySearched || !s.memoryRequired) break;
     var target = (process.env.TOOL_INPUT_pattern || '') + ' ' + (process.env.TOOL_INPUT_path || '');
     if (EXEMPT.some(function(p) { return target.indexOf(p) >= 0; })) break;
-    var now = Date.now();
-    var last = s.lastBlockedAt ? new Date(s.lastBlockedAt).getTime() : 0;
-    if (now - last > 2000) {
-      s.lastBlockedAt = new Date(now).toISOString();
-      writeState(s);
-      console.log('BLOCKED: Search memory before exploring files.');
-    }
-    process.exit(1);
+    process.stderr.write('BLOCKED: Search memory before exploring files. Use mcp__claude-flow__memory_search.\\n');
+    process.exit(2);
   }
   case 'check-before-read': {
     if (!config.memory_first) break;
@@ -282,14 +280,8 @@ switch (command) {
     if (s.memorySearched || !s.memoryRequired) break;
     var fp = process.env.TOOL_INPUT_file_path || '';
     if (fp.indexOf('.claude/guidance/') < 0 && fp.indexOf('.claude\\\\guidance\\\\') < 0) break;
-    var now = Date.now();
-    var last = s.lastBlockedAt ? new Date(s.lastBlockedAt).getTime() : 0;
-    if (now - last > 2000) {
-      s.lastBlockedAt = new Date(now).toISOString();
-      writeState(s);
-      console.log('BLOCKED: Search memory before reading guidance files.');
-    }
-    process.exit(1);
+    process.stderr.write('BLOCKED: Search memory before reading guidance files. Use mcp__claude-flow__memory_search.\\n');
+    process.exit(2);
   }
   case 'record-task-created': {
     var s = readState();
@@ -335,7 +327,7 @@ switch (command) {
       var ic = s.interactionCount;
       if (ic > 30) console.log('Context: CRITICAL. Commit, store learnings, suggest new session.');
       else if (ic > 20) console.log('Context: DEPLETED. Checkpoint progress. Recommend /compact or fresh session.');
-      else if (ic > 10) console.log('Context: MODERATE. Re-state goal before architectural decisions.');
+      else if (ic > 10) console.log('Context: MODERATE. Re-state goal before architectural decisions. Use agents for >300 LOC.');
     }
     break;
   }
@@ -350,6 +342,148 @@ switch (command) {
   default:
     break;
 }
+`;
+}
+
+/**
+ * Generate gate-hook.mjs — ESM wrapper that reads Claude Code stdin JSON
+ * and passes tool_name + tool_input to gate.cjs via environment variables.
+ *
+ * Claude Code hooks receive context as JSON on stdin but don't set env vars
+ * for tool input. This script bridges that gap. It also translates exit code 1
+ * from gate.cjs into exit code 2 (which Claude Code requires to block tools).
+ */
+export function generateGateHookScript(): string {
+  return `#!/usr/bin/env node
+import { execSync } from 'child_process';
+import { resolve } from 'path';
+
+var command = process.argv[2];
+if (!command) process.exit(0);
+
+// Read stdin JSON from Claude Code
+var stdinData = '';
+try {
+  stdinData = await new Promise(function(res) {
+    var data = '';
+    var timeout = setTimeout(function() { res(data); }, 500);
+    process.stdin.setEncoding('utf-8');
+    process.stdin.on('data', function(chunk) { data += chunk; });
+    process.stdin.on('end', function() { clearTimeout(timeout); res(data); });
+    process.stdin.on('error', function() { clearTimeout(timeout); res(''); });
+    if (process.stdin.isTTY) { clearTimeout(timeout); res(''); }
+  });
+} catch (e) { /* no stdin */ }
+
+var hookContext = {};
+try { if (stdinData.trim()) hookContext = JSON.parse(stdinData); } catch (e) {}
+
+// Pass tool info as env vars for gate.cjs
+var env = Object.assign({}, process.env);
+if (hookContext.tool_name) env.TOOL_NAME = hookContext.tool_name;
+if (hookContext.tool_input && typeof hookContext.tool_input === 'object') {
+  Object.keys(hookContext.tool_input).forEach(function(key) {
+    if (typeof hookContext.tool_input[key] === 'string') {
+      env['TOOL_INPUT_' + key] = hookContext.tool_input[key];
+    }
+  });
+}
+
+// Run gate.cjs with the enriched environment
+var projectDir = (env.CLAUDE_PROJECT_DIR || process.cwd()).replace(/^\\/([a-z])\\//i, '$1:/');
+var gateScript = resolve(projectDir, '.claude/helpers/gate.cjs');
+try {
+  var output = execSync('node "' + gateScript + '" ' + command, {
+    env: env, encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe']
+  });
+  if (output.trim()) process.stdout.write(output);
+  process.exit(0);
+} catch (err) {
+  // gate.cjs exit(2) = block, exit(1) = also block attempt — translate both to exit(2)
+  if (err.stderr) process.stderr.write(err.stderr);
+  if (err.stdout) process.stderr.write(err.stdout);
+  process.exit(err.status === 2 || err.status === 1 ? 2 : 0);
+}
+`;
+}
+
+/**
+ * Generate prompt-hook.mjs — reads user prompt from Claude Code stdin JSON,
+ * runs prompt classification via gate.cjs, and appends namespace hints.
+ */
+export function generatePromptHookScript(): string {
+  return `#!/usr/bin/env node
+import { execSync } from 'child_process';
+import { resolve } from 'path';
+
+// Read stdin JSON from Claude Code
+var stdinData = '';
+try {
+  stdinData = await new Promise(function(res) {
+    var data = '';
+    var timeout = setTimeout(function() { res(data); }, 500);
+    process.stdin.setEncoding('utf-8');
+    process.stdin.on('data', function(chunk) { data += chunk; });
+    process.stdin.on('end', function() { clearTimeout(timeout); res(data); });
+    process.stdin.on('error', function() { clearTimeout(timeout); res(''); });
+    if (process.stdin.isTTY) { clearTimeout(timeout); res(''); }
+  });
+} catch (e) { /* no stdin */ }
+
+var hookContext = {};
+try { if (stdinData.trim()) hookContext = JSON.parse(stdinData); } catch (e) {}
+
+var userPrompt = hookContext.user_prompt || hookContext.prompt || '';
+var env = Object.assign({}, process.env, { CLAUDE_USER_PROMPT: userPrompt });
+
+// Run prompt-reminder via gate.cjs
+var projectDir = (env.CLAUDE_PROJECT_DIR || process.cwd()).replace(/^\\/([a-z])\\//i, '$1:/');
+var gateScript = resolve(projectDir, '.claude/helpers/gate.cjs');
+var output = '';
+try {
+  output = execSync('node "' + gateScript + '" prompt-reminder', {
+    env: env, encoding: 'utf-8', timeout: 3000, stdio: ['pipe', 'pipe', 'pipe']
+  });
+} catch (err) { output = (err && err.stdout) || ''; }
+
+// Classify prompt for namespace hint
+var lower = userPrompt.toLowerCase();
+
+var KNOWLEDGE_ONLY = /\\b(knowledge|remember|recall)\\b|we (decid|agree|chose|said)/;
+var EXPLICIT_NS = [
+  { pattern: /\\b(pattern|convention|best practice|style|coding rule)\\b/, ns: 'patterns', label: 'code patterns and conventions' },
+  { pattern: /\\b(code.?map|file structure|project structure|directory)\\b/, ns: 'code-map', label: 'codebase navigation' },
+];
+var PATTERN_HINTS = [/\\b(template|example|similar to|how do we|how should)\\b/];
+var DOMAIN_HINTS = [
+  /\\b(guidance|guide|docs|documentation|rules|how-to)\\b/,
+  /\\b(architecture|design|domain|tenant|migrat|schema|deploy)/,
+  /\\b(rule|requirement|constraint|compliance)\\b/,
+];
+var NAV_PATTERNS = [
+  /\\b(find|where|which file|look up|locate|endpoint|route|url|path)\\b/,
+  /\\b(class|function|method|component|service|entity|module)\\b/,
+];
+
+var nsHint = '';
+if (KNOWLEDGE_ONLY.test(lower)) {
+  nsHint = 'Memory namespace hint: use "knowledge" for user-directed project decisions.';
+} else {
+  var found = EXPLICIT_NS.find(function(e) { return e.pattern.test(lower); });
+  if (found) {
+    nsHint = 'Memory namespace hint: use "' + found.ns + '" for ' + found.label + '.';
+  } else if (DOMAIN_HINTS.some(function(p) { return p.test(lower); })) {
+    nsHint = 'Memory namespace hint: search "guidance" and "knowledge" for domain rules and project decisions.';
+  } else if (PATTERN_HINTS.some(function(p) { return p.test(lower); })) {
+    nsHint = 'Memory namespace hint: use "patterns" for code patterns and conventions.';
+  } else if (NAV_PATTERNS.some(function(p) { return p.test(lower); })) {
+    nsHint = 'Memory namespace hint: use "code-map" for codebase navigation.';
+  }
+}
+
+var parts = [output.trim(), nsHint].filter(Boolean);
+if (parts.length) process.stdout.write(parts.join('\\n') + '\\n');
+process.exit(0);
 `;
 }
 

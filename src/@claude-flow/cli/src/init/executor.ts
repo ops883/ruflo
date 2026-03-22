@@ -22,6 +22,8 @@ import {
   generatePostCommitHook,
   generateAutoMemoryHook,
   generateGateScript,
+  generateGateHookScript,
+  generatePromptHookScript,
   generateHookHandlerScript,
 } from './helpers-generator.js';
 import { generateClaudeMd } from './claudemd-generator.js';
@@ -433,6 +435,8 @@ export async function executeUpgrade(targetDir: string, upgradeSettings = false)
       const generatedCritical: Record<string, string> = {
         'auto-memory-hook.mjs': generateAutoMemoryHook(),
         'gate.cjs': generateGateScript(),
+        'gate-hook.mjs': generateGateHookScript(),
+        'prompt-hook.mjs': generatePromptHookScript(),
         'hook-handler.cjs': generateHookHandlerScript(),
       };
       for (const [helperName, content] of Object.entries(generatedCritical)) {
@@ -1119,6 +1123,8 @@ async function writeHelpers(
     'post-commit': generatePostCommitHook(),
     'auto-memory-hook.mjs': generateAutoMemoryHook(),
     'gate.cjs': generateGateScript(),
+    'gate-hook.mjs': generateGateHookScript(),
+    'prompt-hook.mjs': generatePromptHookScript(),
     'hook-handler.cjs': generateHookHandlerScript(),
   };
 
