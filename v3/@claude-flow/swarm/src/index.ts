@@ -296,6 +296,31 @@ export {
 } from './federation-hub.js';
 
 // =============================================================================
+// Execution Engine (Process Spawning & Agent Execution)
+// =============================================================================
+
+export {
+  ProcessSpawner,
+  AgentExecutor,
+  SwarmExecutionBridge,
+} from './execution/index.js';
+
+export type {
+  BridgeConfig,
+  TaskAssignmentEvent,
+  SpawnOptions,
+  ManagedProcess,
+  ProcessResult,
+  TokenUsage,
+  AgentConfig as ExecutionAgentConfig,
+  AgentHandle as ExecutionAgentHandle,
+  TaskRequest,
+  TaskResult as ExecutionTaskResult,
+  ExecutionEngineConfig,
+  ExecutionEngineMetrics,
+} from './execution/index.js';
+
+// =============================================================================
 // Default Export
 // =============================================================================
 

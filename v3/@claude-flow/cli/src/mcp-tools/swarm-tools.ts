@@ -8,6 +8,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { MCPTool } from './types.js';
+import { setExecutionBridge } from './agent-tools.js';
 
 // Swarm state persistence
 const SWARM_DIR = '.claude-flow/swarm';
@@ -76,6 +77,7 @@ export const swarmTools: MCPTool[] = [
         topology: { type: 'string', description: 'Swarm topology type (hierarchical, mesh, hierarchical-mesh, ring, star, hybrid, adaptive)' },
         maxAgents: { type: 'number', description: 'Maximum number of agents (1-50)' },
         strategy: { type: 'string', description: 'Agent strategy (specialized, balanced, adaptive)' },
+        execute: { type: 'boolean', description: 'Enable real process execution (default: true). When true, agents spawn real Claude subprocesses.' },
         config: { type: 'object', description: 'Additional swarm configuration' },
       },
     },
@@ -83,6 +85,7 @@ export const swarmTools: MCPTool[] = [
       const topology = (input.topology as string) || 'hierarchical-mesh';
       const maxAgents = Math.min(Math.max((input.maxAgents as number) || 15, 1), 50);
       const strategy = (input.strategy as string) || 'specialized';
+      const execute = (input.execute as boolean) ?? true;
       const config = (input.config || {}) as Record<string, unknown>;
 
       if (!VALID_TOPOLOGIES.has(topology)) {
@@ -95,6 +98,34 @@ export const swarmTools: MCPTool[] = [
       const swarmId = `swarm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const now = new Date().toISOString();
 
+      // Initialize execution bridge if execute mode is enabled
+      let executionEnabled = false;
+      if (execute) {
+        try {
+          // Dynamic import — try multiple resolution paths
+          const { fileURLToPath } = await import('node:url');
+          const { dirname } = await import('node:path');
+          const thisDir = dirname(fileURLToPath(import.meta.url));
+          const distPath = join(thisDir, '..', '..', '..', 'swarm', 'dist', 'execution', 'swarm-execution-bridge.js');
+          const srcPath = join(thisDir, '..', '..', '..', 'swarm', 'src', 'execution', 'swarm-execution-bridge.js');
+          const mod = await import(distPath).catch(() => import(srcPath));
+          const { SwarmExecutionBridge } = mod;
+          const bridge = new SwarmExecutionBridge({
+            autoSpawn: true,
+            execution: {
+              maxConcurrentAgents: maxAgents,
+              cwd: process.cwd(),
+            },
+          });
+          await bridge.initialize();
+          setExecutionBridge(bridge);
+          executionEnabled = true;
+        } catch (err) {
+          // Execution engine not available — fall back to metadata-only mode
+          executionEnabled = false;
+        }
+      }
+
       const swarmState: SwarmState = {
         swarmId,
         topology,
@@ -106,6 +137,7 @@ export const swarmTools: MCPTool[] = [
           topology,
           maxAgents,
           strategy,
+          execute: executionEnabled,
           communicationProtocol: (config.communicationProtocol as string) || 'message-bus',
           autoScaling: (config.autoScaling as boolean) ?? true,
           consensusMechanism: (config.consensusMechanism as string) || 'majority',
@@ -124,6 +156,7 @@ export const swarmTools: MCPTool[] = [
         topology,
         strategy,
         maxAgents,
+        executionEnabled,
         initializedAt: now,
         config: swarmState.config,
         persisted: true,

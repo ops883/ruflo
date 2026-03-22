@@ -434,6 +434,63 @@ export class WorkerDaemon extends EventEmitter {
   }
 
   /**
+   * Check if another daemon instance is already running (PID singleton).
+   * Fixes #1395 Bug 3: Daemons accumulate across sessions.
+   */
+  private checkExistingDaemon(): boolean {
+    const pidFile = join(this.config.logDir, 'daemon.pid');
+    if (existsSync(pidFile)) {
+      try {
+        const existingPid = parseInt(readFileSync(pidFile, 'utf-8').trim(), 10);
+        if (existingPid && !isNaN(existingPid)) {
+          try {
+            // Check if process is still running (signal 0 = no signal, just check)
+            process.kill(existingPid, 0);
+            // Process exists — daemon is already running
+            return true;
+          } catch {
+            // Process doesn't exist — stale PID file, safe to continue
+          }
+        }
+      } catch {
+        // Can't read PID file — safe to continue
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Write PID file and register cleanup handlers.
+   */
+  private writePidFile(): void {
+    const pidFile = join(this.config.logDir, 'daemon.pid');
+    try {
+      writeFileSync(pidFile, String(process.pid));
+
+      // Clean up PID file on exit
+      const cleanup = () => {
+        try {
+          if (existsSync(pidFile)) {
+            const content = readFileSync(pidFile, 'utf-8').trim();
+            if (content === String(process.pid)) {
+              const { unlinkSync } = require('fs');
+              unlinkSync(pidFile);
+            }
+          }
+        } catch {
+          // Best effort cleanup
+        }
+      };
+
+      process.on('exit', cleanup);
+      process.on('SIGTERM', () => { cleanup(); process.exit(0); });
+      process.on('SIGINT', () => { cleanup(); process.exit(0); });
+    } catch (error) {
+      this.log('warn', `Failed to write PID file: ${error}`);
+    }
+  }
+
+  /**
    * Start the daemon and all enabled workers
    */
   async start(): Promise<void> {
@@ -442,8 +499,16 @@ export class WorkerDaemon extends EventEmitter {
       return;
     }
 
+    // Check for existing daemon instance (PID singleton)
+    if (this.checkExistingDaemon()) {
+      this.log('warn', 'Another daemon instance is already running. Use "daemon stop" first.');
+      this.emit('warning', 'Another daemon instance is already running');
+      return;
+    }
+
     this.running = true;
     this.startedAt = new Date();
+    this.writePidFile();
     this.emit('started', { pid: process.pid, startedAt: this.startedAt });
 
     // Schedule all enabled workers
