@@ -5,11 +5,61 @@
  * detects communities via label propagation, and provides
  * graph-aware ranking for search results.
  *
+ * Incremental mutations (addNodeDelta / removeNodeDelta) allow single-entry
+ * updates without a full rebuild. A small LRU cache holds recently computed
+ * PageRank scores so repeated reads after stable mutations are O(1).
+ *
  * Pure TypeScript - no external graph libraries.
  * @module v3/memory/memory-graph
  */
 import { EventEmitter } from 'node:events';
 import type { IMemoryBackend, MemoryEntry, SearchResult } from './types.js';
+
+// ===== LRU PageRank Cache =====
+
+/**
+ * Minimal fixed-capacity LRU cache for PageRank score maps.
+ * Entries are keyed by a graph "version" token (monotonically increasing integer).
+ */
+class PageRankLRUCache {
+  private capacity: number;
+  /** Insertion-order map so the oldest key is map.keys().next() */
+  private store: Map<number, Map<string, number>>;
+
+  constructor(capacity: number = 8) {
+    this.capacity = Math.max(1, capacity);
+    this.store = new Map();
+  }
+
+  get(version: number): Map<string, number> | undefined {
+    const value = this.store.get(version);
+    if (value === undefined) return undefined;
+    // Refresh recency: delete + re-insert
+    this.store.delete(version);
+    this.store.set(version, value);
+    return value;
+  }
+
+  set(version: number, ranks: Map<string, number>): void {
+    if (this.store.has(version)) {
+      this.store.delete(version);
+    } else if (this.store.size >= this.capacity) {
+      // Evict oldest
+      const oldest = this.store.keys().next().value;
+      if (oldest !== undefined) this.store.delete(oldest);
+    }
+    this.store.set(version, ranks);
+  }
+
+  /** Invalidate all cached entries (called on graph mutations). */
+  invalidate(): void {
+    this.store.clear();
+  }
+
+  get size(): number {
+    return this.store.size;
+  }
+}
 
 // ===== Types =====
 
@@ -81,6 +131,11 @@ export class MemoryGraph extends EventEmitter {
   private config: Required<MemoryGraphConfig>;
   private dirty: boolean = true;
 
+  /** Monotonically increasing token — bumped on every mutation. */
+  private graphVersion: number = 0;
+  /** LRU cache keyed by graphVersion so stable graphs get O(1) PageRank reads. */
+  private pageRankCache: PageRankLRUCache = new PageRankLRUCache(8);
+
   constructor(config?: MemoryGraphConfig) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -119,7 +174,7 @@ export class MemoryGraph extends EventEmitter {
     });
     if (!this.edges.has(entry.id)) this.edges.set(entry.id, []);
     if (!this.reverseEdges.has(entry.id)) this.reverseEdges.set(entry.id, new Set());
-    this.dirty = true;
+    this.markDirty();
   }
 
   /** Add a directed edge. Skips if either node missing. Updates weight to max if exists. */
@@ -138,7 +193,7 @@ export class MemoryGraph extends EventEmitter {
 
     if (!this.reverseEdges.has(targetId)) this.reverseEdges.set(targetId, new Set());
     this.reverseEdges.get(targetId)!.add(sourceId);
-    this.dirty = true;
+    this.markDirty();
   }
 
   /** Remove a node and all associated edges (both directions). */

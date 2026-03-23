@@ -1,0 +1,40 @@
+{
+  "name": "@claude-flow/memory-federation",
+  "version": "4.0.0-alpha.1",
+  "description": "Distributed federated AgentDB memory across machines using CRDTs, gossip protocol, and consistent hashing",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest"
+  },
+  "dependencies": {
+    "mdns-js": "^0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": ["memory", "federation", "crdt", "gossip", "distributed", "agents"],
+  "author": "Claude Flow Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ruvnet/claude-flow.git",
+    "directory": "v4/@claude-flow/memory-federation"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "v4alpha"
+  }
+}
