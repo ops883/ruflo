@@ -39,7 +39,6 @@
     "src/@claude-flow/memory/dist/**/*.d.ts",
     "!src/@claude-flow/memory/dist/**/*.map",
     "src/@claude-flow/memory/package.json",
-    ".claude-plugin/**",
     ".claude/**",
     "!.claude/guidance/internal/**",
     "!.claude/**/*.db",
