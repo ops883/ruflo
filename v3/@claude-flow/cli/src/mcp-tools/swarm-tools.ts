@@ -60,6 +60,26 @@ function saveSwarmStore(store: SwarmStore): void {
   writeFileSync(getSwarmStatePath(), JSON.stringify(store, null, 2), 'utf-8');
 }
 
+function loadAgentStore(): { agents: Record<string, { status?: string }> } {
+  try {
+    const path = join(process.cwd(), '.claude-flow', 'agents', 'store.json');
+    if (existsSync(path)) {
+      return JSON.parse(readFileSync(path, 'utf-8'));
+    }
+  } catch { /* ignore */ }
+  return { agents: {} };
+}
+
+function loadTaskStore(): { tasks: Record<string, unknown> } {
+  try {
+    const path = join(process.cwd(), '.claude-flow', 'tasks', 'store.json');
+    if (existsSync(path)) {
+      return JSON.parse(readFileSync(path, 'utf-8'));
+    }
+  } catch { /* ignore */ }
+  return { tasks: {} };
+}
+
 // Input validation
 const VALID_TOPOLOGIES = new Set([
   'hierarchical', 'mesh', 'hierarchical-mesh', 'ring', 'star', 'hybrid', 'adaptive',
@@ -173,16 +193,32 @@ export const swarmTools: MCPTool[] = [
         .map(id => store.swarms[id])
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
 
+      const agentStore = loadAgentStore();
+      const taskStore = loadTaskStore();
+      const agentList = Object.values(agentStore.agents || {});
+      const totalAgents = agentList.filter(agent => agent.status !== 'terminated').length;
+      const activeAgents = agentList.filter(agent => agent.status === 'active' || agent.status === 'busy').length;
+      const idleAgents = agentList.filter(agent => agent.status === 'idle').length;
+      const taskCount = Object.keys(taskStore.tasks || {}).length;
+      const uptime = latest.createdAt ? Math.max(0, Date.now() - new Date(latest.createdAt).getTime()) : 0;
+
       return {
         swarmId: latest.swarmId,
         status: latest.status,
         topology: latest.topology,
         maxAgents: latest.maxAgents,
-        agentCount: latest.agents.length,
-        taskCount: latest.tasks.length,
+        agents: {
+          total: totalAgents,
+          active: activeAgents,
+          idle: idleAgents,
+        },
+        agentCount: totalAgents,
+        taskCount,
         config: latest.config,
         createdAt: latest.createdAt,
         updatedAt: latest.updatedAt,
+        health: latest.status === 'running' ? 'healthy' : 'stopped',
+        uptime,
         totalSwarms: swarmIds.length,
       };
     },

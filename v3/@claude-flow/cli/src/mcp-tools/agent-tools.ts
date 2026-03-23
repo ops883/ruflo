@@ -20,12 +20,16 @@ type ClaudeModel = 'haiku' | 'sonnet' | 'opus' | 'inherit';
 interface AgentRecord {
   agentId: string;
   agentType: string;
-  status: 'idle' | 'busy' | 'terminated';
+  status: 'idle' | 'busy' | 'active' | 'terminated';
   health: number;
   taskCount: number;
   config: Record<string, unknown>;
   createdAt: string;
   domain?: string;
+  currentTask?: string | null;
+  lastActivityAt?: string | null;
+  tasksFailed?: number;
+  averageExecutionTime?: number;
   model?: ClaudeModel;  // Model assigned to this agent
   modelRoutedBy?: 'explicit' | 'router' | 'agent-booster' | 'default';  // How model was determined (ADR-026)
 }
@@ -308,6 +312,7 @@ export const agentTools: MCPTool[] = [
 
       if (agent) {
         return {
+          id: agent.agentId,
           agentId: agent.agentId,
           agentType: agent.agentType,
           status: agent.status,
@@ -315,10 +320,19 @@ export const agentTools: MCPTool[] = [
           taskCount: agent.taskCount,
           createdAt: agent.createdAt,
           domain: agent.domain,
+          lastActivityAt: agent.lastActivityAt || null,
+          metrics: {
+            tasksCompleted: agent.taskCount || 0,
+            tasksInProgress: agent.currentTask ? 1 : 0,
+            tasksFailed: agent.tasksFailed || 0,
+            averageExecutionTime: agent.averageExecutionTime || 0,
+            uptime: agent.createdAt ? Math.max(0, Date.now() - new Date(agent.createdAt).getTime()) : 0,
+          },
         };
       }
 
       return {
+        id: agentId,
         agentId,
         status: 'not_found',
         error: 'Agent not found',
@@ -355,6 +369,7 @@ export const agentTools: MCPTool[] = [
 
       return {
         agents: agents.map(a => ({
+          id: a.agentId,
           agentId: a.agentId,
           agentType: a.agentType,
           status: a.status,
@@ -362,6 +377,7 @@ export const agentTools: MCPTool[] = [
           taskCount: a.taskCount,
           createdAt: a.createdAt,
           domain: a.domain,
+          lastActivityAt: a.lastActivityAt || null,
         })),
         total: agents.length,
         filters: {
@@ -369,6 +385,53 @@ export const agentTools: MCPTool[] = [
           domain: input.domain,
           includeTerminated: input.includeTerminated,
         },
+      };
+    },
+  },
+  {
+    name: 'agent_logs',
+    description: 'Get agent logs from the local daemon log',
+    category: 'agent',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        agentId: { type: 'string', description: 'ID of agent' },
+        tail: { type: 'number', description: 'Number of log lines to return' },
+        level: { type: 'string', description: 'Minimum log level' },
+      },
+      required: ['agentId'],
+    },
+    handler: async (input) => {
+      const logPath = join(process.cwd(), STORAGE_DIR, 'logs', 'daemon.log');
+      const levelOrder: Record<string, number> = { debug: 10, info: 20, warn: 30, error: 40 };
+      const minLevel = levelOrder[(input.level as string) || 'info'] || 20;
+      let entries: Array<{ timestamp: string; level: string; message: string; context: Record<string, unknown> }> = [];
+
+      try {
+        if (existsSync(logPath)) {
+          const lines = readFileSync(logPath, 'utf-8').split('\n').filter(Boolean);
+          entries = lines
+            .map((line) => {
+              const match = line.match(/^\[([^\]]+)\] \[([A-Z]+)\] (.*)$/);
+              const level = match?.[2]?.toLowerCase() || 'info';
+              return {
+                timestamp: match?.[1] || new Date().toISOString(),
+                level,
+                message: match?.[3] || line,
+                context: {},
+              };
+            })
+            .filter((entry) => (levelOrder[entry.level] || 20) >= minLevel);
+        }
+      } catch {
+        entries = [];
+      }
+
+      const tail = (input.tail as number) || 50;
+      return {
+        agentId: input.agentId as string,
+        entries: entries.slice(-tail),
+        total: entries.length,
       };
     },
   },

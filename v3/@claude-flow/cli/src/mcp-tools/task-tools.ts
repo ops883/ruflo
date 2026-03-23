@@ -12,6 +12,8 @@ import type { MCPTool } from './types.js';
 const STORAGE_DIR = '.claude-flow';
 const TASK_DIR = 'tasks';
 const TASK_FILE = 'store.json';
+const AGENT_DIR = 'agents';
+const AGENT_FILE = 'store.json';
 
 interface TaskRecord {
   taskId: string;
@@ -25,11 +27,27 @@ interface TaskRecord {
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
+  parentId?: string | null;
+  dependencies?: string[];
+  dependents?: string[];
+  logs?: Array<{ timestamp: string; level: string; message: string }>;
+  metrics?: { executionTime: number; retries: number; tokensUsed: number } | null;
   result?: Record<string, unknown>;
 }
 
 interface TaskStore {
   tasks: Record<string, TaskRecord>;
+  version: string;
+}
+
+interface AgentStoreRecord {
+  status?: string;
+  currentTask?: string | null;
+  taskCount?: number;
+}
+
+interface AgentStore {
+  agents: Record<string, AgentStoreRecord>;
   version: string;
 }
 
@@ -66,6 +84,35 @@ function saveTaskStore(store: TaskStore): void {
   writeFileSync(getTaskPath(), JSON.stringify(store, null, 2), 'utf-8');
 }
 
+function getAgentDir(): string {
+  return join(process.cwd(), STORAGE_DIR, AGENT_DIR);
+}
+
+function getAgentPath(): string {
+  return join(getAgentDir(), AGENT_FILE);
+}
+
+function loadAgentStore(): AgentStore {
+  try {
+    const path = getAgentPath();
+    if (existsSync(path)) {
+      const data = readFileSync(path, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch {
+    // Return empty store on error
+  }
+  return { agents: {}, version: '3.0.0' };
+}
+
+function saveAgentStore(store: AgentStore): void {
+  const dir = getAgentDir();
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+  writeFileSync(getAgentPath(), JSON.stringify(store, null, 2), 'utf-8');
+}
+
 export const taskTools: MCPTool[] = [
   {
     name: 'task_create',
@@ -85,6 +132,7 @@ export const taskTools: MCPTool[] = [
     handler: async (input) => {
       const store = loadTaskStore();
       const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const assignedTo = ((input.assignTo as string[]) || (input.assignedTo as string[]) || []);
 
       const task: TaskRecord = {
         taskId,
@@ -93,11 +141,16 @@ export const taskTools: MCPTool[] = [
         priority: (input.priority as TaskRecord['priority']) || 'normal',
         status: 'pending',
         progress: 0,
-        assignedTo: (input.assignTo as string[]) || [],
+        assignedTo,
         tags: (input.tags as string[]) || [],
         createdAt: new Date().toISOString(),
         startedAt: null,
         completedAt: null,
+        parentId: (input.parentId as string) || null,
+        dependencies: (input.dependencies as string[]) || [],
+        dependents: [],
+        logs: [],
+        metrics: null,
       };
 
       store.tasks[taskId] = task;
@@ -105,12 +158,13 @@ export const taskTools: MCPTool[] = [
 
       return {
         taskId,
+        id: taskId,
         type: task.type,
         description: task.description,
         priority: task.priority,
         status: task.status,
         createdAt: task.createdAt,
-        assignedTo: task.assignedTo,
+        assignedTo,
         tags: task.tags,
       };
     },
@@ -134,21 +188,28 @@ export const taskTools: MCPTool[] = [
       if (task) {
         return {
           taskId: task.taskId,
+          id: task.taskId,
           type: task.type,
           description: task.description,
           status: task.status,
           progress: task.progress,
           priority: task.priority,
-          assignedTo: task.assignedTo,
-          tags: task.tags,
+          assignedTo: task.assignedTo || [],
+          parentId: task.parentId || null,
+          dependencies: task.dependencies || [],
+          dependents: task.dependents || [],
+          tags: task.tags || [],
           createdAt: task.createdAt,
           startedAt: task.startedAt,
           completedAt: task.completedAt,
+          metrics: task.metrics || null,
+          logs: task.logs || [],
         };
       }
 
       return {
         taskId,
+        id: taskId,
         status: 'not_found',
         error: 'Task not found',
       };
@@ -176,13 +237,17 @@ export const taskTools: MCPTool[] = [
       if (input.status) {
         // Support comma-separated status values
         const statuses = (input.status as string).split(',').map(s => s.trim());
-        tasks = tasks.filter(t => statuses.includes(t.status));
+        if (!statuses.includes('all')) {
+          tasks = tasks.filter(t => statuses.includes(t.status) ||
+            (t.status === 'in_progress' && statuses.includes('running')));
+        }
       }
       if (input.type) {
         tasks = tasks.filter(t => t.type === input.type);
       }
-      if (input.assignedTo) {
-        tasks = tasks.filter(t => t.assignedTo.includes(input.assignedTo as string));
+      const assignedTo = (input.assignedTo as string) || (input.agentId as string);
+      if (assignedTo) {
+        tasks = tasks.filter(t => (t.assignedTo || []).includes(assignedTo));
       }
       if (input.priority) {
         tasks = tasks.filter(t => t.priority === input.priority);
@@ -197,6 +262,7 @@ export const taskTools: MCPTool[] = [
 
       return {
         tasks: tasks.map(t => ({
+          id: t.taskId,
           taskId: t.taskId,
           type: t.type,
           description: t.description,
@@ -210,7 +276,7 @@ export const taskTools: MCPTool[] = [
         filters: {
           status: input.status,
           type: input.type,
-          assignedTo: input.assignedTo,
+          assignedTo,
           priority: input.priority,
         },
       };
@@ -242,12 +308,8 @@ export const taskTools: MCPTool[] = [
 
         // Sync assigned agents back to idle and increment taskCount
         if (task.assignedTo.length > 0) {
-          const agentStorePath = join(process.cwd(), STORAGE_DIR, 'agents.json');
           try {
-            let agentStore: { agents: Record<string, Record<string, unknown>> } = { agents: {} };
-            if (existsSync(agentStorePath)) {
-              agentStore = JSON.parse(readFileSync(agentStorePath, 'utf-8'));
-            }
+            const agentStore = loadAgentStore();
             for (const agentId of task.assignedTo) {
               if (agentStore.agents[agentId]) {
                 agentStore.agents[agentId].status = 'idle';
@@ -256,7 +318,7 @@ export const taskTools: MCPTool[] = [
                   ((agentStore.agents[agentId].taskCount as number) || 0) + 1;
               }
             }
-            writeFileSync(agentStorePath, JSON.stringify(agentStore, null, 2), 'utf-8');
+            saveAgentStore(agentStore);
           } catch {
             // Best-effort agent sync
           }
@@ -353,12 +415,9 @@ export const taskTools: MCPTool[] = [
       const previouslyAssigned = [...task.assignedTo];
 
       // Load agent store to sync worker state
-      const agentStorePath = join(process.cwd(), STORAGE_DIR, 'agents.json');
-      let agentStore: { agents: Record<string, Record<string, unknown>> } = { agents: {} };
+      let agentStore: AgentStore = { agents: {}, version: '3.0.0' };
       try {
-        if (existsSync(agentStorePath)) {
-          agentStore = JSON.parse(readFileSync(agentStorePath, 'utf-8'));
-        }
+        agentStore = loadAgentStore();
       } catch { /* ignore */ }
 
       if (input.unassign) {
@@ -402,7 +461,7 @@ export const taskTools: MCPTool[] = [
       if (!existsSync(agentDir)) {
         mkdirSync(agentDir, { recursive: true });
       }
-      writeFileSync(agentStorePath, JSON.stringify(agentStore, null, 2), 'utf-8');
+      saveAgentStore(agentStore);
 
       return {
         taskId: task.taskId,

@@ -92,6 +92,7 @@ import { guidanceCommand } from '../src/commands/guidance.js';
 import { applianceCommand } from '../src/commands/appliance.js';
 import updateCommand from '../src/commands/update.js';
 import { ruvectorCommand } from '../src/commands/ruvector/index.js';
+import { callMCPTool } from '../src/mcp-client.js';
 
 import type { Command } from '../src/types.js';
 
@@ -198,6 +199,44 @@ describe('Command Definitions', () => {
   describe('status command', () => {
     it('should have correct name', () => {
       expectValidCommand(statusCommand, 'status');
+    });
+
+    it('should tolerate persisted-store MCP payload shapes', async () => {
+      vi.mocked(callMCPTool).mockImplementation(async (toolName: string) => {
+        if (toolName === 'swarm_status') {
+          return {
+            swarmId: 'swarm-1',
+            topology: 'mesh',
+            status: 'running',
+            agentCount: 2,
+            agents: { total: 2, active: 1, idle: 1 },
+            health: 'healthy',
+            uptime: 5000,
+          };
+        }
+        if (toolName === 'mcp_status') {
+          return { running: true, transport: 'stdio', port: null };
+        }
+        if (toolName === 'memory_stats') {
+          return { totalEntries: 0, backend: 'sql.js + HNSW' };
+        }
+        if (toolName === 'task_summary') {
+          return { total: 2, pending: 0, running: 2, completed: 0, failed: 0 };
+        }
+        return {};
+      });
+
+      const result = await statusCommand.action!({
+        args: [],
+        flags: { _: [] },
+        cwd: process.cwd(),
+        interactive: false,
+      });
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).running).toBe(true);
+      expect((result.data as any).swarm.agents.total).toBe(2);
+      expect((result.data as any).memory.entries).toBe(0);
     });
   });
 
