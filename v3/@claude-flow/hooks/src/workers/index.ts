@@ -9,6 +9,16 @@ import { EventEmitter } from 'events';
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import { workerEventBus, FALLBACK_IDLE_MS } from './event-bus.js';
+export { workerEventBus, WorkerEventBus, FALLBACK_IDLE_MS } from './event-bus.js';
+export type {
+  FileEditedPayload,
+  TaskCompletedPayload,
+  SecurityTriggerPayload,
+  TestTriggerPayload,
+  SessionEndPayload,
+  WorkerBusEvents,
+} from './event-bus.js';
 
 // ============================================================================
 // Security Constants
@@ -1010,7 +1020,12 @@ export class WorkerManager extends EventEmitter {
     const run = async () => {
       if (!this.running) return;
 
-      await this.runWorker(name);
+      // Fallback timer: only fire if the event bus hasn't triggered this
+      // worker within the last FALLBACK_IDLE_MS window.  This prevents
+      // duplicate runs when an event already caused an execution recently.
+      if (workerEventBus.shouldFallback(name)) {
+        await this.runWorker(name);
+      }
 
       if (this.running) {
         this.timers.set(name, setTimeout(run, config.interval));
@@ -1020,6 +1035,64 @@ export class WorkerManager extends EventEmitter {
     // Initial run with staggered start
     const stagger = config.priority * 1000;
     this.timers.set(name, setTimeout(run, stagger));
+  }
+
+  /**
+   * Wire reactive event-bus subscriptions for workers that benefit from
+   * immediate triggering.  Called once by createWorkerManager after all
+   * built-in workers are registered.
+   *
+   * Mapping:
+   *   audit/security → 'security:trigger', 'file:edited'
+   *   testgaps       → 'task:completed', 'file:edited'  (not a built-in here,
+   *                     but wired so external callers can register it)
+   *   patterns       → 'task:completed'
+   *   learning       → 'task:completed'
+   *   cache          → 'session:end'
+   */
+  wireEventBus(): void {
+    const runIfRegistered = (name: string) => {
+      if (this.workers.has(name) && this.running) {
+        workerEventBus.resetTrigger(name); // mark as triggered now
+        this.runWorker(name).catch(() => {});
+      }
+    };
+
+    // security worker fires on explicit trigger or any file edit
+    workerEventBus.subscribeWorker('security', ['security:trigger', 'file:edited'], () => {
+      runIfRegistered('security');
+    });
+
+    // patterns worker fires when a task completes (new patterns may be available)
+    workerEventBus.subscribeWorker('patterns', ['task:completed'], () => {
+      runIfRegistered('patterns');
+    });
+
+    // learning worker fires when a task completes
+    workerEventBus.subscribeWorker('learning', ['task:completed'], () => {
+      runIfRegistered('learning');
+    });
+
+    // cache worker fires at session end for cleanup
+    workerEventBus.subscribeWorker('cache', ['session:end'], () => {
+      runIfRegistered('cache');
+    });
+
+    // testgaps worker (may be registered by callers) fires on task completion
+    // and file edits so gap analysis stays current
+    workerEventBus.subscribeWorker('testgaps', ['task:completed', 'file:edited'], () => {
+      runIfRegistered('testgaps');
+    });
+
+    // optimize worker fires when a task completes
+    workerEventBus.subscribeWorker('optimize', ['task:completed'], () => {
+      runIfRegistered('optimize');
+    });
+
+    // consolidate worker fires at session end
+    workerEventBus.subscribeWorker('consolidate', ['session:end'], () => {
+      runIfRegistered('consolidate');
+    });
   }
 
   private async ensureMetricsDir(): Promise<void> {
@@ -2067,6 +2140,11 @@ export function createWorkerManager(projectRoot?: string): WorkerManager {
   manager.register('patterns', createPatternsWorker(root));
   manager.register('cache', createCacheWorker(root));
   manager.register('v3progress', createV3ProgressWorker(root));
+
+  // Wire reactive event-bus subscriptions so workers fire immediately on
+  // relevant events rather than waiting for their scheduled interval.
+  // The interval timers remain active as fallback (fires only when idle).
+  manager.wireEventBus();
 
   return manager;
 }

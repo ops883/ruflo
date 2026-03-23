@@ -5,10 +5,18 @@
  * - SQLite for: Structured queries, ACID transactions, exact matches
  * - AgentDB for: Semantic search, vector similarity, RAG
  *
+ * Includes a TwoPhaseCommitCoordinator that ensures both backends stay in sync:
+ * - Phase 1 PREPARE: acquire version tokens for both backends
+ * - Phase 2 COMMIT:  write to both; on any error ROLLBACK by deleting/restoring
+ * - WAL journal: append to `.claude/data/wal.jsonl` before writes, mark committed after
+ *
  * @module v3/memory/hybrid-backend
  */
 
 import { EventEmitter } from 'node:events';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
 import {
   IMemoryBackend,
   MemoryEntry,
@@ -143,6 +151,152 @@ export interface HybridQuery {
   };
 }
 
+// ===== WAL Journal Types =====
+
+type WalOperation = 'set' | 'delete';
+type WalStatus = 'prepared' | 'committed' | 'rolled-back';
+
+interface WalRecord {
+  id: string;
+  operation: WalOperation;
+  /** ISO timestamp of the prepare phase */
+  preparedAt: string;
+  /** Version tokens at prepare time */
+  sqliteVersion: number;
+  agentdbVersion: number;
+  status: WalStatus;
+  committedAt?: string;
+}
+
+// ===== Two-Phase Commit Coordinator =====
+
+/**
+ * Coordinates writes across SQLite and AgentDB using a simple 2-phase commit
+ * protocol backed by a WAL (write-ahead log) on disk.
+ *
+ * Protocol:
+ *   PREPARE  — record intent in WAL with current version tokens
+ *   COMMIT   — write to both backends; mark WAL record committed
+ *   ROLLBACK — on error, undo partial writes; mark WAL record rolled-back
+ *
+ * The WAL file lives at `.claude/data/wal.jsonl` (one JSON record per line).
+ * On startup, any `prepared` (uncommitted) WAL records signal a crash during a
+ * prior commit; callers can inspect `getPendingRecovery()` and replay or skip.
+ */
+export class TwoPhaseCommitCoordinator {
+  private walPath: string;
+  /** Monotonic SQLite version counter for this process. */
+  private sqliteSeq: number = 0;
+  /** Monotonic AgentDB version counter for this process. */
+  private agentdbSeq: number = 0;
+
+  constructor(walDir?: string) {
+    const dir = walDir ?? path.join(os.homedir(), '.claude', 'data');
+    this.walPath = path.join(dir, 'wal.jsonl');
+    this.ensureWalDir(dir);
+  }
+
+  /**
+   * Execute a write through the 2-phase commit protocol.
+   *
+   * @param id          - Logical identifier for the entry being written.
+   * @param operation   - 'set' or 'delete'.
+   * @param commit      - Async function that performs the actual dual-write.
+   *   It receives `(sqliteVersion, agentdbVersion)` so it can tag writes.
+   * @param rollback    - Async function to undo partial work on failure.
+   */
+  async execute(
+    id: string,
+    operation: WalOperation,
+    commit: (sqliteVersion: number, agentdbVersion: number) => Promise<void>,
+    rollback: () => Promise<void>
+  ): Promise<void> {
+    // PHASE 1: PREPARE
+    const sqliteVersion = ++this.sqliteSeq;
+    const agentdbVersion = ++this.agentdbSeq;
+
+    const record: WalRecord = {
+      id,
+      operation,
+      preparedAt: new Date().toISOString(),
+      sqliteVersion,
+      agentdbVersion,
+      status: 'prepared',
+    };
+    this.appendWal(record);
+
+    // PHASE 2: COMMIT
+    try {
+      await commit(sqliteVersion, agentdbVersion);
+      record.status = 'committed';
+      record.committedAt = new Date().toISOString();
+      this.appendWal(record);
+    } catch (err) {
+      // ROLLBACK
+      try {
+        await rollback();
+      } catch {
+        // Rollback errors are swallowed — the WAL record marks the failure
+      }
+      record.status = 'rolled-back';
+      this.appendWal(record);
+      throw err;
+    }
+  }
+
+  /**
+   * Returns WAL records in `prepared` state (i.e. not yet committed or
+   * rolled back) — these indicate writes that may be incomplete after a crash.
+   * The WAL file is read fresh each call so the result is always current.
+   */
+  getPendingRecovery(): WalRecord[] {
+    const lines = this.readWalLines();
+    // Build a map: id -> latest record, then filter by status
+    const latest = new Map<string, WalRecord>();
+    for (const line of lines) {
+      try {
+        const rec: WalRecord = JSON.parse(line);
+        // Later entries for the same id+version supersede earlier ones
+        const key = `${rec.id}:${rec.sqliteVersion}`;
+        latest.set(key, rec);
+      } catch {
+        // Malformed line — skip
+      }
+    }
+    return [...latest.values()].filter((r) => r.status === 'prepared');
+  }
+
+  // ===== Private WAL Helpers =====
+
+  private appendWal(record: WalRecord): void {
+    try {
+      fs.appendFileSync(this.walPath, JSON.stringify(record) + '\n', 'utf8');
+    } catch {
+      // WAL write failure is non-fatal for the commit itself —
+      // durability is best-effort in this lightweight implementation.
+    }
+  }
+
+  private readWalLines(): string[] {
+    try {
+      const content = fs.readFileSync(this.walPath, 'utf8');
+      return content.split('\n').filter((l) => l.trim().length > 0);
+    } catch {
+      return [];
+    }
+  }
+
+  private ensureWalDir(dir: string): void {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch {
+      // Directory creation failure is non-fatal
+    }
+  }
+}
+
+// ===== HybridBackend =====
+
 /**
  * HybridBackend Implementation
  *
@@ -156,6 +310,7 @@ export class HybridBackend extends EventEmitter implements IMemoryBackend {
   private agentdb: AgentDBBackend;
   private config: Required<HybridBackendConfig>;
   private initialized: boolean = false;
+  private twoPC: TwoPhaseCommitCoordinator;
 
   // Performance tracking
   private stats = {
@@ -168,6 +323,9 @@ export class HybridBackend extends EventEmitter implements IMemoryBackend {
   constructor(config: HybridBackendConfig = {}) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
+
+    // Initialize 2-phase commit coordinator (WAL in .claude/data/)
+    this.twoPC = new TwoPhaseCommitCoordinator();
 
     // Initialize SQLite backend
     this.sqlite = new SQLiteBackend({
@@ -220,14 +378,27 @@ export class HybridBackend extends EventEmitter implements IMemoryBackend {
   }
 
   /**
-   * Store in both backends (dual-write for consistency)
+   * Store in both backends using 2-phase commit (dual-write mode)
+   * or directly into AgentDB (single-write mode).
    */
   async store(entry: MemoryEntry): Promise<void> {
     if (this.config.dualWrite) {
-      // Write to both backends in parallel
-      await Promise.all([this.sqlite.store(entry), this.agentdb.store(entry)]);
+      await this.twoPC.execute(
+        entry.id,
+        'set',
+        async (_sqliteVer, _agentdbVer) => {
+          await Promise.all([
+            this.sqlite.store(entry),
+            this.agentdb.store(entry),
+          ]);
+        },
+        async () => {
+          // Best-effort rollback: attempt to remove the partial write
+          try { await this.sqlite.delete(entry.id); } catch { /* no-op */ }
+          try { await this.agentdb.delete(entry.id); } catch { /* no-op */ }
+        }
+      );
     } else {
-      // Write to primary backend only (AgentDB has vector search)
       await this.agentdb.store(entry);
     }
 
@@ -265,15 +436,34 @@ export class HybridBackend extends EventEmitter implements IMemoryBackend {
   }
 
   /**
-   * Delete from both backends
+   * Delete from both backends using 2-phase commit (dual-write mode).
    */
   async delete(id: string): Promise<boolean> {
     if (this.config.dualWrite) {
-      const [sqliteResult, agentdbResult] = await Promise.all([
-        this.sqlite.delete(id),
-        this.agentdb.delete(id),
-      ]);
-      return sqliteResult || agentdbResult;
+      // Snapshot the entry before deletion so we can restore on rollback
+      const snapshot = await this.agentdb.get(id);
+      let deleted = false;
+
+      await this.twoPC.execute(
+        id,
+        'delete',
+        async (_sqliteVer, _agentdbVer) => {
+          const [sqliteResult, agentdbResult] = await Promise.all([
+            this.sqlite.delete(id),
+            this.agentdb.delete(id),
+          ]);
+          deleted = sqliteResult || agentdbResult;
+        },
+        async () => {
+          // Restore the snapshot to both backends on rollback
+          if (snapshot) {
+            try { await this.sqlite.store(snapshot); } catch { /* no-op */ }
+            try { await this.agentdb.store(snapshot); } catch { /* no-op */ }
+          }
+        }
+      );
+
+      return deleted;
     } else {
       return this.agentdb.delete(id);
     }

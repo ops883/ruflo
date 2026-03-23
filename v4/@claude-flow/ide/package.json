@@ -1,0 +1,31 @@
+{
+  "name": "@claude-flow/ide",
+  "version": "4.0.0-alpha.1",
+  "description": "IDE integration layer for Ruflo v4 — Antigravity, Cursor, cloud IDEs, VSCode, anti-gravity workspaces",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" } },
+  "scripts": { "build": "tsc", "test": "node --experimental-vm-modules node_modules/.bin/jest" },
+  "dependencies": {
+    "chokidar": "^3.6.0",
+    "ws": "^8.17.0",
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": { "typescript": "^5.3.0" },
+  "keywords": ["ide", "cursor", "antigravity", "vscode", "mcp", "agents"],
+  "author": "Claude Flow Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ruvnet/claude-flow.git",
+    "directory": "v4/@claude-flow/ide"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "v4alpha"
+  }
+}

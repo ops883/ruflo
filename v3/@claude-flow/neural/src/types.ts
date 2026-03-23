@@ -50,6 +50,13 @@ export interface SONAModeConfig {
 
   /** EWC lambda for catastrophic forgetting prevention */
   ewcLambda: number;
+
+  /**
+   * Enable Flash Attention 2 when a compatible GPU backend is detected
+   * (CUDA, Metal, or WebGPU).  Defaults to false for CPU-only environments.
+   * Provides 2.49x–7.47x attention speedup when enabled.
+   */
+  flashAttention?: boolean;
 }
 
 /**

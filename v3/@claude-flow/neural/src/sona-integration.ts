@@ -19,6 +19,7 @@ import type {
   SONAMode,
   SONAModeConfig,
 } from './types.js';
+import { detectFlashAttentionSupport } from './flash-attention.js';
 
 // =============================================================================
 // Types
@@ -71,7 +72,11 @@ export interface SONAStats {
 // =============================================================================
 
 /**
- * Convert V3 SONA mode to @ruvector/sona config
+ * Convert V3 SONA mode to @ruvector/sona config.
+ *
+ * When `modeConfig.flashAttention` is true, the returned config includes
+ * `use_flash_attention_2: true` which is forwarded to the underlying
+ * HuggingFace Transformers backend if it supports the flag.
  */
 function modeToConfig(mode: SONAMode, modeConfig: SONAModeConfig): JsSonaConfig {
   const baseConfig: JsSonaConfig = {
@@ -86,6 +91,10 @@ function modeToConfig(mode: SONAMode, modeConfig: SONAModeConfig): JsSonaConfig 
     trajectoryCapacity: modeConfig.trajectoryCapacity,
     qualityThreshold: modeConfig.qualityThreshold,
     enableSimd: true,
+    // Pass Flash Attention flag through to the transformer backend.
+    // JsSonaConfig may not yet declare this field; the spread allows
+    // future versions of @ruvector/sona to pick it up automatically.
+    ...(modeConfig.flashAttention ? { use_flash_attention_2: true } : {}),
   };
 
   // Mode-specific adjustments
@@ -150,6 +159,27 @@ export class SONALearningEngine {
     this.modeConfig = modeConfig;
     const config = modeToConfig(mode, modeConfig);
     this.engine = SonaEngine.withConfig(config);
+
+    // Auto-detect Flash Attention support asynchronously after construction.
+    // We do not block the constructor; the engine is usable immediately.
+    // If the modeConfig already opted-in we skip detection (already wired).
+    if (!modeConfig.flashAttention) {
+      detectFlashAttentionSupport()
+        .then((supported) => {
+          if (supported) {
+            console.log('[SONA] Flash Attention 2 enabled (detected GPU support)');
+            // Rebuild the config with Flash Attention enabled and reinitialise
+            // the engine so subsequent operations benefit from the speedup.
+            const faConfig = modeToConfig(mode, { ...modeConfig, flashAttention: true });
+            this.engine = SonaEngine.withConfig(faConfig);
+            // Persist the updated modeConfig so resetLearning() re-enables it
+            this.modeConfig = { ...modeConfig, flashAttention: true };
+          }
+        })
+        .catch(() => {
+          // Detection failed — proceed with CPU-only config; no action needed
+        });
+    }
   }
 
   /**
@@ -430,3 +460,5 @@ export function createSONALearningEngine(
 // =============================================================================
 
 export type { JsLearnedPattern, JsSonaConfig };
+// Re-export so consumers can import from either sona-integration or flash-attention
+export { detectFlashAttentionSupport } from './flash-attention.js';

@@ -28,7 +28,9 @@ import {
   createDefaultEntry,
   CacheStats,
   HNSWStats,
+  QuantizationConfig,
 } from './types.js';
+import { BatchEmbedder } from './batch-embedder.js';
 
 // ===== AgentDB Optional Import =====
 
@@ -93,6 +95,9 @@ export interface AgentDBBackendConfig {
 
   /** Maximum entries */
   maxEntries?: number;
+
+  /** Enable Int8 scalar quantization for HNSW index (reduces memory ~4x) */
+  quantization?: boolean;
 }
 
 /**
@@ -110,6 +115,7 @@ const DEFAULT_CONFIG: Required<
   hnswEfSearch: 100,
   cacheEnabled: true,
   maxEntries: 1000000,
+  quantization: false,
 };
 
 // ===== AgentDB Backend Implementation =====
@@ -137,6 +143,7 @@ export class AgentDBBackend extends EventEmitter implements IMemoryBackend {
   private agentdb: any;
   private initialized: boolean = false;
   private available: boolean = false;
+  private batchEmbedder: BatchEmbedder | null = null;
 
   // In-memory storage for compatibility
   private entries: Map<string, MemoryEntry> = new Map();
@@ -177,7 +184,17 @@ export class AgentDBBackend extends EventEmitter implements IMemoryBackend {
       return;
     }
 
+    // Initialize BatchEmbedder if an embedding generator is provided
+    if (this.config.embeddingGenerator) {
+      this.batchEmbedder = new BatchEmbedder(this.config.embeddingGenerator);
+    }
+
     try {
+      // Build optional quantization config for the HNSW index
+      const quantizationConfig: QuantizationConfig | undefined = this.config.quantization
+        ? { type: 'scalar', bits: 8 }
+        : undefined;
+
       // Initialize AgentDB with config
       this.agentdb = new AgentDB({
         dbPath: this.config.dbPath || ':memory:',
@@ -185,6 +202,7 @@ export class AgentDBBackend extends EventEmitter implements IMemoryBackend {
         forceWasm: this.config.forceWasm,
         vectorBackend: this.config.vectorBackend,
         vectorDimension: this.config.vectorDimension,
+        ...(quantizationConfig ? { quantization: quantizationConfig } : {}),
       });
 
       // Suppress agentdb's noisy console.log during init
@@ -410,9 +428,27 @@ export class AgentDBBackend extends EventEmitter implements IMemoryBackend {
   }
 
   /**
-   * Bulk insert
+   * Bulk insert — uses BatchEmbedder to batch ONNX inference in groups of 32
+   * instead of one inference call per entry, avoiding 10k ONNX calls on large inserts.
    */
   async bulkInsert(entries: MemoryEntry[]): Promise<void> {
+    if (this.batchEmbedder && entries.length > 0) {
+      // Identify entries that need embedding generation
+      const needsEmbedding = entries.filter(
+        (e) => e.content && !e.embedding
+      );
+      const texts = needsEmbedding.map((e) => e.content);
+
+      if (texts.length > 0) {
+        const embeddings = await this.batchEmbedder.embedBatch(texts);
+        for (let i = 0; i < needsEmbedding.length; i++) {
+          needsEmbedding[i].embedding = embeddings[i];
+        }
+      }
+    }
+
+    // Store all entries (embeddings already attached; store() skips re-generation
+    // when entry.embedding is already present)
     for (const entry of entries) {
       await this.store(entry);
     }

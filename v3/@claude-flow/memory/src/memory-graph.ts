@@ -5,11 +5,61 @@
  * detects communities via label propagation, and provides
  * graph-aware ranking for search results.
  *
+ * Incremental mutations (addNodeDelta / removeNodeDelta) allow single-entry
+ * updates without a full rebuild. A small LRU cache holds recently computed
+ * PageRank scores so repeated reads after stable mutations are O(1).
+ *
  * Pure TypeScript - no external graph libraries.
  * @module v3/memory/memory-graph
  */
 import { EventEmitter } from 'node:events';
 import type { IMemoryBackend, MemoryEntry, SearchResult } from './types.js';
+
+// ===== LRU PageRank Cache =====
+
+/**
+ * Minimal fixed-capacity LRU cache for PageRank score maps.
+ * Entries are keyed by a graph "version" token (monotonically increasing integer).
+ */
+class PageRankLRUCache {
+  private capacity: number;
+  /** Insertion-order map so the oldest key is map.keys().next() */
+  private store: Map<number, Map<string, number>>;
+
+  constructor(capacity: number = 8) {
+    this.capacity = Math.max(1, capacity);
+    this.store = new Map();
+  }
+
+  get(version: number): Map<string, number> | undefined {
+    const value = this.store.get(version);
+    if (value === undefined) return undefined;
+    // Refresh recency: delete + re-insert
+    this.store.delete(version);
+    this.store.set(version, value);
+    return value;
+  }
+
+  set(version: number, ranks: Map<string, number>): void {
+    if (this.store.has(version)) {
+      this.store.delete(version);
+    } else if (this.store.size >= this.capacity) {
+      // Evict oldest
+      const oldest = this.store.keys().next().value;
+      if (oldest !== undefined) this.store.delete(oldest);
+    }
+    this.store.set(version, ranks);
+  }
+
+  /** Invalidate all cached entries (called on graph mutations). */
+  invalidate(): void {
+    this.store.clear();
+  }
+
+  get size(): number {
+    return this.store.size;
+  }
+}
 
 // ===== Types =====
 
@@ -81,6 +131,11 @@ export class MemoryGraph extends EventEmitter {
   private config: Required<MemoryGraphConfig>;
   private dirty: boolean = true;
 
+  /** Monotonically increasing token — bumped on every mutation. */
+  private graphVersion: number = 0;
+  /** LRU cache keyed by graphVersion so stable graphs get O(1) PageRank reads. */
+  private pageRankCache: PageRankLRUCache = new PageRankLRUCache(8);
+
   constructor(config?: MemoryGraphConfig) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -101,7 +156,7 @@ export class MemoryGraph extends EventEmitter {
         this.addEdge(entry.id, refId, 'reference');
       }
     }
-    this.dirty = true;
+    this.markDirty();
     this.emit('graph:built', { nodeCount: this.nodes.size });
   }
 
@@ -119,7 +174,7 @@ export class MemoryGraph extends EventEmitter {
     });
     if (!this.edges.has(entry.id)) this.edges.set(entry.id, []);
     if (!this.reverseEdges.has(entry.id)) this.reverseEdges.set(entry.id, new Set());
-    this.dirty = true;
+    this.markDirty();
   }
 
   /** Add a directed edge. Skips if either node missing. Updates weight to max if exists. */
@@ -138,7 +193,7 @@ export class MemoryGraph extends EventEmitter {
 
     if (!this.reverseEdges.has(targetId)) this.reverseEdges.set(targetId, new Set());
     this.reverseEdges.get(targetId)!.add(sourceId);
-    this.dirty = true;
+    this.markDirty();
   }
 
   /** Remove a node and all associated edges (both directions). */
@@ -163,7 +218,7 @@ export class MemoryGraph extends EventEmitter {
     this.nodes.delete(id);
     this.pageRanks.delete(id);
     this.communities.delete(id);
-    this.dirty = true;
+    this.markDirty();
   }
 
   /** Add similarity edges by searching backend. Returns count of edges added. */
@@ -190,14 +245,23 @@ export class MemoryGraph extends EventEmitter {
 
   /**
    * Compute PageRank via power iteration with dangling node redistribution.
-   * Returns map of node ID to PageRank score.
+   * Results are cached per graph version; a stable graph returns the cached
+   * result without recomputing. Returns map of node ID to PageRank score.
    */
   computePageRank(): Map<string, number> {
+    // Return cached result if graph has not mutated since last computation
+    const cached = this.pageRankCache.get(this.graphVersion);
+    if (cached !== undefined && !this.dirty) {
+      return new Map(cached);
+    }
+
     const N = this.nodes.size;
     if (N === 0) {
       this.dirty = false;
       this.emit('pagerank:computed', { iterations: 0 });
-      return new Map();
+      const empty = new Map<string, number>();
+      this.pageRankCache.set(this.graphVersion, empty);
+      return empty;
     }
 
     const d = this.config.pageRankDamping;
@@ -242,6 +306,8 @@ export class MemoryGraph extends EventEmitter {
     }
 
     this.dirty = false;
+    // Store result in LRU cache keyed to current version
+    this.pageRankCache.set(this.graphVersion, new Map(this.pageRanks));
     this.emit('pagerank:computed', { iterations });
     return new Map(this.pageRanks);
   }
@@ -374,7 +440,52 @@ export class MemoryGraph extends EventEmitter {
     };
   }
 
+  // ===== Incremental Delta Methods =====
+
+  /**
+   * Incrementally add a single entry to the graph without full rebuild.
+   *
+   * Creates the node from the entry, then adds directed reference edges to any
+   * already-present nodes listed in entry.references.
+   * The PageRank cache is invalidated so the next read triggers recomputation.
+   */
+  addNodeDelta(entry: MemoryEntry): void {
+    this.addNode(entry);
+    for (const refId of entry.references) {
+      if (this.nodes.has(refId)) {
+        this.addEdge(entry.id, refId, 'reference');
+      }
+    }
+    // markDirty was already called by addNode / addEdge, but call it once more
+    // here so the intent is explicit and the cache is definitely invalidated.
+    this.markDirty();
+    this.emit('graph:node-added', { id: entry.id });
+  }
+
+  /**
+   * Incrementally remove a single entry from the graph without full rebuild.
+   *
+   * Delegates to removeNode which cleans up all associated edges and reverse
+   * edge entries. The PageRank cache is invalidated automatically.
+   */
+  removeNodeDelta(id: string): void {
+    if (!this.nodes.has(id)) return;
+    this.removeNode(id);
+    // removeNode already calls markDirty; emit our specific event after.
+    this.emit('graph:node-removed', { id });
+  }
+
   // ===== Internal Helpers =====
+
+  /**
+   * Bump graph version and invalidate the PageRank LRU cache.
+   * Called on every structural mutation so stale cached scores are never served.
+   */
+  private markDirty(): void {
+    this.graphVersion++;
+    this.dirty = true;
+    this.pageRankCache.invalidate();
+  }
 
   private hasEdge(sourceId: string, targetId: string): boolean {
     const edgeList = this.edges.get(sourceId);

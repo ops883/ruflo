@@ -90,7 +90,11 @@ export {
 export {
   SONALearningEngine,
   createSONALearningEngine,
+  detectFlashAttentionSupport,
 } from './sona-integration.js';
+
+// Flash Attention companion — also exported directly for tree-shaking
+export { detectFlashAttentionSupport as probeFlashAttentionSupport } from './flash-attention.js';
 
 export type {
   Context,
