@@ -10,7 +10,8 @@
       "Bash(npm run:*)",
       "Bash(git init:*)",
       "Bash(find . -name .env -o -name .env.* -o -name *.key -o -name *.pem)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
