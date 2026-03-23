@@ -324,6 +324,9 @@ export class HybridBackend extends EventEmitter implements IMemoryBackend {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
 
+    // Initialize 2-phase commit coordinator (WAL in .claude/data/)
+    this.twoPC = new TwoPhaseCommitCoordinator();
+
     // Initialize SQLite backend
     this.sqlite = new SQLiteBackend({
       ...this.config.sqlite,
@@ -375,14 +378,27 @@ export class HybridBackend extends EventEmitter implements IMemoryBackend {
   }
 
   /**
-   * Store in both backends (dual-write for consistency)
+   * Store in both backends using 2-phase commit (dual-write mode)
+   * or directly into AgentDB (single-write mode).
    */
   async store(entry: MemoryEntry): Promise<void> {
     if (this.config.dualWrite) {
-      // Write to both backends in parallel
-      await Promise.all([this.sqlite.store(entry), this.agentdb.store(entry)]);
+      await this.twoPC.execute(
+        entry.id,
+        'set',
+        async (_sqliteVer, _agentdbVer) => {
+          await Promise.all([
+            this.sqlite.store(entry),
+            this.agentdb.store(entry),
+          ]);
+        },
+        async () => {
+          // Best-effort rollback: attempt to remove the partial write
+          try { await this.sqlite.delete(entry.id); } catch { /* no-op */ }
+          try { await this.agentdb.delete(entry.id); } catch { /* no-op */ }
+        }
+      );
     } else {
-      // Write to primary backend only (AgentDB has vector search)
       await this.agentdb.store(entry);
     }
 
@@ -420,15 +436,34 @@ export class HybridBackend extends EventEmitter implements IMemoryBackend {
   }
 
   /**
-   * Delete from both backends
+   * Delete from both backends using 2-phase commit (dual-write mode).
    */
   async delete(id: string): Promise<boolean> {
     if (this.config.dualWrite) {
-      const [sqliteResult, agentdbResult] = await Promise.all([
-        this.sqlite.delete(id),
-        this.agentdb.delete(id),
-      ]);
-      return sqliteResult || agentdbResult;
+      // Snapshot the entry before deletion so we can restore on rollback
+      const snapshot = await this.agentdb.get(id);
+      let deleted = false;
+
+      await this.twoPC.execute(
+        id,
+        'delete',
+        async (_sqliteVer, _agentdbVer) => {
+          const [sqliteResult, agentdbResult] = await Promise.all([
+            this.sqlite.delete(id),
+            this.agentdb.delete(id),
+          ]);
+          deleted = sqliteResult || agentdbResult;
+        },
+        async () => {
+          // Restore the snapshot to both backends on rollback
+          if (snapshot) {
+            try { await this.sqlite.store(snapshot); } catch { /* no-op */ }
+            try { await this.agentdb.store(snapshot); } catch { /* no-op */ }
+          }
+        }
+      );
+
+      return deleted;
     } else {
       return this.agentdb.delete(id);
     }

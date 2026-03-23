@@ -19,6 +19,7 @@ import type {
   SONAMode,
   SONAModeConfig,
 } from './types.js';
+import { detectFlashAttentionSupport } from './flash-attention.js';
 
 // =============================================================================
 // Types
@@ -64,74 +65,6 @@ export interface SONAStats {
   lastLearningMs: number;
   /** Engine enabled state */
   enabled: boolean;
-}
-
-// =============================================================================
-// Flash Attention 2 Detection
-// =============================================================================
-
-/**
- * Detect whether a GPU backend capable of Flash Attention 2 is available.
- *
- * Detection order (fastest → most portable):
- *   1. CUDA  — check for `nvidia-smi` via child_process (Linux/Windows)
- *   2. Metal — check for `system_profiler SPDisplaysDataType` on macOS
- *   3. WebGPU — check `navigator.gpu` when running in a browser context
- *
- * Returns true if any backend is found; false on pure CPU environments or
- * when the checks cannot be executed.
- *
- * This function is intentionally non-throwing: any error results in false
- * so that the rest of SONA initialisation proceeds unaffected.
- */
-export async function detectFlashAttentionSupport(): Promise<boolean> {
-  // Browser / Deno / Bun WebGPU path
-  if (typeof navigator !== 'undefined' && 'gpu' in navigator) {
-    try {
-      const adapter = await (navigator as unknown as { gpu: { requestAdapter(): Promise<unknown> } }).gpu.requestAdapter();
-      if (adapter !== null) return true;
-    } catch {
-      // WebGPU adapter request failed — not available
-    }
-  }
-
-  // Node.js child_process path
-  try {
-    const { execFile } = await import('child_process');
-    const { promisify } = await import('util');
-    const execFileAsync = promisify(execFile);
-
-    const platform = (await import('os')).platform();
-
-    if (platform === 'linux' || platform === 'win32') {
-      // CUDA: nvidia-smi exits 0 when at least one GPU is present
-      try {
-        await execFileAsync('nvidia-smi', ['--query-gpu=name', '--format=csv,noheader'], {
-          timeout: 3000,
-        });
-        return true;
-      } catch {
-        // nvidia-smi not found or no CUDA GPU
-      }
-    }
-
-    if (platform === 'darwin') {
-      // Metal: all Apple Silicon and modern Intel Macs have Metal GPUs
-      try {
-        const { stdout } = await execFileAsync('system_profiler', ['SPDisplaysDataType'], {
-          timeout: 3000,
-        });
-        // Any GPU line indicates Metal is available
-        if (stdout.includes('Metal')) return true;
-      } catch {
-        // system_profiler not available
-      }
-    }
-  } catch {
-    // child_process / os import failed (e.g. edge runtime)
-  }
-
-  return false;
 }
 
 // =============================================================================
@@ -527,3 +460,5 @@ export function createSONALearningEngine(
 // =============================================================================
 
 export type { JsLearnedPattern, JsSonaConfig };
+// Re-export so consumers can import from either sona-integration or flash-attention
+export { detectFlashAttentionSupport } from './flash-attention.js';
