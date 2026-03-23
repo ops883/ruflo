@@ -2141,6 +2141,11 @@ export function createWorkerManager(projectRoot?: string): WorkerManager {
   manager.register('cache', createCacheWorker(root));
   manager.register('v3progress', createV3ProgressWorker(root));
 
+  // Wire reactive event-bus subscriptions so workers fire immediately on
+  // relevant events rather than waiting for their scheduled interval.
+  // The interval timers remain active as fallback (fires only when idle).
+  manager.wireEventBus();
+
   return manager;
 }
 
