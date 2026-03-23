@@ -90,6 +90,7 @@ export {
 export {
   SONALearningEngine,
   createSONALearningEngine,
+  detectFlashAttentionSupport,
 } from './sona-integration.js';
 
 export type {

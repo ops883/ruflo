@@ -226,6 +226,27 @@ export class SONALearningEngine {
     this.modeConfig = modeConfig;
     const config = modeToConfig(mode, modeConfig);
     this.engine = SonaEngine.withConfig(config);
+
+    // Auto-detect Flash Attention support asynchronously after construction.
+    // We do not block the constructor; the engine is usable immediately.
+    // If the modeConfig already opted-in we skip detection (already wired).
+    if (!modeConfig.flashAttention) {
+      detectFlashAttentionSupport()
+        .then((supported) => {
+          if (supported) {
+            console.log('[SONA] Flash Attention 2 enabled (detected GPU support)');
+            // Rebuild the config with Flash Attention enabled and reinitialise
+            // the engine so subsequent operations benefit from the speedup.
+            const faConfig = modeToConfig(mode, { ...modeConfig, flashAttention: true });
+            this.engine = SonaEngine.withConfig(faConfig);
+            // Persist the updated modeConfig so resetLearning() re-enables it
+            this.modeConfig = { ...modeConfig, flashAttention: true };
+          }
+        })
+        .catch(() => {
+          // Detection failed — proceed with CPU-only config; no action needed
+        });
+    }
   }
 
   /**
