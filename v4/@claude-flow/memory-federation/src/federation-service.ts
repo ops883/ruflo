@@ -71,7 +71,7 @@ export class FederationService extends EventEmitter {
   private readonly hlc: HybridLogicalClock;
 
   // Local in-memory store: key → StoreEntry
-  private readonly store: Map<string, StoreEntry> = new Map();
+  private readonly memoryStore: Map<string, StoreEntry> = new Map();
   private publicAddress?: STUNResult;
   private running = false;
 
@@ -181,7 +181,7 @@ export class FederationService extends EventEmitter {
     const timestamp = this.hlc.toTimestamp();
 
     // Update local CRDT store
-    let entry = this.store.get(key);
+    let entry = this.memoryStore.get(key);
     if (!entry) {
       entry = {
         key,
@@ -190,7 +190,7 @@ export class FederationService extends EventEmitter {
         vv: new VersionVector(),
         updatedAt: Date.now(),
       };
-      this.store.set(key, entry);
+      this.memoryStore.set(key, entry);
     }
 
     entry.register.set(value, timestamp, this.config.nodeId);
@@ -215,7 +215,7 @@ export class FederationService extends EventEmitter {
     // Use the router for session tracking (no-op if ring has only self)
     this.router.routeRead(key, sessionId);
 
-    const entry = this.store.get(key);
+    const entry = this.memoryStore.get(key);
     if (!entry) return null;
 
     return entry.register.get();
@@ -234,7 +234,7 @@ export class FederationService extends EventEmitter {
     const lowerQuery = query.toLowerCase();
     const results: unknown[] = [];
 
-    for (const entry of this.store.values()) {
+    for (const entry of this.memoryStore.values()) {
       const keyMatch = entry.key.toLowerCase().includes(lowerQuery);
       const valueStr = JSON.stringify(entry.value ?? '').toLowerCase();
       const valueMatch = valueStr.includes(lowerQuery);
@@ -254,7 +254,7 @@ export class FederationService extends EventEmitter {
       port: this.config.port,
       running: this.running,
       peerCount: this.gossip.getPeers().length,
-      keyCount: this.store.size,
+      keyCount: this.memoryStore.size,
       publicAddress: this.publicAddress,
     };
   }
@@ -281,7 +281,7 @@ export class FederationService extends EventEmitter {
     // Provide local digest to gossip protocol
     this.gossip.onGetDigest = (): GossipDigestEntry[] => {
       const digest: GossipDigestEntry[] = [];
-      for (const entry of this.store.values()) {
+      for (const entry of this.memoryStore.values()) {
         digest.push({
           key: entry.key,
           vectorClock: entry.vv.toJSON(),
@@ -294,7 +294,7 @@ export class FederationService extends EventEmitter {
     // Serve requested keys to remote peers
     this.gossip.onRequest = async (keys: string[]) => {
       return keys.flatMap((key) => {
-        const entry = this.store.get(key);
+        const entry = this.memoryStore.get(key);
         if (!entry) return [];
         return [{ key, value: entry.value, vectorClock: entry.vv.toJSON() }];
       });
@@ -305,14 +305,14 @@ export class FederationService extends EventEmitter {
       entries: Array<{ key: string; value: unknown; vectorClock: Record<string, number> }>,
     ) => {
       for (const remote of entries) {
-        const local = this.store.get(remote.key);
+        const local = this.memoryStore.get(remote.key);
         const remoteVV = VersionVector.fromJSON(remote.vectorClock);
 
         if (!local) {
           // Brand new key — accept unconditionally
           const reg = new LWWRegister<unknown>();
           reg.set(remote.value, Date.now(), this.config.nodeId);
-          this.store.set(remote.key, {
+          this.memoryStore.set(remote.key, {
             key: remote.key,
             value: remote.value,
             register: reg,
@@ -322,12 +322,9 @@ export class FederationService extends EventEmitter {
         } else {
           // Merge: only update if remote VV dominates or they are concurrent
           if (!local.vv.dominates(remoteVV)) {
-            const remoteEntry = reg => {
-              // Use HLC timestamp from remote VV sum as proxy
-              const ts = Object.values(remote.vectorClock).reduce((a, b) => a + b, 0);
-              reg.set(remote.value, ts, 'remote');
-            };
-            remoteEntry(local.register);
+            // Use HLC timestamp derived from remote VV sum as a proxy ordering value
+            const ts = Object.values(remote.vectorClock).reduce((a, b) => a + b, 0);
+            local.register.set(remote.value, ts, 'remote');
             local.vv.merge(remoteVV);
             local.value = local.register.get();
             local.updatedAt = Date.now();
