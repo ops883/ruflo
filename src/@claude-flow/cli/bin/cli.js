@@ -8,6 +8,11 @@
  * This allows: echo '{"jsonrpc":"2.0",...}' | npx @claude-flow/cli
  */
 
+// Suppress agentic-flow's agentdb-runtime-patch warning. The patch targets
+// agentdb v1.x (dist/controllers/) but v3+ uses dist/src/controllers/ and
+// already ships with correct .js extensions — the patch is unnecessary.
+process.env.SKIP_AGENTDB_PATCH ??= '1';
+
 import { randomUUID } from 'crypto';
 
 // Check if we should run in MCP server mode
