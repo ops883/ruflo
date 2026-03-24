@@ -1,0 +1,4 @@
+mkdocs
+mkdocs-material
+mkdocs-llms-source
+pymdown-extensions

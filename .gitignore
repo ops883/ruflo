@@ -5,6 +5,7 @@
 !v3/@claude-flow/
 # Binaries
 # Build outputs
+site/
 
 # Claude-Flow specific
 # Dependencies
