@@ -558,6 +558,15 @@ function generateHooks(root, force, answers) {
     };
     // Merge: preserve existing non-MoFlo hooks, add MoFlo hooks
     existing.hooks = hooks;
+    // Ensure statusLine is always present (required for dashboard display).
+    // The executor.ts / settings-generator.ts code path adds this, but
+    // moflo-init.ts uses its own generateHooks() which was missing it.
+    if (!existing.statusLine) {
+        existing.statusLine = {
+            type: 'command',
+            command: 'node "$CLAUDE_PROJECT_DIR/.claude/helpers/statusline.cjs"',
+        };
+    }
     fs.writeFileSync(settingsPath, JSON.stringify(existing, null, 2), 'utf-8');
     return { name: '.claude/settings.json', status: existing.hooks ? 'updated' : 'created', detail: '14 hooks configured (gates, lifecycle, routing, session)' };
 }
