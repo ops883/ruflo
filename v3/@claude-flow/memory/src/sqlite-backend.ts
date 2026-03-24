@@ -654,6 +654,24 @@ export class SQLiteBackend extends EventEmitter implements IMemoryBackend {
         FOREIGN KEY (entry_id) REFERENCES memory_entries(id) ON DELETE CASCADE
       );
     `);
+
+    // Migration: add columns that may be missing when DB was created by an older
+    // schema (e.g. via the MCP sql.js backend which uses a different DDL).
+    // ALTER TABLE ADD COLUMN is a no-op if the column already exists in SQLite ≥3.37.
+    const migrations: Array<{ col: string; ddl: string }> = [
+      { col: 'access_level', ddl: "ALTER TABLE memory_entries ADD COLUMN access_level TEXT NOT NULL DEFAULT 'private'" },
+      { col: 'version',      ddl: 'ALTER TABLE memory_entries ADD COLUMN version INTEGER NOT NULL DEFAULT 1' },
+      { col: 'references',   ddl: 'ALTER TABLE memory_entries ADD COLUMN "references" TEXT NOT NULL DEFAULT \'[]\'' },
+    ];
+    const existing = new Set<string>(
+      (this.db!.prepare("PRAGMA table_info(memory_entries)").all() as Array<{ name: string }>)
+        .map(r => r.name)
+    );
+    for (const m of migrations) {
+      if (!existing.has(m.col)) {
+        this.db!.exec(m.ddl);
+      }
+    }
   }
 
   private rowToEntry(row: any): MemoryEntry {

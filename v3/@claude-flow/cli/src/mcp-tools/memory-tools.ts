@@ -188,6 +188,10 @@ export const memoryTools: MCPTool[] = [
           items: { type: 'string' },
           description: 'Optional tags for filtering',
         },
+        metadata: {
+          type: 'object',
+          description: 'Optional metadata object (e.g. { confidence: 0.9 } for AutoMemoryBridge sync eligibility)',
+        },
         ttl: { type: 'number', description: 'Time-to-live in seconds (optional)' },
         upsert: { type: 'boolean', description: 'If true, update existing key instead of failing (default: false)' },
       },
@@ -202,6 +206,7 @@ export const memoryTools: MCPTool[] = [
       const rawValue = input.value;
       const value = typeof rawValue === 'string' ? rawValue : (rawValue !== undefined ? JSON.stringify(rawValue) : '');
       const tags = (input.tags as string[]) || [];
+      const metadata = (input.metadata as Record<string, unknown>) || {};
       const ttl = input.ttl as number | undefined;
       const upsert = (input.upsert as boolean) || false;
 
@@ -226,6 +231,7 @@ export const memoryTools: MCPTool[] = [
           namespace,
           generateEmbeddingFlag: true,
           tags,
+          metadata,
           ttl,
           upsert,
         });
