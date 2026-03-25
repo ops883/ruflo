@@ -1,55 +1,89 @@
-const Database = require('better-sqlite3');
+const initSqlJs = require('sql.js');
 const bcrypt = require('bcryptjs');
 const path = require('path');
+const fs = require('fs');
 
 const DB_PATH = path.join(__dirname, 'golf_players.db');
 
-function createDatabase() {
-  const db = new Database(DB_PATH);
+function saveDb(db) {
+  const data = db.export();
+  fs.writeFileSync(DB_PATH, Buffer.from(data));
+}
 
-  db.exec(`
-    PRAGMA journal_mode = WAL;
+function dbRun(db, sql, params) {
+  db.run(sql, params || []);
+  const rowid = db.exec('SELECT last_insert_rowid()')[0]?.values[0]?.[0] || 0;
+  return { lastInsertRowid: Number(rowid), changes: db.getRowsModified() };
+}
 
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      name TEXT NOT NULL,
-      handicap REAL DEFAULT 0,
-      city TEXT DEFAULT '',
-      state TEXT DEFAULT '',
-      zip_code TEXT DEFAULT '',
-      bio TEXT DEFAULT '',
-      playing_frequency TEXT DEFAULT 'weekly',
-      skill_level TEXT DEFAULT 'intermediate',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
+function dbGet(db, sql, params) {
+  const stmt = db.prepare(sql);
+  if (params && params.length) stmt.bind(params);
+  let row = null;
+  if (stmt.step()) row = stmt.getAsObject();
+  stmt.free();
+  return row;
+}
 
-    CREATE TABLE IF NOT EXISTS preferred_courses (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      course_name TEXT NOT NULL,
-      city TEXT DEFAULT '',
-      UNIQUE(user_id, course_name)
-    );
+function dbAll(db, sql, params) {
+  const stmt = db.prepare(sql);
+  if (params && params.length) stmt.bind(params);
+  const rows = [];
+  while (stmt.step()) rows.push(stmt.getAsObject());
+  stmt.free();
+  return rows;
+}
 
-    CREATE TABLE IF NOT EXISTS connections (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      requester_id INTEGER NOT NULL REFERENCES users(id),
-      receiver_id INTEGER NOT NULL REFERENCES users(id),
-      status TEXT DEFAULT 'pending',
-      message TEXT DEFAULT '',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(requester_id, receiver_id)
-    );
-  `);
+async function createDatabase() {
+  const SQL = await initSqlJs();
+  let db;
 
+  if (fs.existsSync(DB_PATH)) {
+    db = new SQL.Database(fs.readFileSync(DB_PATH));
+  } else {
+    db = new SQL.Database();
+  }
+
+  db.run(`CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    name TEXT NOT NULL,
+    handicap REAL DEFAULT 0,
+    city TEXT DEFAULT '',
+    state TEXT DEFAULT '',
+    zip_code TEXT DEFAULT '',
+    bio TEXT DEFAULT '',
+    playing_frequency TEXT DEFAULT 'weekly',
+    skill_level TEXT DEFAULT 'intermediate',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS preferred_courses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    course_name TEXT NOT NULL,
+    city TEXT DEFAULT '',
+    UNIQUE(user_id, course_name)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS connections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    requester_id INTEGER NOT NULL,
+    receiver_id INTEGER NOT NULL,
+    status TEXT DEFAULT 'pending',
+    message TEXT DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(requester_id, receiver_id)
+  )`);
+
+  saveDb(db);
   return db;
 }
 
 function seedDatabase(db) {
-  const { count } = db.prepare('SELECT COUNT(*) as count FROM users').get();
-  if (count > 0) return;
+  const row = dbGet(db, 'SELECT COUNT(*) as count FROM users', []);
+  if (row && row.count > 0) return;
 
   const hash = bcrypt.hashSync('password123', 10);
 
@@ -87,7 +121,7 @@ function seedDatabase(db) {
     {
       name: 'Lisa Anderson', email: 'lisa@example.com', handicap: 22.5,
       city: 'Austin', state: 'TX', playing_frequency: 'biweekly', skill_level: 'beginner',
-      bio: "Social golfer who loves the 19th hole as much as the 18! Let's have fun out there.",
+      bio: "Social golfer who loves the 19th hole as much as the 18! Let's have fun.",
       courses: ['Lions Municipal Golf Course', 'Morris Williams Golf Course']
     },
     {
@@ -117,34 +151,31 @@ function seedDatabase(db) {
     {
       name: 'Ryan Burke', email: 'ryan@example.com', handicap: 1.4,
       city: 'Austin', state: 'TX', playing_frequency: 'daily', skill_level: 'expert',
-      bio: 'Near scratch golfer. Play competitively in local tournaments. Always game for a good round.',
+      bio: 'Near scratch golfer. Play competitively in local tournaments.',
       courses: ['Austin Country Club', 'Barton Creek Country Club', 'The University of Texas Golf Club']
     },
     {
       name: 'Nicole Davis', email: 'nicole@example.com', handicap: 11.0,
       city: 'Buda', state: 'TX', playing_frequency: 'weekly', skill_level: 'intermediate',
-      bio: "Golf is life! Love playing in all weather. Weekend warrior looking for regular partners.",
+      bio: 'Golf is life! Love playing in all weather. Weekend warrior looking for regular partners.',
       courses: ['Plum Creek Golf Course', 'Falconhead Golf Club']
     },
   ];
 
-  const insertUser = db.prepare(`
-    INSERT INTO users (email, password_hash, name, handicap, city, state, bio, playing_frequency, skill_level)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  const insertCourse = db.prepare(`
-    INSERT OR IGNORE INTO preferred_courses (user_id, course_name, city) VALUES (?, ?, ?)
-  `);
-
   for (const p of players) {
-    const result = insertUser.run(p.email, hash, p.name, p.handicap, p.city, p.state, p.bio, p.playing_frequency, p.skill_level);
+    const result = dbRun(db,
+      `INSERT INTO users (email, password_hash, name, handicap, city, state, bio, playing_frequency, skill_level)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [p.email, hash, p.name, p.handicap, p.city, p.state, p.bio, p.playing_frequency, p.skill_level]
+    );
     for (const course of p.courses) {
-      insertCourse.run(result.lastInsertRowid, course, p.city);
+      dbRun(db, `INSERT OR IGNORE INTO preferred_courses (user_id, course_name, city) VALUES (?, ?, ?)`,
+        [result.lastInsertRowid, course, p.city]);
     }
   }
 
+  saveDb(db);
   console.log(`  Seeded ${players.length} sample players (login: any@example.com / password123)`);
 }
 
-module.exports = { createDatabase, seedDatabase };
+module.exports = { createDatabase, seedDatabase, dbRun, dbGet, dbAll, saveDb };
