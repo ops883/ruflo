@@ -1125,7 +1125,7 @@ Analyze the above codebase context and provide your response following the forma
       const child = spawn('claude', ['--print', prompt], {
         cwd: this.projectRoot,
         env,
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true, // Prevent phantom console windows on Windows
       });
 

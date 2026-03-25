@@ -241,6 +241,11 @@ export class CLI {
         if (result && !result.success) {
           process.exit(result.exitCode || 1);
         }
+
+        // Force exit after successful command to prevent hanging from
+        // background threads (e.g. ONNX worker threads, open DB handles)
+        // that keep the event loop alive. CLI commands are one-shot.
+        process.exit(0);
       } else {
         // No action - show command help
         this.showCommandHelp(commandName);
