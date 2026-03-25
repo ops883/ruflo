@@ -44,7 +44,7 @@ export function generateSettings(options: InitOptions): object {
 
   // Note: Claude Code expects 'model' to be a string, not an object
   // Model preferences are stored in claudeFlow settings instead
-  // settings.model = 'claude-sonnet-4-5-20250929'; // Uncomment if you want to set a default model
+  // settings.model = 'claude-sonnet-4-6'; // Uncomment if you want to set a default model
 
   // Add Agent Teams configuration (experimental feature)
   settings.env = {
@@ -69,7 +69,7 @@ export function generateSettings(options: InitOptions): object {
     },
     modelPreferences: {
       default: 'claude-opus-4-6',
-      routing: 'claude-haiku-4-5-20251001',
+      routing: 'claude-haiku-4-5',
     },
     agentTeams: {
       enabled: true,
