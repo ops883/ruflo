@@ -180,7 +180,21 @@ async function loginToResy(page: Page): Promise<void> {
   await passwordInput.fill(password);
 
   const loginBtn = page.locator('button:has-text("Log In")').first();
-  await loginBtn.click();
+
+  // Take pre-login screenshot for debugging
+  await page.screenshot({ path: '/tmp/resy-pre-login.png', fullPage: true });
+  console.log('[Resy] Pre-login screenshot saved');
+
+  // Click and wait for navigation
+  await Promise.all([
+    page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }).catch(() => {}),
+    loginBtn.click(),
+  ]);
+  await page.waitForTimeout(3000);
+
+  // Take post-login screenshot
+  await page.screenshot({ path: '/tmp/resy-post-login.png', fullPage: true });
+  console.log('[Resy] Post-login screenshot saved');
 
   // Wait for navigation after login
   console.log('[Resy] Waiting for post-login navigation...');
