@@ -173,21 +173,14 @@ async function loginToResy(page: Page): Promise<void> {
 
   // Resy OS may use a two-step login (email, then password on next screen)
   // or a single form. Handle both.
-  const emailInput = page.locator('input').first();
-  await emailInput.waitFor({ state: 'visible', timeout: 15000 });
-
-  // Try to find specifically an email input, fall back to first input
-  const specificEmail = page.locator(
-    'input[type="email"], input[name="email"], input[name="username"], ' +
-    'input[placeholder*="email" i], input[placeholder*="Email" i]'
+  // IMPORTANT: filter out hidden inputs — Resy has hidden form fields
+  const emailInput = page.locator(
+    'input[type="email"]:visible, input[name="email"]:visible, input[name="username"]:visible, ' +
+    'input[placeholder*="email" i]:visible, input[placeholder*="Email" i]:visible, ' +
+    'input[type="text"]:visible'
   ).first();
-  const hasSpecificEmail = await specificEmail.count() > 0;
-
-  if (hasSpecificEmail) {
-    await specificEmail.fill(username);
-  } else {
-    await emailInput.fill(username);
-  }
+  await emailInput.waitFor({ state: 'visible', timeout: 20000 });
+  await emailInput.fill(username);
 
   // Check if password field is visible on same page
   let passwordInput = page.locator('input[type="password"]').first();
