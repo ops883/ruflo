@@ -6,6 +6,16 @@
 import { mkdirSync, writeFileSync, existsSync, readFileSync, statSync } from 'fs';
 import { dirname, join, resolve } from 'path';
 import type { MCPTool } from './types.js';
+import { HeadlessWorkerExecutor, type HeadlessWorkerType, type HeadlessExecutionResult } from '../services/headless-worker-executor.js';
+
+// Lazy-initialized headless executor singleton
+let _executor: HeadlessWorkerExecutor | null = null;
+function getExecutor(): HeadlessWorkerExecutor {
+  if (!_executor) {
+    _executor = new HeadlessWorkerExecutor(process.cwd());
+  }
+  return _executor;
+}
 
 // Real vector search functions - lazy loaded to avoid circular imports
 let searchEntriesFn: ((options: {
@@ -3067,30 +3077,78 @@ export const hooksWorkerDispatch: MCPTool = {
 
     activeWorkers.set(workerId, worker);
 
-    // Update worker progress in background
-    if (background) {
-      setTimeout(() => {
-        const w = activeWorkers.get(workerId);
-        if (w) {
-          w.progress = 50;
-          w.phase = 'processing';
-        }
-      }, 500);
+    // Headless worker types that use Claude Code for real AI execution
+    const HEADLESS_TRIGGERS: Set<string> = new Set([
+      'audit', 'optimize', 'testgaps', 'document', 'ultralearn', 'refactor', 'deepdive', 'predict',
+    ]);
 
-      setTimeout(() => {
-        const w = activeWorkers.get(workerId);
-        if (w) {
-          w.progress = 100;
-          w.phase = 'completed';
-          w.status = 'completed';
-          w.completedAt = new Date();
+    // Check if this trigger has a real headless executor and Claude Code is available
+    const isHeadlessTrigger = HEADLESS_TRIGGERS.has(trigger);
+    const executor = isHeadlessTrigger ? getExecutor() : null;
+    const claudeAvailable = executor ? await executor.isAvailable() : false;
+
+    if (isHeadlessTrigger && claudeAvailable) {
+      // Real execution via HeadlessWorkerExecutor → spawn('claude', ['--print', ...])
+      const contextOverride = context !== 'default'
+        ? { promptTemplate: `${context}\n\n` + (config as any).promptTemplate }
+        : undefined;
+
+      if (background) {
+        // Non-blocking: execute in background and update worker status when done
+        executor!.execute(trigger as HeadlessWorkerType, contextOverride)
+          .then((result: HeadlessExecutionResult) => {
+            const w = activeWorkers.get(workerId);
+            if (w) {
+              w.progress = 100;
+              w.phase = 'completed';
+              w.status = result.success ? 'completed' : 'failed';
+              w.completedAt = new Date();
+              (w as any).output = result.output;
+              (w as any).parsedOutput = result.parsedOutput;
+              (w as any).durationMs = result.durationMs;
+              (w as any).model = result.model;
+            }
+          })
+          .catch((err: Error) => {
+            const w = activeWorkers.get(workerId);
+            if (w) {
+              w.progress = 100;
+              w.phase = 'failed';
+              w.status = 'failed';
+              w.completedAt = new Date();
+              (w as any).error = err.message;
+            }
+          });
+      } else {
+        // Blocking: wait for result
+        try {
+          const result = await executor!.execute(trigger as HeadlessWorkerType, contextOverride);
+          worker.progress = 100;
+          worker.phase = 'completed';
+          worker.status = result.success ? 'completed' : 'failed';
+          worker.completedAt = new Date();
+          (worker as any).output = result.output;
+          (worker as any).parsedOutput = result.parsedOutput;
+          (worker as any).durationMs = result.durationMs;
+        } catch (err) {
+          worker.progress = 100;
+          worker.phase = 'failed';
+          worker.status = 'failed';
+          worker.completedAt = new Date();
+          (worker as any).error = err instanceof Error ? err.message : String(err);
         }
-      }, 1500);
+      }
     } else {
+      // Local workers (map, consolidate, benchmark, preload) or Claude Code not available
+      // These run locally without AI — mark as completed immediately
       worker.progress = 100;
       worker.phase = 'completed';
       worker.status = 'completed';
       worker.completedAt = new Date();
+
+      if (isHeadlessTrigger && !claudeAvailable) {
+        (worker as any).warning = 'Claude Code CLI not available — worker ran in stub mode. Install with: npm install -g @anthropic-ai/claude-code';
+      }
     }
 
     return {
@@ -3104,9 +3162,11 @@ export const hooksWorkerDispatch: MCPTool = {
         estimatedDuration: config.estimatedDuration,
         capabilities: config.capabilities,
       },
-      status: background ? 'dispatched' : 'completed',
+      status: background ? 'dispatched' : (worker.status === 'completed' ? 'completed' : 'failed'),
       background,
       timestamp: new Date().toISOString(),
+      ...(!(worker as any).output ? {} : { output: (worker as any).output }),
+      ...(!(worker as any).warning ? {} : { warning: (worker as any).warning }),
     };
   },
 };
