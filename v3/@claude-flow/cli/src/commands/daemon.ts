@@ -177,6 +177,9 @@ const startCommand: Command = {
         await new Promise(() => {}); // Never resolves - daemon runs until killed
       } else {
         await startDaemon(projectRoot, config);
+        // Keep event loop alive with active timer handle (#1446)
+        // A bare Promise(() => {}) may not prevent exit when there's no active I/O
+        setInterval(() => {}, 60_000);
         await new Promise(() => {}); // Keep alive
       }
 
@@ -280,7 +283,10 @@ async function startBackgroundDaemon(projectRoot: string, quiet: boolean, maxCpu
   if (minFreeMemory && SPAWN_NUMERIC_RE.test(minFreeMemory)) {
     spawnArgs.push('--min-free-memory', minFreeMemory);
   }
-  const child = spawn(process.execPath, spawnArgs, spawnOpts);
+  // On Windows with shell: true, quote execPath to handle spaces
+  // in paths like "C:\Program Files\nodejs\node.exe" (#1446)
+  const execPath = isWin ? `"${process.execPath}"` : process.execPath;
+  const child = spawn(execPath, spawnArgs, spawnOpts);
 
   // Get PID from spawned process directly (no shell echo needed)
   const pid = child.pid;

@@ -1143,11 +1143,14 @@ Analyze the above codebase context and provide your response following the forma
       env.ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || MODEL_IDS[options.model];
 
       // Spawn claude CLI process
+      // On Windows, spawn needs shell: true to resolve 'claude' as 'claude.cmd' (#1446)
+      const isWin = process.platform === 'win32';
       const child = spawn('claude', ['--print', prompt], {
         cwd: this.projectRoot,
         env,
         stdio: ['ignore', 'pipe', 'pipe'], // 'ignore' closes stdin at spawn — fixes #1395 where claude --print blocks on EOF
         windowsHide: true, // Prevent phantom console windows on Windows
+        ...(isWin ? { shell: true } : {}),
       });
 
       // Setup timeout
