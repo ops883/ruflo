@@ -310,7 +310,7 @@
   ]}
   {@const chartW = 900}
   {@const chartH = 300}
-  {@const padL = 60}
+  {@const padL = 75}
   {@const padR = 20}
   {@const padT = 20}
   {@const padB = 40}
