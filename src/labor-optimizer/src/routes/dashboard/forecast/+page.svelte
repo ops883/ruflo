@@ -389,10 +389,10 @@
         {/each}
 
         <!-- Data series (line or bar) -->
-        {@const visibleSeriesCount = chartSeries.filter(s => chartVisible[s.key]).length}
-        {@const barGroupWidth = chartData.length > 1 ? xStep * 0.75 : plotW * 0.5}
-        {@const singleBarWidth = visibleSeriesCount > 0 ? barGroupWidth / visibleSeriesCount : 0}
         {#each chartSeries as series, si}
+          {@const visibleSeriesCount = chartSeries.filter(s => chartVisible[s.key]).length}
+          {@const barGroupWidth = chartData.length > 1 ? xStep * 0.75 : plotW * 0.5}
+          {@const singleBarWidth = visibleSeriesCount > 0 ? barGroupWidth / visibleSeriesCount : 0}
           {@const visibleIdx = chartSeries.filter((s, idx) => idx < si && chartVisible[s.key]).length}
           {@const points = chartData.map((d, i) => {
             const val = d[series.key];
