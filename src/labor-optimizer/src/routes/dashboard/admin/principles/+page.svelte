@@ -40,7 +40,7 @@
     <p class="text-sm text-gray-400">Access denied</p>
   </div>
 {:else}
-  <div class="max-w-4xl mx-auto px-4 py-8 md:px-8">
+  <div class="px-3 py-4 md:px-4 max-w-[1100px] mx-auto">
     <!-- Header -->
     <div class="mb-8">
       <div class="flex items-center gap-3 mb-2">

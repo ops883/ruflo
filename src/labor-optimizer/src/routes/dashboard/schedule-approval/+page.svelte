@@ -165,7 +165,7 @@
   let canReview = $derived(isAdmin && status === 'submitted');
 </script>
 
-<div class="p-4 md:p-6 max-w-[1400px] mx-auto">
+<div class="p-3 md:p-4">
   <div class="flex items-center justify-between mb-1">
     <h1 class="text-xl md:text-2xl font-bold text-[#1a1a1a]">Schedule Approval</h1>
     {#if data?.schedule}

@@ -187,7 +187,7 @@
   });
 </script>
 
-<div class="p-4 md:p-6 max-w-[1200px] mx-auto">
+<div class="p-3 md:p-4">
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
     <h1 class="text-xl md:text-2xl font-bold text-[#1a1a1a]">Settings</h1>
     <select bind:value={locationId} onchange={loadSettings} class="leo-select">

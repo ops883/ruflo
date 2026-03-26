@@ -53,7 +53,7 @@
   }
 </script>
 
-<div class="p-4 md:p-6 max-w-[1400px] mx-auto">
+<div class="p-3 md:p-4">
   <h1 class="text-xl md:text-2xl font-bold text-[#1a1a1a] mb-1">Labor Detail</h1>
   <p class="text-sm text-[#6b7280] mb-6">Position-level weekly breakdown: Actual vs Projected vs Budget</p>
   <div class="flex gap-2 mb-6 flex-wrap items-center">

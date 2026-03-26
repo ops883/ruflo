@@ -72,7 +72,7 @@
   });
 </script>
 
-<div class="p-4 md:p-6 max-w-[1100px] mx-auto">
+<div class="p-3 md:p-4">
   <div class="mb-6">
     <h1 class="text-xl md:text-2xl font-bold text-[#1a1a1a]">Daily Insights</h1>
     <p class="text-sm text-[#6b7280]">AI-generated narrative summary of daily performance</p>

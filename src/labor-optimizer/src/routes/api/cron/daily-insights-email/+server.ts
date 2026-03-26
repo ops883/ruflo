@@ -110,7 +110,7 @@ export const GET: RequestHandler = async ({ request }) => {
 
       // Send via Resend
       const emailPayload = {
-        from: 'Method Co KPI <kpi@methodco.com>',
+        from: process.env.RESEND_FROM_EMAIL || 'Method Co KPI <onboarding@resend.dev>',
         to: toAddresses,
         subject,
         html: htmlBody,

@@ -73,7 +73,7 @@
   }
 </script>
 
-<div class="p-4 md:p-6 max-w-[1600px] mx-auto">
+<div class="p-3 md:p-4">
   <!-- Header -->
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
     <div>

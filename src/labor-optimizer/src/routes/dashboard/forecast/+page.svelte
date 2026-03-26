@@ -163,7 +163,7 @@
   });
 </script>
 
-<div class="p-4 md:p-6 max-w-[1400px] mx-auto">
+<div class="p-3 md:p-4">
   <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
     <div>
       <h1 class="text-xl md:text-2xl font-bold text-[#1a1a1a]">Forecast Manager</h1>

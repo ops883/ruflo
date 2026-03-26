@@ -296,7 +296,7 @@
   );
 </script>
 
-<div class="p-4 md:p-6 max-w-[900px] mx-auto">
+<div class="p-3 md:p-4 max-w-[1100px] mx-auto">
   <!-- Header -->
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
     <div>
