@@ -167,7 +167,7 @@
   <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
     <div>
       <h1 class="text-xl md:text-2xl font-bold text-[#1a1a1a]">Forecast Manager</h1>
-      <p class="text-sm text-[#6b7280]">AI-suggested forecasts -- accept or override with explanation</p>
+      <p class="text-sm text-[#6b7280]">Suggested forecasts -- accept or override with explanation</p>
       <p class="text-xs text-[#9ca3af] mt-1 hidden sm:block">Accepting triggers threshold cascade: weekly forecast total -> bracket -> position labor targets</p>
     </div>
     <div class="flex flex-wrap items-center gap-2 sm:gap-3">
