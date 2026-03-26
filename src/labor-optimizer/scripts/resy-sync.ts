@@ -22,7 +22,7 @@ import { chromium, type Page, type BrowserContext } from 'playwright';
 // Config
 // ---------------------------------------------------------------------------
 
-const RESY_LOGIN_URL = 'https://os.resy.com';
+const RESY_LOGIN_URL = 'https://os.resy.com/portal';
 const RESY_HOME_URL = 'https://os.resy.com/portal/chs/lowland/Home';
 const RESY_COVERS_URL = 'https://os.resy.com/portal/chs/lowland/analytics/Covers';
 const LOWLAND_LOCATION_ID = 'f36fdb18-a97b-48af-8456-7374dea4b0f9';
