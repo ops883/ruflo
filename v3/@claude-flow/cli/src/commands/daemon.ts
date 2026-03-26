@@ -280,7 +280,7 @@ async function startBackgroundDaemon(projectRoot: string, quiet: boolean, maxCpu
   if (minFreeMemory && SPAWN_NUMERIC_RE.test(minFreeMemory)) {
     spawnArgs.push('--min-free-memory', minFreeMemory);
   }
-  const child = spawn(process.execPath, spawnArgs, spawnOpts);
+  const child = spawn(isWin ? `"${process.execPath}"` : process.execPath, spawnArgs, spawnOpts);
 
   // Get PID from spawned process directly (no shell echo needed)
   const pid = child.pid;
