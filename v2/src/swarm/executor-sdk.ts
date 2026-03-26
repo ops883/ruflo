@@ -63,7 +63,7 @@ export class TaskExecutorSDK extends EventEmitter {
 
     this.logger = new Logger('TaskExecutorSDK');
 
-    // Initialize SDK adapter
+    // Initialize SDK adapter (auto-detects passthrough when no API key)
     this.sdkAdapter = new ClaudeFlowSDKAdapter({
       apiKey: this.config.apiKey,
       maxRetries: this.config.maxRetries,
@@ -72,15 +72,16 @@ export class TaskExecutorSDK extends EventEmitter {
       checkpointInterval: this.config.checkpointInterval
     });
 
-    // Initialize Claude client with SDK
+    // Initialize Claude client (passthrough mode activates automatically)
     this.claudeClient = new ClaudeClientV25({
-      apiKey: this.config.apiKey!,
+      apiKey: this.config.apiKey,
       retryAttempts: this.config.maxRetries,
       timeout: this.config.timeout,
       enableSwarmMode: this.config.swarmMode
     }, this.logger);
 
-    this.logger.info('Task Executor SDK initialized', {
+    const mode = this.sdkAdapter.isUsingPassthrough() ? 'Claude Code passthrough' : 'direct API';
+    this.logger.info(`Task Executor SDK initialized (${mode})`, {
       swarmMode: this.config.swarmMode,
       maxRetries: this.config.maxRetries
     });

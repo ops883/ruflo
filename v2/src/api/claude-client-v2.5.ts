@@ -18,7 +18,7 @@ import {
 } from './claude-api-errors.js';
 
 export interface ClaudeAPIConfig {
-  apiKey: string;
+  apiKey?: string;
   apiUrl?: string;
   model?: ClaudeModel;
   temperature?: number;
@@ -92,7 +92,7 @@ export class ClaudeClientV25 extends EventEmitter {
     this.config = config;
     this.logger = logger;
 
-    // Initialize SDK adapter
+    // Initialize SDK adapter (auto-detects passthrough mode when no API key)
     this.adapter = new ClaudeFlowSDKAdapter({
       apiKey: config.apiKey,
       maxRetries: config.retryAttempts || 3,
@@ -104,9 +104,11 @@ export class ClaudeClientV25 extends EventEmitter {
     this.sdk = this.adapter.getSDK();
     this.compatibility = new SDKCompatibilityLayer(this.adapter);
 
-    this.logger?.info('Claude Client v2.5 initialized with SDK', {
+    const mode = this.adapter.isUsingPassthrough() ? 'Claude Code passthrough' : 'direct API';
+    this.logger?.info(`Claude Client v2.5 initialized (${mode})`, {
       model: config.model,
-      swarmMode: config.enableSwarmMode
+      swarmMode: config.enableSwarmMode,
+      passthrough: this.adapter.isUsingPassthrough(),
     });
   }
 
