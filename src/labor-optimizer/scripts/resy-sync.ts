@@ -171,18 +171,43 @@ async function loginToResy(page: Page): Promise<void> {
   // Look for email/username input
   console.log('[Resy] Entering credentials...');
 
-  // Resy OS uses email-based login
-  const emailInput = page.locator(
+  // Resy OS may use a two-step login (email, then password on next screen)
+  // or a single form. Handle both.
+  const emailInput = page.locator('input').first();
+  await emailInput.waitFor({ state: 'visible', timeout: 15000 });
+
+  // Try to find specifically an email input, fall back to first input
+  const specificEmail = page.locator(
     'input[type="email"], input[name="email"], input[name="username"], ' +
     'input[placeholder*="email" i], input[placeholder*="Email" i]'
   ).first();
+  const hasSpecificEmail = await specificEmail.count() > 0;
 
-  await emailInput.waitFor({ state: 'visible', timeout: 15000 });
-  await emailInput.fill(username);
+  if (hasSpecificEmail) {
+    await specificEmail.fill(username);
+  } else {
+    await emailInput.fill(username);
+  }
 
-  const passwordInput = page.locator(
-    'input[type="password"], input[name="password"]'
-  ).first();
+  // Check if password field is visible on same page
+  let passwordInput = page.locator('input[type="password"]').first();
+  let pwVisible = await passwordInput.isVisible().catch(() => false);
+
+  if (!pwVisible) {
+    // Two-step: click continue/next to reveal password
+    console.log('[Resy] Two-step login detected, clicking continue...');
+    const continueBtn = page.locator(
+      'button[type="submit"], button:has-text("Continue"), button:has-text("Next"), ' +
+      'button:has-text("Sign In"), button:has-text("Log In"), input[type="submit"]'
+    ).first();
+    await continueBtn.click();
+    await page.waitForTimeout(3000);
+
+    // Now look for password input again
+    passwordInput = page.locator('input[type="password"]').first();
+    await passwordInput.waitFor({ state: 'visible', timeout: 15000 });
+  }
+
   await passwordInput.fill(password);
 
   // Click sign in button
