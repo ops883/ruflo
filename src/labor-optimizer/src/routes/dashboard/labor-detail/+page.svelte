@@ -39,7 +39,8 @@
   function getPositionData(days: any[], pos: string) {
     return days.map(d => {
       const p = (d.laborByPosition || []).find((x: any) => x.position === pos);
-      return { actual: p?.actual || 0, projected: p?.projected || 0, budget: p?.budget || 0, hasActual: (p?.actual || 0) > 0 };
+      // hasActual = day has actual revenue (not position-specific), so all positions count for that day
+      return { actual: p?.actual || 0, projected: p?.projected || 0, budget: p?.budget || 0, hasActual: (d.revenue || 0) > 0 };
     });
   }
 
@@ -86,31 +87,46 @@
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-      <div class="leo-card p-4" style="border-top: 3px solid #1e3a5f;">
+      <div class="leo-card p-4">
         <p class="text-[10px] uppercase tracking-wider text-[#6b7280] mb-1">FOH Labor</p>
         <p class="text-lg font-bold text-[#1a1a1a]">{fmt(fohActual)}</p>
-        <div class="flex gap-3 mt-1 text-[11px]">
-          <span class="text-[#6b7280]">Proj: {fmt(fohProj)}</span>
-          <span class="text-[#6b7280]">Bud: {fmt(fohBudget)}</span>
-          <span style="color: {fohActual - fohBudget > 0 ? '#dc2626' : '#16a34a'};">{fmtVar(fohActual - fohBudget)}</span>
+        <div class="mt-2 text-[11px] space-y-1">
+          <div class="flex justify-between">
+            <span class="text-[#6b7280]">vs Projected ({fmt(fohProj)})</span>
+            <span style="color: {fohActual - fohProj > 0 ? '#dc2626' : '#16a34a'};">{fmtVar(fohActual - fohProj)}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-[#6b7280]">vs Budget ({fmt(fohBudget)})</span>
+            <span style="color: {fohActual - fohBudget > 0 ? '#dc2626' : '#16a34a'};">{fmtVar(fohActual - fohBudget)}</span>
+          </div>
         </div>
       </div>
-      <div class="leo-card p-4" style="border-top: 3px solid #1e3a5f;">
+      <div class="leo-card p-4">
         <p class="text-[10px] uppercase tracking-wider text-[#6b7280] mb-1">BOH Labor</p>
         <p class="text-lg font-bold text-[#1a1a1a]">{fmt(bohActual)}</p>
-        <div class="flex gap-3 mt-1 text-[11px]">
-          <span class="text-[#6b7280]">Proj: {fmt(bohProj)}</span>
-          <span class="text-[#6b7280]">Bud: {fmt(bohBudget)}</span>
-          <span style="color: {bohActual - bohBudget > 0 ? '#dc2626' : '#16a34a'};">{fmtVar(bohActual - bohBudget)}</span>
+        <div class="mt-2 text-[11px] space-y-1">
+          <div class="flex justify-between">
+            <span class="text-[#6b7280]">vs Projected ({fmt(bohProj)})</span>
+            <span style="color: {bohActual - bohProj > 0 ? '#dc2626' : '#16a34a'};">{fmtVar(bohActual - bohProj)}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-[#6b7280]">vs Budget ({fmt(bohBudget)})</span>
+            <span style="color: {bohActual - bohBudget > 0 ? '#dc2626' : '#16a34a'};">{fmtVar(bohActual - bohBudget)}</span>
+          </div>
         </div>
       </div>
-      <div class="leo-card p-4" style="border-top: 3px solid #2563eb;">
+      <div class="leo-card p-4">
         <p class="text-[10px] uppercase tracking-wider text-[#6b7280] mb-1">Total Labor</p>
         <p class="text-lg font-bold text-[#1a1a1a]">{fmt(totalActual)}</p>
-        <div class="flex gap-3 mt-1 text-[11px]">
-          <span class="text-[#6b7280]">Proj: {fmt(totalProj)}</span>
-          <span class="text-[#6b7280]">Bud: {fmt(totalBudget)}</span>
-          <span style="color: {totalActual - totalBudget > 0 ? '#dc2626' : '#16a34a'};">{fmtVar(totalActual - totalBudget)}</span>
+        <div class="mt-2 text-[11px] space-y-1">
+          <div class="flex justify-between">
+            <span class="text-[#6b7280]">vs Projected ({fmt(totalProj)})</span>
+            <span style="color: {totalActual - totalProj > 0 ? '#dc2626' : '#16a34a'};">{fmtVar(totalActual - totalProj)}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-[#6b7280]">vs Budget ({fmt(totalBudget)})</span>
+            <span style="color: {totalActual - totalBudget > 0 ? '#dc2626' : '#16a34a'};">{fmtVar(totalActual - totalBudget)}</span>
+          </div>
         </div>
       </div>
     </div>
