@@ -56,6 +56,7 @@ interface SessionData {
 }
 
 interface MCPServerStatus {
+  status: 'Running' | 'Stopped';
   running: boolean;
   processCount: number;
   orchestratorRunning: boolean;
@@ -258,15 +259,17 @@ export class MetricsReader {
       }
       
       return {
+        status: isRunning ? 'Running' : 'Stopped',
         running: isRunning,
         processCount,
         orchestratorRunning,
         port,
-        connections: processCount > 0 ? Math.max(1, processCount - 1) : 0 // Estimate connections
+        connections: processCount
       };
     } catch (error) {
       // Fallback if commands fail
       return {
+        status: 'Stopped',
         running: false,
         processCount: 0,
         orchestratorRunning: false,
