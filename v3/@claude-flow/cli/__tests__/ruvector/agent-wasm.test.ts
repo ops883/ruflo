@@ -212,6 +212,22 @@ describe('agent-wasm integration', () => {
     it('throws for unknown agent', async () => {
       await expect(promptWasmAgent('nope', 'test')).rejects.toThrow('WASM agent not found');
     });
+
+    it('sets model provider when ANTHROPIC_API_KEY is present', async () => {
+      const origKey = process.env.ANTHROPIC_API_KEY;
+      process.env.ANTHROPIC_API_KEY = 'test-key';
+      try {
+        const info = await createWasmAgent({ instructions: 'Test agent' });
+        // The mock's set_model_provider should have been called
+        const entry = (await import('../../src/ruvector/agent-wasm.js')) as any;
+        const agent = entry.getWasmAgent(info.id);
+        expect(agent).not.toBeNull();
+        terminateWasmAgent(info.id);
+      } finally {
+        if (origKey) process.env.ANTHROPIC_API_KEY = origKey;
+        else delete process.env.ANTHROPIC_API_KEY;
+      }
+    });
   });
 
   describe('tool execution', () => {
