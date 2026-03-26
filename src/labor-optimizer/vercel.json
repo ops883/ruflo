@@ -1,0 +1,25 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "sveltekit",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "outputDirectory": ".vercel/output",
+  "regions": ["iad1"],
+  "env": {
+    "RVF_DB_PATH": "/tmp/db"
+  },
+  "crons": [
+    {
+      "path": "/api/cron/toast-sync",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/toast-sync",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/daily-insights-email",
+      "schedule": "30 10 * * *"
+    }
+  ]
+}
