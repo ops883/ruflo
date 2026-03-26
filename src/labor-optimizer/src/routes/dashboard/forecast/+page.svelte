@@ -12,6 +12,7 @@
   let overrideOtherNote = $state('');
   let year = $state(2026);
   let chartVisible = $state<Record<string, boolean>>({ forecast: true, trailing2w: true, sdly: true, budget: true, actual: true });
+  let chartType = $state<'line' | 'bar'>('line');
 
   const OVERRIDE_TAGS = [
     'Private Event', 'Holiday', 'Emergency Closure', 'Weather',
@@ -302,10 +303,10 @@
   {#if filteredForecasts.length > 0}
   {@const chartSeries = [
     { key: 'forecast', label: 'Forecast', color: '#1e3a5f', dash: '', width: 2 },
-    { key: 'trailing2w', label: 'Trailing 2-Wk Avg', color: '#16a34a', dash: '6,3', width: 1.5 },
-    { key: 'sdly', label: 'SDLY', color: '#ea580c', dash: '6,3', width: 1.5 },
-    { key: 'budget', label: 'Budget', color: '#6b7280', dash: '3,3', width: 1.5 },
-    { key: 'actual', label: 'Actual', color: '#3b82f6', dash: '', width: 2.5 },
+    { key: 'trailing2w', label: 'Trailing 2-Wk Avg', color: '#60a5fa', dash: '6,3', width: 1.5 },
+    { key: 'sdly', label: 'SDLY', color: '#93c5fd', dash: '6,3', width: 1.5 },
+    { key: 'budget', label: 'Budget', color: '#9ca3af', dash: '3,3', width: 1.5 },
+    { key: 'actual', label: 'Actual', color: '#2563eb', dash: '', width: 2.5 },
   ]}
   {@const chartW = 900}
   {@const chartH = 300}
@@ -338,6 +339,18 @@
   <div class="leo-card mt-4" style="border: 1px solid #1e3a5f; background: white; padding: 16px;">
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-sm font-semibold text-[#1a1a1a]">Forecast Comparison</h3>
+      <div class="flex items-center gap-1 rounded-lg overflow-hidden" style="border: 1px solid #d1d5db;">
+        <button type="button" onclick={() => { chartType = 'line'; }}
+          class="px-3 py-1 text-xs font-medium"
+          style="background: {chartType === 'line' ? '#1e3a5f' : 'white'}; color: {chartType === 'line' ? 'white' : '#6b7280'};">
+          Line
+        </button>
+        <button type="button" onclick={() => { chartType = 'bar'; }}
+          class="px-3 py-1 text-xs font-medium"
+          style="background: {chartType === 'bar' ? '#1e3a5f' : 'white'}; color: {chartType === 'bar' ? 'white' : '#6b7280'};">
+          Bar
+        </button>
+      </div>
     </div>
     <!-- Toggle pills -->
     <div class="flex flex-wrap gap-2 mb-3">
@@ -375,32 +388,59 @@
           </text>
         {/each}
 
-        <!-- Data series lines -->
-        {#each chartSeries as series}
+        <!-- Data series (line or bar) -->
+        {@const visibleSeriesCount = chartSeries.filter(s => chartVisible[s.key]).length}
+        {@const barGroupWidth = chartData.length > 1 ? xStep * 0.75 : plotW * 0.5}
+        {@const singleBarWidth = visibleSeriesCount > 0 ? barGroupWidth / visibleSeriesCount : 0}
+        {#each chartSeries as series, si}
+          {@const visibleIdx = chartSeries.filter((s, idx) => idx < si && chartVisible[s.key]).length}
           {@const points = chartData.map((d, i) => {
             const val = d[series.key];
             if (val == null || val <= 0) return null;
             const cx = padL + (chartData.length > 1 ? i * xStep : plotW / 2);
             const cy = padT + plotH - (plotH * (val - chartMin) / yRange);
-            return { x: cx, y: cy, val };
+            const barH = plotH * (val - chartMin) / yRange;
+            return { x: cx, y: cy, val, barH };
           })}
           {@const validPoints = points.filter(p => p != null)}
           <g data-series={series.key} style="opacity: {chartVisible[series.key] ? '1' : '0'}; transition: opacity 0.2s;">
-            {#if validPoints.length > 1 && chartVisible[series.key]}
-              <polyline
-                fill="none"
-                stroke={series.color}
-                stroke-width={series.width}
-                stroke-dasharray={series.dash}
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                points={validPoints.map(p => `${p.x},${p.y}`).join(' ')}
-              />
-            {/if}
-            {#if chartVisible[series.key]}
-              {#each validPoints as p}
-                <circle cx={p.x} cy={p.y} r="3.5" fill="white" stroke={series.color} stroke-width="1.5" />
-              {/each}
+            {#if chartType === 'line'}
+              {#if validPoints.length > 1 && chartVisible[series.key]}
+                <polyline
+                  fill="none"
+                  stroke={series.color}
+                  stroke-width={series.width}
+                  stroke-dasharray={series.dash}
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  points={validPoints.map(p => `${p.x},${p.y}`).join(' ')}
+                />
+              {/if}
+              {#if chartVisible[series.key]}
+                {#each validPoints as p}
+                  <circle cx={p.x} cy={p.y} r="3.5" fill="white" stroke={series.color} stroke-width="1.5" />
+                {/each}
+              {/if}
+            {:else}
+              {#if chartVisible[series.key]}
+                {#each chartData as d, i}
+                  {@const val = d[series.key]}
+                  {#if val != null && val > 0}
+                    {@const cx = padL + (chartData.length > 1 ? i * xStep : plotW / 2)}
+                    {@const barH = plotH * (val - chartMin) / yRange}
+                    {@const barX = cx - barGroupWidth / 2 + visibleIdx * singleBarWidth}
+                    <rect
+                      x={barX}
+                      y={padT + plotH - barH}
+                      width={Math.max(singleBarWidth - 2, 4)}
+                      height={barH}
+                      fill={series.color}
+                      opacity="0.8"
+                      rx="1"
+                    />
+                  {/if}
+                {/each}
+              {/if}
             {/if}
           </g>
         {/each}

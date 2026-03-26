@@ -88,6 +88,28 @@ export const GET: RequestHandler = async ({ url }) => {
       budgetMap.set(row.business_date, row.budget_revenue ?? 0);
     }
 
+    // Fetch SDLY (Same Day Last Year) — 364 days back for same DOW position
+    const pyStart = new Date(resolvedStart + 'T12:00:00');
+    pyStart.setDate(pyStart.getDate() - 364);
+    const pyEnd = new Date(resolvedEnd + 'T12:00:00');
+    pyEnd.setDate(pyEnd.getDate() - 364);
+    const { data: pyData } = await sb
+      .from('daily_actuals')
+      .select('business_date, revenue')
+      .eq('location_id', locationId)
+      .gte('business_date', pyStart.toISOString().split('T')[0])
+      .lte('business_date', pyEnd.toISOString().split('T')[0])
+      .gt('revenue', 0);
+
+    const pyMap = new Map<string, number>();
+    for (const row of pyData || []) {
+      // Map PY date to current date (add 364 days)
+      const pyDate = new Date(row.business_date + 'T12:00:00');
+      pyDate.setDate(pyDate.getDate() + 364);
+      const currentDateStr = pyDate.toISOString().split('T')[0];
+      pyMap.set(currentDateStr, row.revenue);
+    }
+
     const enriched = suggestions.map((s: any) => ({
       ...s,
       locked: lockMap.get(s.date)?.locked ?? false,
@@ -96,7 +118,7 @@ export const GET: RequestHandler = async ({ url }) => {
       overridden: lockMap.get(s.date)?.is_override ?? false,
       overrideTags: lockMap.get(s.date)?.override_tags ?? [],
       actualRevenue: actualMap.get(s.date)?.revenue ?? null,
-      samePeriodPY: actualMap.get(s.date)?.pyRevenue ?? null,
+      samePeriodPY: pyMap.get(s.date) ?? null,
       trailing2wAvg: s.components?.trailingDowAvg ?? null,
       budgetRevenue: budgetMap.get(s.date) ?? s.components?.budgetRevenue ?? null,
     }));
