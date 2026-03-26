@@ -26,10 +26,9 @@
   ];
 
   const settingsItems = [
-    { href: '/dashboard/settings', label: 'Settings' },
-    { href: '/dashboard/settings/questionnaire', label: 'Labor Questionnaire' },
-    { href: '/dashboard/admin/forecast-accuracy', label: 'Forecast Accuracy' },
     { href: '/dashboard/admin/user-management', label: 'User Management' },
+    { href: '/dashboard/admin/forecast-accuracy', label: 'Forecast Accuracy' },
+    { href: '/dashboard/settings', label: 'Settings' },
     { href: '/dashboard/admin/principles', label: 'Principles' },
     { href: '/setup', label: 'Add Location' },
   ];
