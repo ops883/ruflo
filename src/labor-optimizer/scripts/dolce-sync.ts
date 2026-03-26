@@ -21,7 +21,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 // Config
 // ---------------------------------------------------------------------------
 
-const DOLCE_LOGIN_URL = 'https://www.dolceclock.com/public/index.php';
+const DOLCE_LOGIN_URL = 'https://www.dolceclock.com/public/login.php?company_id=3243';
 const LOWLAND_LOCATION_ID = 'f36fdb18-a97b-48af-8456-7374dea4b0f9';
 const REPORT_TYPE_VALUE = '32|0|0|0|0|1'; // Role Analytics
 const LOCATION_FILTER_VALUE = '6140';       // Lowland & The Quinte
@@ -105,18 +105,19 @@ async function loginToDolce(page: Page): Promise<void> {
   }
 
   console.log('[Dolce] Navigating to login page...');
-  await page.goto(DOLCE_LOGIN_URL, { waitUntil: 'networkidle', timeout: 30000 });
+  await page.goto(DOLCE_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.waitForTimeout(3000);
+  console.log('[Dolce] Current URL:', page.url());
+  console.log('[Dolce] Page title:', await page.title());
 
-  // The page may redirect to login.php?company_id=3243
-  await page.waitForTimeout(2000);
-
-  // Fill credentials
+  // Fill credentials using placeholder text matching
   console.log('[Dolce] Entering credentials...');
-  await page.fill('input[name="username"], input[name="user_name"], #username, #user_name', username);
-  await page.fill('input[name="password"], input[name="user_password"], #password, #user_password', password);
+  await page.waitForSelector('input[placeholder*="Username"]', { timeout: 15000 });
+  await page.fill('input[placeholder*="Username"]', username);
+  await page.fill('input[placeholder*="Password"]', password);
 
   // Click sign in
-  await page.click('input[type="submit"], button[type="submit"], #login_btn, .login-btn');
+  await page.click('button:has-text("Sign In")');
   await page.waitForTimeout(3000);
   console.log('[Dolce] Logged in successfully');
 }
