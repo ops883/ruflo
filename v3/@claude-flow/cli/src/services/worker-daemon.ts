@@ -458,6 +458,12 @@ export class WorkerDaemon extends EventEmitter {
     try {
       const pid = parseInt(readFileSync(this.pidFile, 'utf-8').trim(), 10);
       if (isNaN(pid)) return null;
+      // If the PID file contains our own PID we are the daemon, not a conflict.
+      // This guards against the foreground command writing daemon.pid before
+      // calling startDaemon(), which would cause start() to see itself as
+      // "already running" and skip scheduling workers entirely — leaving the
+      // event loop empty and the process exiting immediately with code 0.
+      if (pid === process.pid) return null;
       // Check if process is alive (signal 0 = existence check)
       process.kill(pid, 0);
       return pid; // Process is alive

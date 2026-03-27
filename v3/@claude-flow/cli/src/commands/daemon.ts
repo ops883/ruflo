@@ -95,10 +95,11 @@ const startCommand: Command = {
         fs.mkdirSync(stateDir, { recursive: true });
       }
 
-      // Write PID file for foreground mode
-      fs.writeFileSync(pidFile, String(process.pid));
-
       // Clean up PID file on exit
+      // NOTE: do NOT write daemon.pid here. WorkerDaemon.start() is the sole
+      // writer via writePidFile(). Writing it before startDaemon() causes
+      // checkExistingDaemon() to see the current process as "already running",
+      // skip scheduling workers, drain the event loop, and exit with code 0.
       const cleanup = () => {
         try {
           if (fs.existsSync(pidFile)) {
