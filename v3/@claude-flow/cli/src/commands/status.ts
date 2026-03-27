@@ -117,9 +117,11 @@ async function getSystemStatus(): Promise<{
     const swarmStatus = await callMCPTool<{
       swarmId: string;
       topology: string;
-      agents: { total: number; active: number; idle: number; terminated: number };
-      health: string;
-      uptime: number;
+      agents?: { total: number; active: number; idle: number; terminated?: number };
+      agentCount?: number;
+      health?: string;
+      status?: string;
+      uptime?: number;
     }>('swarm_status', { includeMetrics: true });
 
     // Get MCP status
@@ -137,10 +139,11 @@ async function getSystemStatus(): Promise<{
 
     // Get memory status
     const memoryStatus = await callMCPTool<{
-      entries: number;
-      size: number;
+      entries?: number;
+      totalEntries?: number;
+      size?: number;
       backend: string;
-      performance: { avgSearchTime: number; cacheHitRate: number };
+      performance?: { avgSearchTime: number; cacheHitRate: number };
     }>('memory_stats', {});
 
     // Get task status
@@ -159,21 +162,21 @@ async function getSystemStatus(): Promise<{
         id: swarmStatus.swarmId,
         topology: swarmStatus.topology,
         agents: {
-          total: swarmStatus.agents.total,
-          active: swarmStatus.agents.active,
-          idle: swarmStatus.agents.idle
+          total: swarmStatus.agents?.total ?? swarmStatus.agentCount ?? 0,
+          active: swarmStatus.agents?.active ?? 0,
+          idle: swarmStatus.agents?.idle ?? 0
         },
-        health: swarmStatus.health,
-        uptime: swarmStatus.uptime
+        health: swarmStatus.health || (swarmStatus.status === 'running' ? 'healthy' : swarmStatus.status || 'unknown'),
+        uptime: swarmStatus.uptime || 0
       },
       mcp: mcpStatus,
       memory: {
-        entries: memoryStatus.entries,
-        size: formatBytes(memoryStatus.size),
+        entries: memoryStatus.entries ?? memoryStatus.totalEntries ?? 0,
+        size: formatBytes(memoryStatus.size ?? 0),
         backend: memoryStatus.backend,
         performance: {
-          searchTime: memoryStatus.performance.avgSearchTime,
-          cacheHitRate: memoryStatus.performance.cacheHitRate
+          searchTime: memoryStatus.performance?.avgSearchTime ?? 0,
+          cacheHitRate: memoryStatus.performance?.cacheHitRate ?? 0
         }
       },
       tasks: taskStatus,

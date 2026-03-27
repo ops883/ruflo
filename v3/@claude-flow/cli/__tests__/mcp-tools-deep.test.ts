@@ -12,6 +12,7 @@
  */
 
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 // ============================================================================
 // Mock setup - must be before imports
@@ -454,10 +455,41 @@ describe('MCP Tools Deep Test Suite', () => {
       expect(Array.isArray(result.agents)).toBe(true);
     });
 
+    it('agent_list returns an id field for each agent', async () => {
+      const spawnTool = agentTools.find(t => t.name === 'agent_spawn')!;
+      await spawnTool.handler({ agentType: 'coder' });
+
+      const listTool = agentTools.find(t => t.name === 'agent_list')!;
+      const result: any = await listTool.handler({});
+      expect(result.agents[0].id).toBeDefined();
+    });
+
     it('agent_status returns not_found for unknown agent', async () => {
       const tool = agentTools.find(t => t.name === 'agent_status')!;
       const result: any = await tool.handler({ agentId: 'nonexistent' });
       expect(result.status).toBe('not_found');
+    });
+
+    it('agent_status returns an id plus metrics for existing agents', async () => {
+      const spawnTool = agentTools.find(t => t.name === 'agent_spawn')!;
+      const spawned: any = await spawnTool.handler({ agentType: 'coder' });
+
+      const statusTool = agentTools.find(t => t.name === 'agent_status')!;
+      const result: any = await statusTool.handler({ agentId: spawned.agentId });
+      expect(result.id).toBe(spawned.agentId);
+      expect(result.metrics.tasksInProgress).toBeDefined();
+    });
+
+    it('agent_logs is registered and reads daemon log entries', async () => {
+      writeFileSync(
+        `${process.cwd()}/.claude-flow/logs/daemon.log`,
+        '[2026-01-01T00:00:00.000Z] [INFO] Daemon started\n[2026-01-01T00:00:01.000Z] [WARN] Something happened\n',
+      );
+
+      const tool = agentTools.find(t => t.name === 'agent_logs')!;
+      const result: any = await tool.handler({ agentId: 'agent-1', level: 'info' });
+      expect(result.entries.length).toBe(2);
+      expect(result.entries[0].message).toContain('Daemon started');
     });
 
     it('agent_terminate returns error for unknown agent', async () => {
@@ -589,6 +621,39 @@ describe('MCP Tools Deep Test Suite', () => {
       expect(result.status).toBe('running');
     });
 
+    it('swarm_status reports agent and task counts from persisted stores', async () => {
+      const initTool = swarmTools.find(t => t.name === 'swarm_init')!;
+      await initTool.handler({ topology: 'mesh' });
+
+      writeFileSync(
+        `${process.cwd()}/.claude-flow/agents/store.json`,
+        JSON.stringify({
+          agents: {
+            'agent-active': { status: 'active' },
+            'agent-idle': { status: 'idle' },
+            'agent-dead': { status: 'terminated' },
+          },
+          version: '3.0.0',
+        }),
+      );
+      writeFileSync(
+        `${process.cwd()}/.claude-flow/tasks/store.json`,
+        JSON.stringify({
+          tasks: {
+            'task-1': { status: 'in_progress' },
+            'task-2': { status: 'pending' },
+          },
+          version: '3.0.0',
+        }),
+      );
+
+      const tool = swarmTools.find(t => t.name === 'swarm_status')!;
+      const result: any = await tool.handler({});
+      expect(result.agents).toEqual({ total: 2, active: 1, idle: 1 });
+      expect(result.taskCount).toBe(2);
+      expect(result.health).toBe('healthy');
+    });
+
     it('swarm_shutdown returns success after init', async () => {
       const initTool = swarmTools.find(t => t.name === 'swarm_init')!;
       const initResult: any = await initTool.handler({ topology: 'hierarchical' });
@@ -641,6 +706,63 @@ describe('MCP Tools Deep Test Suite', () => {
       const result: any = await tool.handler({});
       expect(result.tasks).toBeDefined();
       expect(Array.isArray(result.tasks)).toBe(true);
+    });
+
+    it('task_create accepts assignedTo and returns an id alias', async () => {
+      const tool = taskTools.find(t => t.name === 'task_create')!;
+      const result: any = await tool.handler({
+        type: 'feature',
+        description: 'Assigned task',
+        assignedTo: ['agent-1'],
+      });
+      expect(result.id).toBe(result.taskId);
+      expect(result.assignedTo).toEqual(['agent-1']);
+    });
+
+    it('task_list maps running filter to in_progress tasks and returns id fields', async () => {
+      const createTool = taskTools.find(t => t.name === 'task_create')!;
+      const assignTool = taskTools.find(t => t.name === 'task_assign')!;
+      const created: any = await createTool.handler({ type: 'feature', description: 'Running task' });
+      await assignTool.handler({ taskId: created.taskId, agentIds: ['agent-1'] });
+
+      const listTool = taskTools.find(t => t.name === 'task_list')!;
+      const result: any = await listTool.handler({ status: 'running', agentId: 'agent-1' });
+      expect(result.tasks.length).toBeGreaterThan(0);
+      expect(result.tasks[0].id).toBeDefined();
+    });
+
+    it('task_status returns cli-safe arrays and id aliases', async () => {
+      const createTool = taskTools.find(t => t.name === 'task_create')!;
+      const created: any = await createTool.handler({ type: 'feature', description: 'Status task' });
+
+      const statusTool = taskTools.find(t => t.name === 'task_status')!;
+      const result: any = await statusTool.handler({ taskId: created.taskId });
+      expect(result.id).toBe(created.taskId);
+      expect(result.dependencies).toEqual([]);
+      expect(result.dependents).toEqual([]);
+      expect(result.tags).toEqual([]);
+    });
+
+    it('task_assign syncs agent state into the nested agent store file', async () => {
+      writeFileSync(
+        `${process.cwd()}/.claude-flow/agents/store.json`,
+        JSON.stringify({
+          agents: {
+            'agent-123': { status: 'idle', taskCount: 0 },
+          },
+          version: '3.0.0',
+        }),
+      );
+
+      const createTool = taskTools.find(t => t.name === 'task_create')!;
+      const created: any = await createTool.handler({ type: 'feature', description: 'Sync task' });
+
+      const assignTool = taskTools.find(t => t.name === 'task_assign')!;
+      await assignTool.handler({ taskId: created.taskId, agentIds: ['agent-123'] });
+
+      const agentStore = JSON.parse(readFileSync(`${process.cwd()}/.claude-flow/agents/store.json`, 'utf-8'));
+      expect(agentStore.agents['agent-123'].status).toBe('active');
+      expect(agentStore.agents['agent-123'].currentTask).toBe(created.taskId);
     });
 
     it('task_status returns not_found for unknown task', async () => {
