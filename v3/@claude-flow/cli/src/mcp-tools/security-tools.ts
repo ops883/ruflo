@@ -61,7 +61,7 @@ async function getAIDefence(): Promise<AIDefenceInstance> {
   installAttempted = true;
 
   // Second attempt - auto-install and retry
-  console.error(`[claude-flow] ${packageName} not found, attempting auto-install...`);
+  console.error(`[ruflo] ${packageName} not found, attempting auto-install...`);
   const installed = await autoInstallPackage(packageName);
 
   if (!installed) {
@@ -78,7 +78,7 @@ async function getAIDefence(): Promise<AIDefenceInstance> {
       throw new Error('createAIDefence returned null after install');
     }
     aidefenceInstance = instance;
-    console.error(`[claude-flow] ${packageName} loaded successfully after install`);
+    console.error(`[ruflo] ${packageName} loaded successfully after install`);
     return instance;
   } catch (retryError) {
     throw new Error(`AIDefence installed but failed to load: ${retryError}. Try restarting the MCP server.`);

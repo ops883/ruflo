@@ -175,7 +175,7 @@ export class PluginManager {
         const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
         installedVersion = pkg.version;
 
-        // Check for claude-flow plugin metadata
+        // Check for ruflo plugin metadata
         if (pkg['claude-flow']) {
           commands = pkg['claude-flow'].commands || [];
           hooks = pkg['claude-flow'].hooks || [];

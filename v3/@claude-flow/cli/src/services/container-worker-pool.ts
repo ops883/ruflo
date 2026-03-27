@@ -123,7 +123,7 @@ export interface ContainerPoolStatus {
 const DEFAULT_CONFIG: ContainerPoolConfig = {
   maxContainers: 3,
   minContainers: 1,
-  image: 'ghcr.io/ruvnet/claude-flow-headless:latest',
+  image: 'ghcr.io/ruvnet/ruflo-headless:latest',
   resources: {
     cpus: '2',
     memory: '4g',
@@ -392,7 +392,7 @@ export class ContainerWorkerPool extends EventEmitter {
    */
   private async createContainer(): Promise<ContainerInfo | null> {
     const id = `cf-worker-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const name = `claude-flow-worker-${id}`;
+    const name = `ruflo-worker-${id}`;
 
     const containerInfo: ContainerInfo = {
       id,
@@ -634,9 +634,9 @@ export class ContainerWorkerPool extends EventEmitter {
    * Build worker command for container execution
    */
   private buildWorkerCommand(options: ContainerExecutionOptions): string[] {
-    // Use npx to run claude-flow daemon trigger
+    // Use npx to run ruflo daemon trigger
     return [
-      'npx', 'claude-flow@v3alpha',
+      'npx', 'ruflo@alpha',
       'daemon', 'trigger',
       '-w', options.workerType,
       '--headless',

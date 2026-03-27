@@ -102,7 +102,7 @@ async function checkConfigFile(): Promise<HealthCheck> {
     }
   }
 
-  return { name: 'Config File', status: 'warn', message: 'No config file (using defaults)', fix: 'claude-flow config init' };
+  return { name: 'Config File', status: 'warn', message: 'No config file (using defaults)', fix: 'ruflo config init' };
 }
 
 // Check daemon status
@@ -115,12 +115,12 @@ async function checkDaemonStatus(): Promise<HealthCheck> {
         process.kill(parseInt(pid, 10), 0); // Check if process exists
         return { name: 'Daemon Status', status: 'pass', message: `Running (PID: ${pid})` };
       } catch {
-        return { name: 'Daemon Status', status: 'warn', message: 'Stale PID file', fix: 'rm .claude-flow/daemon.pid && claude-flow daemon start' };
+        return { name: 'Daemon Status', status: 'warn', message: 'Stale PID file', fix: 'rm .claude-flow/daemon.pid && ruflo daemon start' };
       }
     }
-    return { name: 'Daemon Status', status: 'warn', message: 'Not running', fix: 'claude-flow daemon start' };
+    return { name: 'Daemon Status', status: 'warn', message: 'Not running', fix: 'ruflo daemon start' };
   } catch {
-    return { name: 'Daemon Status', status: 'warn', message: 'Unable to check', fix: 'claude-flow daemon status' };
+    return { name: 'Daemon Status', status: 'warn', message: 'Unable to check', fix: 'ruflo daemon status' };
   }
 }
 
@@ -144,7 +144,7 @@ async function checkMemoryDatabase(): Promise<HealthCheck> {
     }
   }
 
-  return { name: 'Memory Database', status: 'warn', message: 'Not initialized', fix: 'claude-flow memory configure --backend hybrid' };
+  return { name: 'Memory Database', status: 'warn', message: 'Not initialized', fix: 'ruflo memory configure --backend hybrid' };
 }
 
 // Check API keys
@@ -218,7 +218,7 @@ async function checkMcpServers(): Promise<HealthCheck> {
     }
   }
 
-  return { name: 'MCP Servers', status: 'warn', message: 'No MCP config found', fix: 'claude mcp add claude-flow npx @claude-flow/cli@v3alpha mcp start' };
+  return { name: 'MCP Servers', status: 'warn', message: 'No MCP config found', fix: 'claude mcp add ruflo npx @claude-flow/cli@v3alpha mcp start' };
 }
 
 // Check disk space (async with proper env inheritance)
@@ -488,11 +488,11 @@ export const doctorCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow doctor', description: 'Run full health check' },
-    { command: 'claude-flow doctor --fix', description: 'Show fixes for issues' },
-    { command: 'claude-flow doctor --install', description: 'Auto-install missing dependencies' },
-    { command: 'claude-flow doctor -c version', description: 'Check for stale npx cache' },
-    { command: 'claude-flow doctor -c claude', description: 'Check Claude Code CLI only' }
+    { command: 'ruflo doctor', description: 'Run full health check' },
+    { command: 'ruflo doctor --fix', description: 'Show fixes for issues' },
+    { command: 'ruflo doctor --install', description: 'Auto-install missing dependencies' },
+    { command: 'ruflo doctor -c version', description: 'Check for stale npx cache' },
+    { command: 'ruflo doctor -c claude', description: 'Check Claude Code CLI only' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const showFix = ctx.flags.fix as boolean;

@@ -26,7 +26,7 @@ function getClaimsConfigPaths(): string[] {
   return [
     path.resolve(CLAIMS_CONFIG_PATHS[0]),
     path.resolve(CLAIMS_CONFIG_PATHS[1]),
-    path.resolve(process.env.HOME || '~', '.config/claude-flow/claims.json'),
+    path.resolve(process.env.HOME || '~', '.config/ruflo/claims.json'),
   ];
 }
 
@@ -78,8 +78,8 @@ const listCommand: Command = {
     { name: 'resource', type: 'string', description: 'Filter by resource' },
   ],
   examples: [
-    { command: 'claude-flow claims list', description: 'List all claims' },
-    { command: 'claude-flow claims list -u user123', description: 'List user claims' },
+    { command: 'ruflo claims list', description: 'List all claims' },
+    { command: 'ruflo claims list -u user123', description: 'List user claims' },
   ],
   action: async (_ctx: CommandContext): Promise<CommandResult> => {
     try {
@@ -162,8 +162,8 @@ const checkCommand: Command = {
     { name: 'resource', short: 'r', type: 'string', description: 'Resource context' },
   ],
   examples: [
-    { command: 'claude-flow claims check -c swarm:create', description: 'Check swarm creation permission' },
-    { command: 'claude-flow claims check -c admin:delete -u user123', description: 'Check user permission' },
+    { command: 'ruflo claims check -c swarm:create', description: 'Check swarm creation permission' },
+    { command: 'ruflo claims check -c admin:delete -u user123', description: 'Check user permission' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const claim = ctx.flags.claim as string;
@@ -195,7 +195,7 @@ const checkCommand: Command = {
       const claimsConfigPaths = [
         path.resolve('.claude-flow/claims.json'),
         path.resolve('claude-flow.claims.json'),
-        path.resolve(process.env.HOME || '~', '.config/claude-flow/claims.json'),
+        path.resolve(process.env.HOME || '~', '.config/ruflo/claims.json'),
       ];
 
       let claimsConfig: {
@@ -308,8 +308,8 @@ const grantCommand: Command = {
     { name: 'expires', short: 'e', type: 'string', description: 'Expiration time (e.g., 24h, 7d)' },
   ],
   examples: [
-    { command: 'claude-flow claims grant -c swarm:create -u user123', description: 'Grant to user' },
-    { command: 'claude-flow claims grant -c agent:spawn -r developer', description: 'Grant to role' },
+    { command: 'ruflo claims grant -c swarm:create -u user123', description: 'Grant to user' },
+    { command: 'ruflo claims grant -c agent:spawn -r developer', description: 'Grant to role' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const claim = ctx.flags.claim as string;
@@ -370,8 +370,8 @@ const revokeCommand: Command = {
     { name: 'role', short: 'r', type: 'string', description: 'Role name' },
   ],
   examples: [
-    { command: 'claude-flow claims revoke -c swarm:delete -u user123', description: 'Revoke from user' },
-    { command: 'claude-flow claims revoke -c admin:* -r guest', description: 'Revoke from role' },
+    { command: 'ruflo claims revoke -c swarm:delete -u user123', description: 'Revoke from user' },
+    { command: 'ruflo claims revoke -c admin:* -r guest', description: 'Revoke from role' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const claim = ctx.flags.claim as string;
@@ -438,8 +438,8 @@ const rolesCommand: Command = {
     { name: 'name', short: 'n', type: 'string', description: 'Role name' },
   ],
   examples: [
-    { command: 'claude-flow claims roles', description: 'List all roles' },
-    { command: 'claude-flow claims roles -a show -n admin', description: 'Show role details' },
+    { command: 'ruflo claims roles', description: 'List all roles' },
+    { command: 'ruflo claims roles -a show -n admin', description: 'Show role details' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const action = (ctx.flags.action as string) || 'list';
@@ -546,8 +546,8 @@ const policiesCommand: Command = {
     { name: 'name', short: 'n', type: 'string', description: 'Policy name' },
   ],
   examples: [
-    { command: 'claude-flow claims policies', description: 'List policies' },
-    { command: 'claude-flow claims policies -a create -n rate-limit', description: 'Create policy' },
+    { command: 'ruflo claims policies', description: 'List policies' },
+    { command: 'ruflo claims policies -a create -n rate-limit', description: 'Create policy' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const action = (ctx.flags.action as string) || 'list';
@@ -647,9 +647,9 @@ export const claimsCommand: Command = {
   description: 'Claims-based authorization, permissions, and access control',
   subcommands: [listCommand, checkCommand, grantCommand, revokeCommand, rolesCommand, policiesCommand],
   examples: [
-    { command: 'claude-flow claims list', description: 'List all claims' },
-    { command: 'claude-flow claims check -c swarm:create', description: 'Check permission' },
-    { command: 'claude-flow claims grant -c agent:spawn -r developer', description: 'Grant claim' },
+    { command: 'ruflo claims list', description: 'List all claims' },
+    { command: 'ruflo claims check -c swarm:create', description: 'Check permission' },
+    { command: 'ruflo claims grant -c agent:spawn -r developer', description: 'Grant claim' },
   ],
   action: async (): Promise<CommandResult> => {
     output.writeln();

@@ -142,7 +142,7 @@ const statusCommand: Command = {
     const needsMigration = components.some(c => c.migrationNeeded === 'yes');
     output.writeln();
     if (needsMigration) {
-      output.printInfo('V2 artifacts detected. Run "claude-flow migrate run" to migrate.');
+      output.printInfo('V2 artifacts detected. Run "ruflo migrate run" to migrate.');
     } else {
       output.printSuccess('No migration needed.');
     }
@@ -202,7 +202,7 @@ const runCommand: Command = {
     }
     output.writeln();
 
-    // Ensure .claude-flow directory exists
+    // Ensure .ruflo directory exists
     if (!dryRun) {
       fs.mkdirSync(v3Dir, { recursive: true });
     }
@@ -287,7 +287,7 @@ const runCommand: Command = {
               }
             }
             output.printSuccess(`Memory files backed up (${jsonFiles.length} JSON, ${hasDb ? '1 DB' : '0 DB'}).`);
-            output.printInfo('Run "claude-flow memory init --force" to import v2 memory into v3 AgentDB.');
+            output.printInfo('Run "ruflo memory init --force" to import v2 memory into v3 AgentDB.');
           }
           migrated.push('memory');
         } else {
@@ -370,7 +370,7 @@ const runCommand: Command = {
       output.printInfo(`Dry run complete. ${migrated.length} component(s) would be migrated.`);
     } else if (migrated.length > 0) {
       output.printSuccess(`Migration complete. ${migrated.length} component(s) migrated: ${migrated.join(', ')}`);
-      output.printInfo('Run "claude-flow migrate verify" to validate the migration.');
+      output.printInfo('Run "ruflo migrate verify" to validate the migration.');
     } else {
       output.printInfo('Nothing to migrate.');
     }
@@ -510,7 +510,7 @@ const verifyCommand: Command = {
       output.printSuccess('All verification checks passed.');
     } else {
       output.printError('Some verification checks failed.');
-      output.printInfo('Run "claude-flow migrate run" to re-run the migration, or "migrate rollback" to restore from backup.');
+      output.printInfo('Run "ruflo migrate run" to re-run the migration, or "migrate rollback" to restore from backup.');
     }
 
     return { success: allPassed, data: { checks, allPassed }, exitCode: allPassed ? 0 : 1 };
@@ -706,7 +706,7 @@ const breakingCommand: Command = {
       output.writeln();
     }
 
-    output.printInfo('Run "claude-flow migrate run" to automatically handle these changes');
+    output.printInfo('Run "ruflo migrate run" to automatically handle these changes');
 
     return { success: true, data: changes };
   }
@@ -719,15 +719,15 @@ export const migrateCommand: Command = {
   subcommands: [statusCommand, runCommand, verifyCommand, rollbackCommand, breakingCommand],
   options: [],
   examples: [
-    { command: 'claude-flow migrate status', description: 'Check migration status' },
-    { command: 'claude-flow migrate run --dry-run', description: 'Preview migration' },
-    { command: 'claude-flow migrate run -t all', description: 'Run full migration' }
+    { command: 'ruflo migrate status', description: 'Check migration status' },
+    { command: 'ruflo migrate run --dry-run', description: 'Preview migration' },
+    { command: 'ruflo migrate run -t all', description: 'Run full migration' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     output.writeln();
     output.writeln(output.bold('V2 to V3 Migration Tools'));
     output.writeln();
-    output.writeln('Usage: claude-flow migrate <subcommand> [options]');
+    output.writeln('Usage: ruflo migrate <subcommand> [options]');
     output.writeln();
     output.writeln('Subcommands:');
     output.printList([

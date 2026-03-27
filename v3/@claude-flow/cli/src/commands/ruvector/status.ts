@@ -98,9 +98,9 @@ export const statusCommand: Command = {
     },
   ],
   examples: [
-    { command: 'claude-flow ruvector status', description: 'Check basic status' },
-    { command: 'claude-flow ruvector status --verbose', description: 'Show detailed info' },
-    { command: 'claude-flow ruvector status --json', description: 'Output as JSON' },
+    { command: 'ruflo ruvector status', description: 'Check basic status' },
+    { command: 'ruflo ruvector status --verbose', description: 'Show detailed info' },
+    { command: 'ruflo ruvector status --json', description: 'Output as JSON' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const config = getConnectionConfig(ctx);
@@ -213,7 +213,7 @@ export const statusCommand: Command = {
         statusData.ruvector = { initialized: false };
         if (!jsonOutput) {
           spinner.succeed(output.warning(`Schema "${config.schema}" not found`));
-          output.printInfo('Run `claude-flow ruvector init` to initialize');
+          output.printInfo('Run `ruflo ruvector init` to initialize');
         }
 
         if (jsonOutput) {

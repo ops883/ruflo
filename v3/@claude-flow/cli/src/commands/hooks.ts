@@ -283,8 +283,8 @@ const preEditCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks pre-edit -f src/utils.ts', description: 'Get context before editing' },
-    { command: 'claude-flow hooks pre-edit -f src/api.ts -o refactor', description: 'Pre-edit with operation type' }
+    { command: 'ruflo hooks pre-edit -f src/utils.ts', description: 'Get context before editing' },
+    { command: 'ruflo hooks pre-edit -f src/api.ts -o refactor', description: 'Pre-edit with operation type' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     // Default file to 'unknown' for backward compatibility (env var may be empty)
@@ -412,8 +412,8 @@ const postEditCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks post-edit -f src/utils.ts --success true', description: 'Record successful edit' },
-    { command: 'claude-flow hooks post-edit -f src/api.ts --success false -o "Type error"', description: 'Record failed edit' }
+    { command: 'ruflo hooks post-edit -f src/utils.ts --success true', description: 'Record successful edit' },
+    { command: 'ruflo hooks post-edit -f src/api.ts --success false -o "Type error"', description: 'Record failed edit' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     // Default file to 'unknown' for backward compatibility (env var may be empty)
@@ -512,8 +512,8 @@ const preCommandCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks pre-command -c "rm -rf dist"', description: 'Assess command risk' },
-    { command: 'claude-flow hooks pre-command -c "npm install lodash"', description: 'Check package install' }
+    { command: 'ruflo hooks pre-command -c "rm -rf dist"', description: 'Assess command risk' },
+    { command: 'ruflo hooks pre-command -c "npm install lodash"', description: 'Check package install' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const command = ctx.args[0] || ctx.flags.command as string;
@@ -641,8 +641,8 @@ const postCommandCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks post-command -c "npm test" --success true', description: 'Record successful test run' },
-    { command: 'claude-flow hooks post-command -c "npm build" --success false -e 1', description: 'Record failed build' }
+    { command: 'ruflo hooks post-command -c "npm test" --success true', description: 'Record successful test run' },
+    { command: 'ruflo hooks post-command -c "npm build" --success false -e 1', description: 'Record failed build' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const command = ctx.args[0] || ctx.flags.command as string;
@@ -727,8 +727,8 @@ const routeCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks route -t "Fix authentication bug"', description: 'Route task to optimal agent' },
-    { command: 'claude-flow hooks route -t "Optimize database queries" -K 5', description: 'Get top 5 suggestions' }
+    { command: 'ruflo hooks route -t "Fix authentication bug"', description: 'Route task to optimal agent' },
+    { command: 'ruflo hooks route -t "Optimize database queries" -K 5', description: 'Get top 5 suggestions' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const task = ctx.args[0] || ctx.flags.task as string;
@@ -879,8 +879,8 @@ const explainCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks explain -t "Fix authentication bug"', description: 'Explain routing decision' },
-    { command: 'claude-flow hooks explain -t "Optimize queries" -a coder --verbose', description: 'Verbose explanation for specific agent' }
+    { command: 'ruflo hooks explain -t "Fix authentication bug"', description: 'Explain routing decision' },
+    { command: 'ruflo hooks explain -t "Optimize queries" -a coder --verbose', description: 'Verbose explanation for specific agent' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const task = ctx.args[0] || ctx.flags.task as string;
@@ -1029,10 +1029,10 @@ const pretrainCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks pretrain', description: 'Pretrain with embeddings indexing' },
-    { command: 'claude-flow hooks pretrain -p ../my-project --depth deep', description: 'Deep analysis of specific project' },
-    { command: 'claude-flow hooks pretrain --no-with-embeddings', description: 'Skip embedding indexing' },
-    { command: 'claude-flow hooks pretrain --file-types ts,tsx,js', description: 'Index only TypeScript/JS files' }
+    { command: 'ruflo hooks pretrain', description: 'Pretrain with embeddings indexing' },
+    { command: 'ruflo hooks pretrain -p ../my-project --depth deep', description: 'Deep analysis of specific project' },
+    { command: 'ruflo hooks pretrain --no-with-embeddings', description: 'Skip embedding indexing' },
+    { command: 'ruflo hooks pretrain --file-types ts,tsx,js', description: 'Index only TypeScript/JS files' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const repoPath = ctx.flags.path as string || '.';
@@ -1137,7 +1137,7 @@ const pretrainCommand: Command = {
       if (withEmbeddings) {
         output.writeln(output.dim('  Semantic search enabled: Use "embeddings search -q <query>" to search'));
       }
-      output.writeln(output.dim('  Next step: Run "claude-flow hooks build-agents" to generate optimized configs'));
+      output.writeln(output.dim('  Next step: Run "ruflo hooks build-agents" to generate optimized configs'));
 
       return { success: true, data: result };
     } catch (error) {
@@ -1180,8 +1180,8 @@ const buildAgentsCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks build-agents', description: 'Build all agent configs' },
-    { command: 'claude-flow hooks build-agents --focus security -o ./config/agents', description: 'Build security-focused configs' }
+    { command: 'ruflo hooks build-agents', description: 'Build all agent configs' },
+    { command: 'ruflo hooks build-agents --focus security -o ./config/agents', description: 'Build security-focused configs' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const output_dir = ctx.flags.output as string || './agents';
@@ -1290,8 +1290,8 @@ const metricsCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks metrics', description: 'View 24h metrics' },
-    { command: 'claude-flow hooks metrics --period 7d --v3-dashboard', description: 'V3 metrics for 7 days' }
+    { command: 'ruflo hooks metrics', description: 'View 24h metrics' },
+    { command: 'ruflo hooks metrics --period 7d --v3-dashboard', description: 'V3 metrics for 7 days' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const period = ctx.flags.period as string || '24h';
@@ -1440,8 +1440,8 @@ const transferFromProjectCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks transfer from-project -s ../old-project', description: 'Transfer all patterns' },
-    { command: 'claude-flow hooks transfer from-project -s ../prod --filter security -m 0.9', description: 'Transfer high-confidence security patterns' }
+    { command: 'ruflo hooks transfer from-project -s ../old-project', description: 'Transfer all patterns' },
+    { command: 'ruflo hooks transfer from-project -s ../prod --filter security -m 0.9', description: 'Transfer high-confidence security patterns' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const sourcePath = ctx.args[0] || ctx.flags.source as string;
@@ -1541,11 +1541,11 @@ const transferCommand: Command = {
   description: 'Transfer patterns and plugins via IPFS-based decentralized registry',
   subcommands: [storeCommand, transferFromProjectCommand],
   examples: [
-    { command: 'claude-flow hooks transfer store list', description: 'List patterns from registry' },
-    { command: 'claude-flow hooks transfer store search -q routing', description: 'Search patterns' },
-    { command: 'claude-flow hooks transfer store download -p seraphine-genesis', description: 'Download pattern' },
-    { command: 'claude-flow hooks transfer store publish', description: 'Publish pattern to registry' },
-    { command: 'claude-flow hooks transfer from-project -s ../other-project', description: 'Transfer from project' },
+    { command: 'ruflo hooks transfer store list', description: 'List patterns from registry' },
+    { command: 'ruflo hooks transfer store search -q routing', description: 'Search patterns' },
+    { command: 'ruflo hooks transfer store download -p seraphine-genesis', description: 'Download pattern' },
+    { command: 'ruflo hooks transfer store publish', description: 'Publish pattern to registry' },
+    { command: 'ruflo hooks transfer from-project -s ../other-project', description: 'Transfer from project' },
   ],
   action: async (): Promise<CommandResult> => {
     output.writeln();
@@ -1567,7 +1567,7 @@ const transferCommand: Command = {
       'Trust levels: unverified, community, verified, official',
     ]);
     output.writeln();
-    output.writeln('Run "claude-flow hooks transfer <subcommand> --help" for details');
+    output.writeln('Run "ruflo hooks transfer <subcommand> --help" for details');
     return { success: true };
   }
 };
@@ -1678,8 +1678,8 @@ const preTaskCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks pre-task -i task-123 -d "Fix auth bug"', description: 'Record task start' },
-    { command: 'claude-flow hooks pre-task -i task-456 -d "Implement feature" --auto-spawn', description: 'With auto-spawn' }
+    { command: 'ruflo hooks pre-task -i task-123 -d "Fix auth bug"', description: 'Record task start' },
+    { command: 'ruflo hooks pre-task -i task-456 -d "Implement feature" --auto-spawn', description: 'With auto-spawn' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const taskId = (ctx.flags.taskId as string) || `task-${Date.now().toString(36)}`;
@@ -1848,8 +1848,8 @@ const postTaskCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks post-task -i task-123 --success true', description: 'Record successful completion' },
-    { command: 'claude-flow hooks post-task -i task-456 --success false -q 0.3', description: 'Record failed task' }
+    { command: 'ruflo hooks post-task -i task-123 --success true', description: 'Record successful completion' },
+    { command: 'ruflo hooks post-task -i task-456 --success false -q 0.3', description: 'Record failed task' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     // Auto-generate task ID if not provided
@@ -1926,8 +1926,8 @@ const sessionEndCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks session-end', description: 'End and save session' },
-    { command: 'claude-flow hooks session-end --save-state false', description: 'End without saving' }
+    { command: 'ruflo hooks session-end', description: 'End and save session' },
+    { command: 'ruflo hooks session-end --save-state false', description: 'End without saving' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     output.printInfo('Ending session...');
@@ -2021,8 +2021,8 @@ const sessionRestoreCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks session-restore', description: 'Restore latest session' },
-    { command: 'claude-flow hooks session-restore -i session-12345', description: 'Restore specific session' }
+    { command: 'ruflo hooks session-restore', description: 'Restore latest session' },
+    { command: 'ruflo hooks session-restore -i session-12345', description: 'Restore specific session' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const sessionId = ctx.args[0] || ctx.flags.sessionId as string || 'latest';
@@ -2148,9 +2148,9 @@ const intelligenceCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks intelligence --status', description: 'Show intelligence status' },
-    { command: 'claude-flow hooks intelligence -m real-time', description: 'Enable real-time mode' },
-    { command: 'claude-flow hooks intelligence --train', description: 'Force training cycle' }
+    { command: 'ruflo hooks intelligence --status', description: 'Show intelligence status' },
+    { command: 'ruflo hooks intelligence -m real-time', description: 'Enable real-time mode' },
+    { command: 'ruflo hooks intelligence --train', description: 'Force training cycle' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const mode = ctx.flags.mode as string || 'balanced';
@@ -2496,8 +2496,8 @@ const workerListCommand: Command = {
     { name: 'active', short: 'a', type: 'boolean', description: 'Show active worker instances' },
   ],
   examples: [
-    { command: 'claude-flow hooks worker list', description: 'List all workers' },
-    { command: 'claude-flow hooks worker list --active', description: 'Show active instances' },
+    { command: 'ruflo hooks worker list', description: 'List all workers' },
+    { command: 'ruflo hooks worker list --active', description: 'Show active instances' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const spinner = output.createSpinner({ text: 'Loading workers...', spinner: 'dots' });
@@ -2602,9 +2602,9 @@ const workerDispatchCommand: Command = {
     { name: 'sync', short: 's', type: 'boolean', description: 'Wait for completion (synchronous)' },
   ],
   examples: [
-    { command: 'claude-flow hooks worker dispatch -t optimize -c src/', description: 'Dispatch optimize worker' },
-    { command: 'claude-flow hooks worker dispatch -t audit -p critical', description: 'Security audit with critical priority' },
-    { command: 'claude-flow hooks worker dispatch -t testgaps --sync', description: 'Test coverage analysis (sync)' },
+    { command: 'ruflo hooks worker dispatch -t optimize -c src/', description: 'Dispatch optimize worker' },
+    { command: 'ruflo hooks worker dispatch -t audit -p critical', description: 'Security audit with critical priority' },
+    { command: 'ruflo hooks worker dispatch -t testgaps --sync', description: 'Test coverage analysis (sync)' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const trigger = ctx.flags['trigger'] as string;
@@ -2669,7 +2669,7 @@ const workerDispatchCommand: Command = {
 
       if (background) {
         output.writeln();
-        output.writeln(output.dim(`Check status: claude-flow hooks worker status --id ${result.workerId}`));
+        output.writeln(output.dim(`Check status: ruflo hooks worker status --id ${result.workerId}`));
       }
 
       return { success: true, data: result };
@@ -2691,9 +2691,9 @@ const workerStatusCommand: Command = {
     { name: 'all', short: 'a', type: 'boolean', description: 'Include completed workers' },
   ],
   examples: [
-    { command: 'claude-flow hooks worker status', description: 'Show running workers' },
-    { command: 'claude-flow hooks worker status --id worker_audit_1', description: 'Check specific worker' },
-    { command: 'claude-flow hooks worker status --all', description: 'Include completed workers' },
+    { command: 'ruflo hooks worker status', description: 'Show running workers' },
+    { command: 'ruflo hooks worker status --id worker_audit_1', description: 'Check specific worker' },
+    { command: 'ruflo hooks worker status --all', description: 'Include completed workers' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const workerId = ctx.flags['id'] as string;
@@ -2807,8 +2807,8 @@ const workerDetectCommand: Command = {
     { name: 'min-confidence', short: 'm', type: 'string', description: 'Minimum confidence threshold (0-1)' },
   ],
   examples: [
-    { command: 'claude-flow hooks worker detect -p "optimize performance"', description: 'Detect triggers in prompt' },
-    { command: 'claude-flow hooks worker detect -p "security audit" --auto-dispatch', description: 'Detect and dispatch' },
+    { command: 'ruflo hooks worker detect -p "optimize performance"', description: 'Detect triggers in prompt' },
+    { command: 'ruflo hooks worker detect -p "security audit" --auto-dispatch', description: 'Detect and dispatch' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const prompt = ctx.flags['prompt'] as string;
@@ -2899,7 +2899,7 @@ const workerCancelCommand: Command = {
     { name: 'id', type: 'string', description: 'Worker ID to cancel', required: true },
   ],
   examples: [
-    { command: 'claude-flow hooks worker cancel --id worker_audit_1', description: 'Cancel specific worker' },
+    { command: 'ruflo hooks worker cancel --id worker_audit_1', description: 'Cancel specific worker' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const workerId = ctx.flags['id'] as string;
@@ -2982,8 +2982,8 @@ const coverageRouteCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks coverage-route -t "fix bug in auth"', description: 'Route with coverage awareness' },
-    { command: 'claude-flow hooks coverage-route -t "add tests" --threshold 90', description: 'Route with custom threshold' }
+    { command: 'ruflo hooks coverage-route -t "fix bug in auth"', description: 'Route with coverage awareness' },
+    { command: 'ruflo hooks coverage-route -t "add tests" --threshold 90', description: 'Route with custom threshold' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const task = ctx.args[0] || ctx.flags.task as string;
@@ -3254,8 +3254,8 @@ const coverageSuggestCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks coverage-suggest -p src/', description: 'Suggest improvements for src/' },
-    { command: 'claude-flow hooks coverage-suggest -p src/services --threshold 90', description: 'Stricter threshold' }
+    { command: 'ruflo hooks coverage-suggest -p src/', description: 'Suggest improvements for src/' },
+    { command: 'ruflo hooks coverage-suggest -p src/services --threshold 90', description: 'Stricter threshold' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const targetPath = ctx.args[0] || ctx.flags.path as string;
@@ -3487,9 +3487,9 @@ const coverageGapsCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks coverage-gaps', description: 'List all coverage gaps' },
-    { command: 'claude-flow hooks coverage-gaps --critical-only', description: 'Only critical gaps' },
-    { command: 'claude-flow hooks coverage-gaps --threshold 90', description: 'Stricter threshold' }
+    { command: 'ruflo hooks coverage-gaps', description: 'List all coverage gaps' },
+    { command: 'ruflo hooks coverage-gaps --critical-only', description: 'Only critical gaps' },
+    { command: 'ruflo hooks coverage-gaps --threshold 90', description: 'Stricter threshold' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const threshold = ctx.flags.threshold as number || 80;
@@ -3748,10 +3748,10 @@ const progressHookCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks progress', description: 'Check current progress' },
-    { command: 'claude-flow hooks progress -d', description: 'Detailed breakdown' },
-    { command: 'claude-flow hooks progress --sync', description: 'Sync progress to file' },
-    { command: 'claude-flow hooks progress --summary', description: 'Human-readable summary' }
+    { command: 'ruflo hooks progress', description: 'Check current progress' },
+    { command: 'ruflo hooks progress -d', description: 'Detailed breakdown' },
+    { command: 'ruflo hooks progress --sync', description: 'Sync progress to file' },
+    { command: 'ruflo hooks progress --summary', description: 'Human-readable summary' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const detailed = ctx.flags.detailed as boolean;
@@ -3881,9 +3881,9 @@ const workerCommand: Command = {
   ],
   options: [],
   examples: [
-    { command: 'claude-flow hooks worker list', description: 'List all workers' },
-    { command: 'claude-flow hooks worker dispatch -t optimize', description: 'Dispatch optimizer' },
-    { command: 'claude-flow hooks worker detect -p "test coverage"', description: 'Detect from prompt' },
+    { command: 'ruflo hooks worker list', description: 'List all workers' },
+    { command: 'ruflo hooks worker dispatch -t optimize', description: 'Dispatch optimizer' },
+    { command: 'ruflo hooks worker detect -p "test coverage"', description: 'Detect from prompt' },
   ],
   action: async (): Promise<CommandResult> => {
     output.writeln();
@@ -3916,7 +3916,7 @@ const workerCommand: Command = {
       `${output.highlight('cancel')}   - Cancel a running worker`,
     ]);
     output.writeln();
-    output.writeln('Run "claude-flow hooks worker <subcommand> --help" for details');
+    output.writeln('Run "ruflo hooks worker <subcommand> --help" for details');
 
     return { success: true };
   }
@@ -3947,9 +3947,9 @@ const statuslineCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks statusline', description: 'Display full statusline' },
-    { command: 'claude-flow hooks statusline --json', description: 'JSON output for hooks' },
-    { command: 'claude-flow hooks statusline --compact', description: 'Single-line status' }
+    { command: 'ruflo hooks statusline', description: 'Display full statusline' },
+    { command: 'ruflo hooks statusline --json', description: 'JSON output for hooks' },
+    { command: 'ruflo hooks statusline --compact', description: 'Single-line status' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const fs = await import('fs');
@@ -4402,7 +4402,7 @@ const routeTaskCommand: Command = {
   description: '(DEPRECATED: Use "route" instead) Route task to optimal agent',
   options: routeCommand.options,
   examples: [
-    { command: 'claude-flow hooks route-task --auto-swarm true', description: 'Route with auto-swarm (v2 compat)' },
+    { command: 'ruflo hooks route-task --auto-swarm true', description: 'Route with auto-swarm (v2 compat)' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     // Silently handle v2-specific flags that don't exist in v3
@@ -4435,7 +4435,7 @@ const sessionStartCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks session-start --auto-configure true', description: 'Start session (v2 compat)' },
+    { command: 'ruflo hooks session-start --auto-configure true', description: 'Start session (v2 compat)' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     // Map to session-restore for backward compatibility
@@ -4476,9 +4476,9 @@ const tokenOptimizeCommand: Command = {
     { name: 'stats', short: 's', type: 'boolean', description: 'Show token savings statistics' },
   ],
   examples: [
-    { command: 'claude-flow hooks token-optimize --stats', description: 'Show token savings stats' },
-    { command: 'claude-flow hooks token-optimize -q "auth patterns"', description: 'Get compact context' },
-    { command: 'claude-flow hooks token-optimize -A 8 --report', description: 'Config for 8 agents + report' },
+    { command: 'ruflo hooks token-optimize --stats', description: 'Show token savings stats' },
+    { command: 'ruflo hooks token-optimize -q "auth patterns"', description: 'Get compact context' },
+    { command: 'ruflo hooks token-optimize -A 8 --report', description: 'Config for 8 agents + report' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const query = ctx.flags['query'] as string;
@@ -4633,8 +4633,8 @@ const modelRouteCommand: Command = {
     { name: 'prefer-quality', type: 'boolean', description: 'Prefer higher quality models' },
   ],
   examples: [
-    { command: 'claude-flow hooks model-route -t "fix typo"', description: 'Route simple task (likely haiku)' },
-    { command: 'claude-flow hooks model-route -t "architect auth system"', description: 'Route complex task (likely opus)' },
+    { command: 'ruflo hooks model-route -t "fix typo"', description: 'Route simple task (likely haiku)' },
+    { command: 'ruflo hooks model-route -t "architect auth system"', description: 'Route complex task (likely opus)' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const task = ctx.args[0] || ctx.flags.task as string;
@@ -4728,8 +4728,8 @@ const modelOutcomeCommand: Command = {
     { name: 'quality', short: 'q', type: 'number', description: 'Quality score 0-1' },
   ],
   examples: [
-    { command: 'claude-flow hooks model-outcome -t "fix typo" -m haiku -o success', description: 'Record successful haiku task' },
-    { command: 'claude-flow hooks model-outcome -t "auth system" -m sonnet -o escalated', description: 'Record escalation to opus' },
+    { command: 'ruflo hooks model-outcome -t "fix typo" -m haiku -o success', description: 'Record successful haiku task' },
+    { command: 'ruflo hooks model-outcome -t "auth system" -m sonnet -o escalated', description: 'Record escalation to opus' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const task = ctx.flags.task as string;
@@ -4770,8 +4770,8 @@ const modelStatsCommand: Command = {
     { name: 'detailed', short: 'd', type: 'boolean', description: 'Show detailed breakdown' },
   ],
   examples: [
-    { command: 'claude-flow hooks model-stats', description: 'View routing stats' },
-    { command: 'claude-flow hooks model-stats --detailed', description: 'Show detailed breakdown' },
+    { command: 'ruflo hooks model-stats', description: 'View routing stats' },
+    { command: 'ruflo hooks model-stats --detailed', description: 'Show detailed breakdown' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     try {
@@ -4884,8 +4884,8 @@ const teammateIdleCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks teammate-idle --auto-assign true', description: 'Auto-assign tasks to idle teammate' },
-    { command: 'claude-flow hooks teammate-idle -t worker-1 --check-task-list', description: 'Check tasks for specific teammate' }
+    { command: 'ruflo hooks teammate-idle --auto-assign true', description: 'Auto-assign tasks to idle teammate' },
+    { command: 'ruflo hooks teammate-idle -t worker-1 --check-task-list', description: 'Check tasks for specific teammate' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const autoAssign = ctx.flags.autoAssign !== false;
@@ -4996,8 +4996,8 @@ const taskCompletedCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow hooks task-completed -i task-123 --train-patterns', description: 'Complete task and train patterns' },
-    { command: 'claude-flow hooks task-completed -i task-456 --notify-lead --quality 0.95', description: 'Complete with quality score' }
+    { command: 'ruflo hooks task-completed -i task-123 --train-patterns', description: 'Complete task and train patterns' },
+    { command: 'ruflo hooks task-completed -i task-456 --notify-lead --quality 0.95', description: 'Complete with quality score' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const taskId = ctx.args[0] || ctx.flags.taskId as string;
@@ -5095,8 +5095,8 @@ const notifyCommand: Command = {
     { name: 'channel', short: 'c', type: 'string', description: 'Notification channel', default: 'console' },
   ],
   examples: [
-    { command: 'claude-flow hooks notify -m "Build complete"', description: 'Send info notification' },
-    { command: 'claude-flow hooks notify -m "Test failed" -l error', description: 'Send error notification' },
+    { command: 'ruflo hooks notify -m "Build complete"', description: 'Send info notification' },
+    { command: 'ruflo hooks notify -m "Test failed" -l error', description: 'Send error notification' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const message = ctx.args[0] || ctx.flags.message as string;
@@ -5173,10 +5173,10 @@ export const hooksCommand: Command = {
   ],
   options: [],
   examples: [
-    { command: 'claude-flow hooks pre-edit -f src/utils.ts', description: 'Get context before editing' },
-    { command: 'claude-flow hooks route -t "Fix authentication bug"', description: 'Route task to optimal agent' },
-    { command: 'claude-flow hooks pretrain', description: 'Bootstrap intelligence from repository' },
-    { command: 'claude-flow hooks metrics --v3-dashboard', description: 'View V3 performance metrics' }
+    { command: 'ruflo hooks pre-edit -f src/utils.ts', description: 'Get context before editing' },
+    { command: 'ruflo hooks route -t "Fix authentication bug"', description: 'Route task to optimal agent' },
+    { command: 'ruflo hooks pretrain', description: 'Bootstrap intelligence from repository' },
+    { command: 'ruflo hooks metrics --v3-dashboard', description: 'View V3 performance metrics' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     output.writeln();
@@ -5184,7 +5184,7 @@ export const hooksCommand: Command = {
     output.writeln();
     output.writeln('Intelligent workflow automation with pattern learning and adaptive routing');
     output.writeln();
-    output.writeln('Usage: claude-flow hooks <subcommand> [options]');
+    output.writeln('Usage: ruflo hooks <subcommand> [options]');
     output.writeln();
     output.writeln('Subcommands:');
     output.printList([
@@ -5219,7 +5219,7 @@ export const hooksCommand: Command = {
       `${output.highlight('task-completed')} - Handle task completion (train patterns)`
     ]);
     output.writeln();
-    output.writeln('Run "claude-flow hooks <subcommand> --help" for subcommand help');
+    output.writeln('Run "ruflo hooks <subcommand> --help" for subcommand help');
     output.writeln();
     output.writeln(output.bold('V3 Features:'));
     output.printList([

@@ -66,8 +66,8 @@ export const MODEL_REGISTRY_CID = 'QmNr1yYMKi7YBaL8JSztQyuB5ZUaTdRMLxJC1pBpGbjsT
 export const DEFAULT_PLUGIN_STORE_CONFIG: PluginStoreConfig = {
   registries: [
     {
-      name: 'claude-flow-official',
-      description: 'Official Claude Flow plugin registry',
+      name: 'ruflo-official',
+      description: 'Official Ruflo plugin registry',
       // Use direct CID for reliable resolution (IPNS can be slow)
       ipnsName: LIVE_REGISTRY_CID,
       gateway: 'https://gateway.pinata.cloud',
@@ -85,7 +85,7 @@ export const DEFAULT_PLUGIN_STORE_CONFIG: PluginStoreConfig = {
       official: false,
     },
   ],
-  defaultRegistry: 'claude-flow-official',
+  defaultRegistry: 'ruflo-official',
   gateway: 'https://gateway.pinata.cloud',
   timeout: 30000,
   cacheDir: '.claude-flow/plugins/cache',
@@ -227,8 +227,8 @@ export class PluginDiscoveryService {
       ],
       authors: [
         {
-          id: 'claude-flow-team',
-          displayName: 'Claude Flow Team',
+          id: 'ruflo-team',
+          displayName: 'Ruflo Team',
           verified: true,
           plugins: plugins.length,
           totalDownloads: plugins.reduce((sum, p) => sum + p.downloads, 0),
@@ -269,8 +269,8 @@ export class PluginDiscoveryService {
   private getDemoPlugins(): PluginEntry[] {
     const baseTime = new Date().toISOString();
     const officialAuthor = {
-      id: 'claude-flow-team',
-      displayName: 'Claude Flow Team',
+      id: 'ruflo-team',
+      displayName: 'Ruflo Team',
       verified: true,
       plugins: 5,
       totalDownloads: 50000,
@@ -345,7 +345,7 @@ export class PluginDiscoveryService {
         verified: true,
         trustLevel: 'official',
         securityAudit: {
-          auditor: 'claude-flow-security-team',
+          auditor: 'ruflo-security-team',
           auditDate: '2024-12-01T00:00:00Z',
           auditVersion: '3.0.0',
           passed: true,
@@ -446,7 +446,7 @@ export class PluginDiscoveryService {
         id: 'community-analytics',
         name: 'community-analytics',
         displayName: 'Analytics Dashboard',
-        description: 'Analytics and metrics visualization for Claude Flow operations',
+        description: 'Analytics and metrics visualization for Ruflo operations',
         version: '1.2.0',
         cid: 'bafybeianalyticsplugin',
         size: 210000,
@@ -630,7 +630,7 @@ export class PluginDiscoveryService {
         verified: true,
         trustLevel: 'official',
         securityAudit: {
-          auditor: 'claude-flow-security-team',
+          auditor: 'ruflo-security-team',
           auditDate: '2026-01-20T00:00:00Z',
           auditVersion: '3.0.0-alpha.3',
           passed: true,
@@ -688,7 +688,7 @@ export class PluginDiscoveryService {
         verified: true,
         trustLevel: 'official',
         securityAudit: {
-          auditor: 'claude-flow-security-team',
+          auditor: 'ruflo-security-team',
           auditDate: '2026-01-20T00:00:00Z',
           auditVersion: '0.1.5',
           passed: true,
@@ -1018,7 +1018,7 @@ export class PluginDiscoveryService {
         verified: true,
         trustLevel: 'official',
         securityAudit: {
-          auditor: 'claude-flow-security-team',
+          auditor: 'ruflo-security-team',
           auditDate: '2026-01-24T00:00:00Z',
           auditVersion: '0.1.0',
           passed: true,
@@ -1058,7 +1058,7 @@ export class PluginDiscoveryService {
         verified: true,
         trustLevel: 'official',
         securityAudit: {
-          auditor: 'claude-flow-security-team',
+          auditor: 'ruflo-security-team',
           auditDate: '2026-01-25T00:00:00Z',
           auditVersion: '1.0.0-alpha.1',
           passed: true,

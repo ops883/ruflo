@@ -164,7 +164,7 @@ export interface StatuslineConfig {
  * MCP configuration
  */
 export interface MCPConfig {
-  /** Include claude-flow MCP server */
+  /** Include ruflo MCP server */
   claudeFlow: boolean;
   /** Include ruv-swarm MCP server */
   ruvSwarm: boolean;

@@ -45,7 +45,7 @@ export async function autoInstallPackage(
   const validPackageName = /^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*(@[a-z0-9-._~]+)?$/i;
   if (!validPackageName.test(packageName)) {
     if (!silent) {
-      console.error(`[claude-flow] Invalid package name: ${packageName}`);
+      console.error(`[ruflo] Invalid package name: ${packageName}`);
     }
     return false;
   }
@@ -58,7 +58,7 @@ export async function autoInstallPackage(
 
   try {
     if (!silent) {
-      console.error(`[claude-flow] Auto-installing ${packageName}...`);
+      console.error(`[ruflo] Auto-installing ${packageName}...`);
     }
 
     // Use spawn with array args to prevent shell injection
@@ -74,12 +74,12 @@ export async function autoInstallPackage(
     }
 
     if (!silent) {
-      console.error(`[claude-flow] Successfully installed ${packageName}`);
+      console.error(`[ruflo] Successfully installed ${packageName}`);
     }
     return true;
   } catch (error) {
     if (!silent) {
-      console.error(`[claude-flow] Failed to auto-install ${packageName}: ${error}`);
+      console.error(`[ruflo] Failed to auto-install ${packageName}: ${error}`);
     }
     return false;
   }
@@ -109,7 +109,7 @@ export async function tryImportOrInstall<T = unknown>(
         const cacheBuster = `?t=${Date.now()}`;
         return await import(`${packageName}${cacheBuster}`) as T;
       } catch {
-        console.error(`[claude-flow] ${packageName} installed but failed to load. Restart MCP server.`);
+        console.error(`[ruflo] ${packageName} installed but failed to load. Restart MCP server.`);
         return null;
       }
     }

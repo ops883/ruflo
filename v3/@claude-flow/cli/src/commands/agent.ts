@@ -116,8 +116,8 @@ const spawnCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow agent spawn --type coder --name bot-1', description: 'Spawn a coder agent' },
-    { command: 'claude-flow agent spawn -t researcher --task "Research React 19"', description: 'Spawn researcher with task' }
+    { command: 'ruflo agent spawn --type coder --name bot-1', description: 'Spawn a coder agent' },
+    { command: 'ruflo agent spawn -t researcher --task "Research React 19"', description: 'Spawn researcher with task' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     let agentType = ctx.flags.type as string;
@@ -660,8 +660,8 @@ const poolCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow agent pool --size 5', description: 'Set pool size' },
-    { command: 'claude-flow agent pool --min 2 --max 15', description: 'Configure auto-scaling' }
+    { command: 'ruflo agent pool --size 5', description: 'Set pool size' },
+    { command: 'ruflo agent pool --min 2 --max 15', description: 'Configure auto-scaling' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     try {
@@ -751,8 +751,8 @@ const healthCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow agent health', description: 'Show all agents health' },
-    { command: 'claude-flow agent health -i agent-001 -d', description: 'Detailed health for specific agent' }
+    { command: 'ruflo agent health', description: 'Show all agents health' },
+    { command: 'ruflo agent health -i agent-001 -d', description: 'Detailed health for specific agent' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const agentId = ctx.args[0] || ctx.flags.id as string;
@@ -900,9 +900,9 @@ const logsCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow agent logs -i agent-001', description: 'Show agent logs' },
-    { command: 'claude-flow agent logs -i agent-001 -f', description: 'Follow agent logs' },
-    { command: 'claude-flow agent logs -l error --since 1h', description: 'Show errors from last hour' }
+    { command: 'ruflo agent logs -i agent-001', description: 'Show agent logs' },
+    { command: 'ruflo agent logs -i agent-001 -f', description: 'Follow agent logs' },
+    { command: 'ruflo agent logs -l error --since 1h', description: 'Show errors from last hour' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const agentId = ctx.args[0] || ctx.flags.id as string;
@@ -998,16 +998,16 @@ export const agentCommand: Command = {
   subcommands: [spawnCommand, listCommand, statusCommand, stopCommand, metricsCommand, poolCommand, healthCommand, logsCommand, ...wasmSubcommands],
   options: [],
   examples: [
-    { command: 'claude-flow agent spawn -t coder', description: 'Spawn a coder agent' },
-    { command: 'claude-flow agent list', description: 'List all agents' },
-    { command: 'claude-flow agent status agent-001', description: 'Show agent status' }
+    { command: 'ruflo agent spawn -t coder', description: 'Spawn a coder agent' },
+    { command: 'ruflo agent list', description: 'List all agents' },
+    { command: 'ruflo agent status agent-001', description: 'Show agent status' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     // Show help if no subcommand
     output.writeln();
     output.writeln(output.bold('Agent Management Commands'));
     output.writeln();
-    output.writeln('Usage: claude-flow agent <subcommand> [options]');
+    output.writeln('Usage: ruflo agent <subcommand> [options]');
     output.writeln();
     output.writeln('Subcommands:');
     output.printList([
@@ -1025,7 +1025,7 @@ export const agentCommand: Command = {
       `${output.highlight('wasm-gallery')}  - List WASM agent gallery templates`,
     ]);
     output.writeln();
-    output.writeln('Run "claude-flow agent <subcommand> --help" for subcommand help');
+    output.writeln('Run "ruflo agent <subcommand> --help" for subcommand help');
 
     return { success: true };
   }

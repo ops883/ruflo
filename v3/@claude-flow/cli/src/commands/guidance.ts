@@ -17,9 +17,9 @@ const compileCommand: Command = {
     { name: 'json', type: 'boolean', description: 'Output as JSON', default: 'false' },
   ],
   examples: [
-    { command: 'claude-flow guidance compile', description: 'Compile default CLAUDE.md' },
-    { command: 'claude-flow guidance compile -r ./CLAUDE.md -l ./CLAUDE.local.md', description: 'Compile with local overlay' },
-    { command: 'claude-flow guidance compile --json', description: 'Output compiled bundle as JSON' },
+    { command: 'ruflo guidance compile', description: 'Compile default CLAUDE.md' },
+    { command: 'ruflo guidance compile -r ./CLAUDE.md -l ./CLAUDE.local.md', description: 'Compile with local overlay' },
+    { command: 'ruflo guidance compile --json', description: 'Output compiled bundle as JSON' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const rootPath = ctx.flags.root as string || './CLAUDE.md';
@@ -99,8 +99,8 @@ const retrieveCommand: Command = {
     { name: 'json', type: 'boolean', description: 'Output as JSON', default: 'false' },
   ],
   examples: [
-    { command: 'claude-flow guidance retrieve -t "Fix SQL injection in user search"', description: 'Retrieve guidance for a security task' },
-    { command: 'claude-flow guidance retrieve -t "Add unit tests" -n 3', description: 'Retrieve top 3 shards for testing' },
+    { command: 'ruflo guidance retrieve -t "Fix SQL injection in user search"', description: 'Retrieve guidance for a security task' },
+    { command: 'ruflo guidance retrieve -t "Add unit tests" -n 3', description: 'Retrieve top 3 shards for testing' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const task = ctx.flags.task as string;
@@ -195,8 +195,8 @@ const gatesCommand: Command = {
     { name: 'json', type: 'boolean', description: 'Output as JSON', default: 'false' },
   ],
   examples: [
-    { command: 'claude-flow guidance gates -c "rm -rf /tmp"', description: 'Check if a command is destructive' },
-    { command: 'claude-flow guidance gates --content "api_key=sk-abc123..."', description: 'Check content for secrets' },
+    { command: 'ruflo guidance gates -c "rm -rf /tmp"', description: 'Check if a command is destructive' },
+    { command: 'ruflo guidance gates --content "api_key=sk-abc123..."', description: 'Check content for secrets' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const command = ctx.flags.command as string | undefined;
@@ -348,10 +348,10 @@ const optimizeCommand: Command = {
     { name: 'json', type: 'boolean', description: 'Output as JSON', default: 'false' },
   ],
   examples: [
-    { command: 'claude-flow guidance optimize', description: 'Analyze current CLAUDE.md and show suggestions' },
-    { command: 'claude-flow guidance optimize --apply', description: 'Apply optimizations to CLAUDE.md' },
-    { command: 'claude-flow guidance optimize -s compact --apply', description: 'Optimize for compact context window' },
-    { command: 'claude-flow guidance optimize --target-score 95', description: 'Optimize until score reaches 95' },
+    { command: 'ruflo guidance optimize', description: 'Analyze current CLAUDE.md and show suggestions' },
+    { command: 'ruflo guidance optimize --apply', description: 'Apply optimizations to CLAUDE.md' },
+    { command: 'ruflo guidance optimize -s compact --apply', description: 'Optimize for compact context window' },
+    { command: 'ruflo guidance optimize --target-score 95', description: 'Optimize until score reaches 95' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const rootPath = ctx.flags.root as string || './CLAUDE.md';
@@ -465,10 +465,10 @@ const abTestCommand: Command = {
     { name: 'json', type: 'boolean', description: 'Output as JSON', default: 'false' },
   ],
   examples: [
-    { command: 'claude-flow guidance ab-test', description: 'Run default A/B test (no guidance vs ./CLAUDE.md)' },
-    { command: 'claude-flow guidance ab-test -a old.md -b new.md', description: 'Compare two CLAUDE.md versions' },
-    { command: 'claude-flow guidance ab-test --tasks custom-tasks.json', description: 'Run with custom test tasks' },
-    { command: 'claude-flow guidance ab-test --json', description: 'Output full report as JSON' },
+    { command: 'ruflo guidance ab-test', description: 'Run default A/B test (no guidance vs ./CLAUDE.md)' },
+    { command: 'ruflo guidance ab-test -a old.md -b new.md', description: 'Compare two CLAUDE.md versions' },
+    { command: 'ruflo guidance ab-test --tasks custom-tasks.json', description: 'Run with custom test tasks' },
+    { command: 'ruflo guidance ab-test --json', description: 'Output full report as JSON' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const configAPath = ctx.flags['config-a'] as string | undefined;
@@ -590,12 +590,12 @@ export const guidanceCommand: Command = {
   ],
   options: [],
   examples: [
-    { command: 'claude-flow guidance compile', description: 'Compile CLAUDE.md into policy bundle' },
-    { command: 'claude-flow guidance retrieve -t "Fix auth bug"', description: 'Retrieve relevant guidance' },
-    { command: 'claude-flow guidance gates -c "rm -rf /"', description: 'Check enforcement gates' },
-    { command: 'claude-flow guidance status', description: 'Show control plane status' },
-    { command: 'claude-flow guidance optimize', description: 'Analyze and optimize CLAUDE.md' },
-    { command: 'claude-flow guidance ab-test', description: 'Run A/B behavioral comparison' },
+    { command: 'ruflo guidance compile', description: 'Compile CLAUDE.md into policy bundle' },
+    { command: 'ruflo guidance retrieve -t "Fix auth bug"', description: 'Retrieve relevant guidance' },
+    { command: 'ruflo guidance gates -c "rm -rf /"', description: 'Check enforcement gates' },
+    { command: 'ruflo guidance status', description: 'Show control plane status' },
+    { command: 'ruflo guidance optimize', description: 'Analyze and optimize CLAUDE.md' },
+    { command: 'ruflo guidance ab-test', description: 'Run A/B behavioral comparison' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     output.writeln();
@@ -610,7 +610,7 @@ export const guidanceCommand: Command = {
     output.writeln(`  ${output.bold('optimize')}  Analyze and optimize CLAUDE.md`);
     output.writeln(`  ${output.bold('ab-test')}   Run A/B behavioral comparison`);
     output.writeln();
-    output.writeln(output.dim('Use claude-flow guidance <subcommand> --help for details'));
+    output.writeln(output.dim('Use ruflo guidance <subcommand> --help for details'));
 
     return { success: true };
   },

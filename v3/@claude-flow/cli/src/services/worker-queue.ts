@@ -119,7 +119,7 @@ export interface WorkerRegistration {
 
 const DEFAULT_CONFIG: WorkerQueueConfig = {
   redisUrl: 'redis://localhost:6379',
-  queuePrefix: 'claude-flow:queue',
+  queuePrefix: 'ruflo:queue',
   defaultTimeoutMs: 300000, // 5 minutes
   maxRetries: 3,
   resultTtlSeconds: 86400, // 24 hours

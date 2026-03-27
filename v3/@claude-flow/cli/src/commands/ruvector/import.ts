@@ -3,9 +3,9 @@
  * Import data from sql.js/JSON memory to RuVector PostgreSQL
  *
  * Usage:
- *   npx claude-flow ruvector import --input memory-export.json
- *   npx claude-flow ruvector import --from-memory
- *   npx claude-flow ruvector import --input data.json --batch-size 100
+ *   npx ruflo ruvector import --input memory-export.json
+ *   npx ruflo ruvector import --from-memory
+ *   npx ruflo ruvector import --input data.json --batch-size 100
  *
  * Created with care by ruv.io
  */
@@ -177,10 +177,10 @@ export const importCommand: Command = {
     },
   ],
   examples: [
-    { command: 'claude-flow ruvector import --input memory-export.json', description: 'Import from JSON file' },
-    { command: 'claude-flow ruvector import --input data.json --output import.sql', description: 'Generate SQL file (dry-run)' },
-    { command: 'claude-flow ruvector import --from-memory', description: 'Export current memory and import' },
-    { command: 'claude-flow ruvector import --input data.json --container my-postgres', description: 'Import using custom container' },
+    { command: 'ruflo ruvector import --input memory-export.json', description: 'Import from JSON file' },
+    { command: 'ruflo ruvector import --input data.json --output import.sql', description: 'Generate SQL file (dry-run)' },
+    { command: 'ruflo ruvector import --from-memory', description: 'Export current memory and import' },
+    { command: 'ruflo ruvector import --input data.json --container my-postgres', description: 'Import using custom container' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const inputFile = ctx.flags.input as string | undefined;
@@ -200,8 +200,8 @@ export const importCommand: Command = {
       output.printError('Either --input <file> or --from-memory is required');
       output.writeln();
       output.printInfo('Examples:');
-      output.writeln('  claude-flow ruvector import --input memory-export.json');
-      output.writeln('  claude-flow ruvector import --from-memory');
+      output.writeln('  ruflo ruvector import --input memory-export.json');
+      output.writeln('  ruflo ruvector import --from-memory');
       return { success: false, message: 'Missing input source' };
     }
 
@@ -245,8 +245,8 @@ export const importCommand: Command = {
     // Export from current memory
     if (fromMemory) {
       output.printInfo('Exporting from current Claude-Flow memory...');
-      output.printWarning('Note: Run "npx claude-flow memory list --format json > memory-export.json" first');
-      output.printInfo('Then use: npx claude-flow ruvector import --input memory-export.json');
+      output.printWarning('Note: Run "npx ruflo memory list --format json > memory-export.json" first');
+      output.printInfo('Then use: npx ruflo ruvector import --input memory-export.json');
       return { success: false, message: 'Use explicit JSON export first' };
     }
 

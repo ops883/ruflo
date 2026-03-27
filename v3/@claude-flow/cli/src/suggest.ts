@@ -217,7 +217,7 @@ export function suggestCommand(
   if (suggestions.length === 0) {
     return {
       suggestions: [],
-      message: 'Run "claude-flow --help" to see available commands.'
+      message: 'Run "ruflo --help" to see available commands.'
     };
   }
 

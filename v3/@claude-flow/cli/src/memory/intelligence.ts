@@ -29,7 +29,7 @@ function getDataDir(): string {
   const localDir = join(cwd, '.claude-flow', 'neural');
   const homeDir = join(homedir(), '.claude-flow', 'neural');
 
-  // Prefer local directory if .claude-flow exists
+  // Prefer local directory if .ruflo exists
   if (existsSync(join(cwd, '.claude-flow'))) {
     return localDir;
   }

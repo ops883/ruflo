@@ -109,8 +109,8 @@ const deployCommand: Command = {
     { name: 'description', type: 'string', description: 'Deployment description' },
   ],
   examples: [
-    { command: 'claude-flow deployment deploy -e prod', description: 'Deploy to production' },
-    { command: 'claude-flow deployment deploy --dry-run', description: 'Simulate deployment' },
+    { command: 'ruflo deployment deploy -e prod', description: 'Deploy to production' },
+    { command: 'ruflo deployment deploy --dry-run', description: 'Simulate deployment' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     try {
@@ -206,8 +206,8 @@ const statusCommand: Command = {
     { name: 'env', short: 'e', type: 'string', description: 'Specific environment to check' },
   ],
   examples: [
-    { command: 'claude-flow deployment status', description: 'Show all environments' },
-    { command: 'claude-flow deployment status -e prod', description: 'Check production' },
+    { command: 'ruflo deployment status', description: 'Show all environments' },
+    { command: 'ruflo deployment status -e prod', description: 'Check production' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     try {
@@ -305,8 +305,8 @@ const rollbackCommand: Command = {
     { name: 'steps', short: 's', type: 'number', description: 'Number of versions to rollback', default: '1' },
   ],
   examples: [
-    { command: 'claude-flow deployment rollback -e prod', description: 'Rollback production' },
-    { command: 'claude-flow deployment rollback -e prod -v v3.0.0', description: 'Rollback to specific version' },
+    { command: 'ruflo deployment rollback -e prod', description: 'Rollback production' },
+    { command: 'ruflo deployment rollback -e prod -v v3.0.0', description: 'Rollback to specific version' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     try {
@@ -403,8 +403,8 @@ const historyCommand: Command = {
     { name: 'limit', short: 'l', type: 'number', description: 'Number of entries', default: '10' },
   ],
   examples: [
-    { command: 'claude-flow deployment history', description: 'Show all history' },
-    { command: 'claude-flow deployment history -e prod', description: 'Production history' },
+    { command: 'ruflo deployment history', description: 'Show all history' },
+    { command: 'ruflo deployment history -e prod', description: 'Production history' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     try {
@@ -473,9 +473,9 @@ const environmentsCommand: Command = {
     { name: 'url', short: 'u', type: 'string', description: 'Environment URL' },
   ],
   examples: [
-    { command: 'claude-flow deployment environments', description: 'List environments' },
-    { command: 'claude-flow deployment envs -a add -n preview -t staging', description: 'Add environment' },
-    { command: 'claude-flow deployment envs -a remove -n preview', description: 'Remove environment' },
+    { command: 'ruflo deployment environments', description: 'List environments' },
+    { command: 'ruflo deployment envs -a add -n preview -t staging', description: 'Add environment' },
+    { command: 'ruflo deployment envs -a remove -n preview', description: 'Remove environment' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     try {
@@ -579,8 +579,8 @@ const logsCommand: Command = {
     { name: 'lines', short: 'n', type: 'number', description: 'Number of lines', default: '50' },
   ],
   examples: [
-    { command: 'claude-flow deployment logs -e prod', description: 'View production logs' },
-    { command: 'claude-flow deployment logs -d dep-123', description: 'View specific deployment' },
+    { command: 'ruflo deployment logs -e prod', description: 'View production logs' },
+    { command: 'ruflo deployment logs -d dep-123', description: 'View specific deployment' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     try {
@@ -654,8 +654,8 @@ const releaseCommand: Command = {
     { name: 'description', short: 'd', type: 'string', description: 'Release description' },
   ],
   examples: [
-    { command: 'claude-flow deployment release -v 3.5.0', description: 'Release version 3.5.0' },
-    { command: 'claude-flow deployment release -v 3.5.0 -d "Major update"', description: 'Release with description' },
+    { command: 'ruflo deployment release -v 3.5.0', description: 'Release version 3.5.0' },
+    { command: 'ruflo deployment release -v 3.5.0 -d "Major update"', description: 'Release with description' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     try {
@@ -733,10 +733,10 @@ export const deploymentCommand: Command = {
   aliases: ['deploy'],
   subcommands: [deployCommand, statusCommand, rollbackCommand, historyCommand, environmentsCommand, logsCommand, releaseCommand],
   examples: [
-    { command: 'claude-flow deployment deploy -e prod', description: 'Deploy to production' },
-    { command: 'claude-flow deployment status', description: 'Check all environments' },
-    { command: 'claude-flow deployment rollback -e prod', description: 'Rollback production' },
-    { command: 'claude-flow deployment release -v 3.5.0', description: 'Create a release' },
+    { command: 'ruflo deployment deploy -e prod', description: 'Deploy to production' },
+    { command: 'ruflo deployment status', description: 'Check all environments' },
+    { command: 'ruflo deployment rollback -e prod', description: 'Rollback production' },
+    { command: 'ruflo deployment release -v 3.5.0', description: 'Create a release' },
   ],
   action: async (): Promise<CommandResult> => {
     output.writeln();

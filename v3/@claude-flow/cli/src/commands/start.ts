@@ -1,6 +1,6 @@
 /**
  * V3 CLI Start Command
- * System startup for Claude Flow orchestration
+ * System startup for Ruflo orchestration
  */
 
 import type { Command, CommandContext, CommandResult } from '../types.js';
@@ -204,16 +204,16 @@ const startAction = async (ctx: CommandContext): Promise<CommandResult> => {
     output.writeln();
     output.writeln(output.bold('Quick Commands:'));
     output.printList([
-      `${output.highlight('claude-flow status')} - View system status`,
-      `${output.highlight('claude-flow agent spawn -t coder')} - Spawn an agent`,
-      `${output.highlight('claude-flow swarm status')} - View swarm details`,
-      `${output.highlight('claude-flow stop')} - Stop the system`
+      `${output.highlight('ruflo status')} - View system status`,
+      `${output.highlight('ruflo agent spawn -t coder')} - Spawn an agent`,
+      `${output.highlight('ruflo swarm status')} - View swarm details`,
+      `${output.highlight('ruflo stop')} - Stop the system`
     ]);
 
     // Daemon mode
     if (daemon) {
       output.writeln();
-      output.printInfo('Running in daemon mode. Use "claude-flow stop" to stop.');
+      output.printInfo('Running in daemon mode. Use "ruflo stop" to stop.');
 
       // Store PID for daemon management
       const daemonPidPath = path.join(cwd, '.claude-flow', 'daemon.pid');
@@ -464,13 +464,13 @@ export const startCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow start', description: 'Start with configuration defaults' },
-    { command: 'claude-flow start --daemon', description: 'Start as background daemon' },
-    { command: 'claude-flow start --port 3001', description: 'Start MCP on custom port' },
-    { command: 'claude-flow start --topology mesh', description: 'Start with mesh topology' },
-    { command: 'claude-flow start --skip-mcp', description: 'Start without MCP server' },
-    { command: 'claude-flow start quick', description: 'Quick start with defaults' },
-    { command: 'claude-flow start stop', description: 'Stop the running system' }
+    { command: 'ruflo start', description: 'Start with configuration defaults' },
+    { command: 'ruflo start --daemon', description: 'Start as background daemon' },
+    { command: 'ruflo start --port 3001', description: 'Start MCP on custom port' },
+    { command: 'ruflo start --topology mesh', description: 'Start with mesh topology' },
+    { command: 'ruflo start --skip-mcp', description: 'Start without MCP server' },
+    { command: 'ruflo start quick', description: 'Quick start with defaults' },
+    { command: 'ruflo start stop', description: 'Stop the running system' }
   ],
   action: startAction
 };

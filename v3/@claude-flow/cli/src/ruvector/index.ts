@@ -1,5 +1,5 @@
 /**
- * RuVector Integration Module for Claude Flow CLI
+ * RuVector Integration Module for Ruflo CLI
  *
  * Provides integration with @ruvector packages for:
  * - Q-Learning based task routing

@@ -157,7 +157,7 @@ export interface IPFSMetadata {
 }
 
 /**
- * Claude Flow Pattern (CFP) format
+ * Ruflo Pattern (CFP) format
  */
 export interface CFPFormat {
   // Magic bytes

@@ -1,6 +1,6 @@
 /**
  * CFP Format Serializer
- * Claude Flow Pattern format serialization
+ * Ruflo Pattern format serialization
  */
 
 import type { CFPFormat, SerializationFormat, PatternCollection } from '../types.js';
@@ -8,7 +8,7 @@ import * as crypto from 'crypto';
 
 // Version info
 const CFP_VERSION = '1.0.0';
-const GENERATOR = 'claude-flow@3.0.0-alpha';
+const GENERATOR = 'ruflo@3.0.0-alpha';
 
 /**
  * Create a new CFP document

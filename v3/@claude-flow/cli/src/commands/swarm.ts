@@ -374,8 +374,8 @@ const startCommand: Command = {
     }
   ],
   examples: [
-    { command: 'claude-flow swarm start -o "Build REST API" -s development', description: 'Start development swarm' },
-    { command: 'claude-flow swarm start -o "Analyze codebase" --parallel', description: 'Parallel analysis' }
+    { command: 'ruflo swarm start -o "Build REST API" -s development', description: 'Start development swarm' },
+    { command: 'ruflo swarm start -o "Analyze codebase" --parallel', description: 'Parallel analysis' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const objective = ctx.args[0] || ctx.flags.objective as string;
@@ -447,7 +447,7 @@ const startCommand: Command = {
     } catch (err) {
       spinner.fail('MCP swarm_init failed — swarm metadata saved locally only');
       output.writeln(output.dim(`  Error: ${err instanceof Error ? err.message : String(err)}`));
-      output.writeln(output.dim('  The MCP server may not be running. Start it with: claude mcp add claude-flow npx claude-flow@v3alpha mcp start'));
+      output.writeln(output.dim('  The MCP server may not be running. Start it with: claude mcp add ruflo npx ruflo@alpha mcp start'));
     }
 
     // Persist swarm state to disk so `swarm status` can read it
@@ -474,7 +474,7 @@ const startCommand: Command = {
     output.printSuccess(`Swarm ${swarmId} initialized with ${totalAgents} agent slots`);
     output.writeln(output.dim('  Note: Agents are registered but actual task execution requires'));
     output.writeln(output.dim('  Claude Code Task tool or hive-mind spawn --claude to drive work.'));
-    output.writeln(output.dim(`  Monitor: claude-flow swarm status ${swarmId}`));
+    output.writeln(output.dim(`  Monitor: ruflo swarm status ${swarmId}`));
 
     return { success: true, data: executionState };
   }
@@ -791,15 +791,15 @@ export const swarmCommand: Command = {
   subcommands: [initCommand, startCommand, statusCommand, stopCommand, scaleCommand, coordinateCommand],
   options: [],
   examples: [
-    { command: 'claude-flow swarm init --v3-mode', description: 'Initialize V3 swarm' },
-    { command: 'claude-flow swarm start -o "Build API" -s development', description: 'Start development swarm' },
-    { command: 'claude-flow swarm coordinate --agents 15', description: 'V3 coordination' }
+    { command: 'ruflo swarm init --v3-mode', description: 'Initialize V3 swarm' },
+    { command: 'ruflo swarm start -o "Build API" -s development', description: 'Start development swarm' },
+    { command: 'ruflo swarm coordinate --agents 15', description: 'V3 coordination' }
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     output.writeln();
     output.writeln(output.bold('Swarm Coordination Commands'));
     output.writeln();
-    output.writeln('Usage: claude-flow swarm <subcommand> [options]');
+    output.writeln('Usage: ruflo swarm <subcommand> [options]');
     output.writeln();
     output.writeln('Subcommands:');
     output.printList([

@@ -117,10 +117,10 @@ export const optimizeCommand: Command = {
     },
   ],
   examples: [
-    { command: 'claude-flow ruvector optimize --analyze', description: 'Analyze and show recommendations' },
-    { command: 'claude-flow ruvector optimize --apply', description: 'Apply optimizations' },
-    { command: 'claude-flow ruvector optimize --vacuum', description: 'Run VACUUM ANALYZE' },
-    { command: 'claude-flow ruvector optimize --reindex', description: 'Rebuild all indexes' },
+    { command: 'ruflo ruvector optimize --analyze', description: 'Analyze and show recommendations' },
+    { command: 'ruflo ruvector optimize --apply', description: 'Apply optimizations' },
+    { command: 'ruflo ruvector optimize --vacuum', description: 'Run VACUUM ANALYZE' },
+    { command: 'ruflo ruvector optimize --reindex', description: 'Rebuild all indexes' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const config = getConnectionConfig(ctx);
@@ -546,9 +546,9 @@ export const optimizeCommand: Command = {
         `  Low: ${low.length}`,
         '',
         'Quick commands:',
-        `  claude-flow ruvector optimize --vacuum    # Clean up tables`,
-        `  claude-flow ruvector optimize --reindex  # Rebuild indexes`,
-        `  claude-flow ruvector optimize --apply    # Apply critical fixes`,
+        `  ruflo ruvector optimize --vacuum    # Clean up tables`,
+        `  ruflo ruvector optimize --reindex  # Rebuild indexes`,
+        `  ruflo ruvector optimize --apply    # Apply critical fixes`,
       ].join('\n'), 'Optimization Summary');
 
       return {

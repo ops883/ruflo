@@ -18,7 +18,7 @@ interface PackageCompatibility {
   peerDependencies?: Record<string, string>;
 }
 
-// Known compatibility matrix between @claude-flow packages
+// Known compatibility matrix between @ruflo packages
 const COMPATIBILITY_MATRIX: Record<string, Record<string, PackageCompatibility>> = {
   '@claude-flow/cli': {
     '@claude-flow/embeddings': { minVersion: '3.0.0-alpha.1' },

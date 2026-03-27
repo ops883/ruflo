@@ -105,7 +105,7 @@ async function demo() {
       console.log('');
     }
     console.log('   To install:');
-    console.log('   $ claude-flow plugins install -n plugin-creator');
+    console.log('   $ ruflo plugins install -n plugin-creator');
     console.log('');
   }
 
@@ -125,11 +125,11 @@ async function demo() {
   console.log('   ✅ Content-addressed storage (CID)');
   console.log('');
   console.log('   CLI Commands:');
-  console.log('   $ claude-flow plugins list              # List all plugins');
-  console.log('   $ claude-flow plugins list --official   # Official only');
-  console.log('   $ claude-flow plugins search -q neural  # Search plugins');
-  console.log('   $ claude-flow plugins info -n plugin-creator');
-  console.log('   $ claude-flow plugins install -n plugin-creator');
+  console.log('   $ ruflo plugins list              # List all plugins');
+  console.log('   $ ruflo plugins list --official   # Official only');
+  console.log('   $ ruflo plugins search -q neural  # Search plugins');
+  console.log('   $ ruflo plugins info -n plugin-creator');
+  console.log('   $ ruflo plugins install -n plugin-creator');
   console.log('');
 }
 

@@ -1,6 +1,6 @@
 /**
  * Seraphine Genesis Model
- * The first Claude Flow pattern model - "Hello World" for pattern sharing
+ * The first Ruflo pattern model - "Hello World" for pattern sharing
  *
  * Seraphine represents the foundational patterns for intelligent agent coordination.
  * Named after the Greek "Seraphim" (burning ones), symbolizing the spark of knowledge
@@ -29,10 +29,10 @@ export const SERAPHINE_VERSION = '1.0.0';
 export const SERAPHINE_METADATA = {
   name: 'seraphine-genesis',
   displayName: 'Seraphine Genesis',
-  description: 'The foundational Claude Flow pattern model. Contains core routing patterns, complexity heuristics, and coordination trajectories for multi-agent swarms.',
+  description: 'The foundational Ruflo pattern model. Contains core routing patterns, complexity heuristics, and coordination trajectories for multi-agent swarms.',
   author: {
-    id: 'claude-flow-team',
-    displayName: 'Claude Flow Team',
+    id: 'ruflo-team',
+    displayName: 'Ruflo Team',
   },
   license: 'MIT',
   tags: [
@@ -45,7 +45,7 @@ export const SERAPHINE_METADATA = {
     'hello-world',
   ],
   language: 'typescript',
-  framework: 'claude-flow',
+  framework: 'ruflo',
 };
 
 /**
@@ -333,7 +333,7 @@ export const SERAPHINE_CUSTOM_PATTERNS: CustomPattern[] = [
     id: 'custom-hello-world',
     type: 'greeting',
     data: {
-      message: 'Hello, World! Welcome to Claude Flow pattern sharing.',
+      message: 'Hello, World! Welcome to Ruflo pattern sharing.',
       version: SERAPHINE_VERSION,
       genesis: true,
     },

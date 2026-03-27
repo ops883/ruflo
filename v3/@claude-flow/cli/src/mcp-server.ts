@@ -71,8 +71,8 @@ const DEFAULT_OPTIONS: Required<MCPServerOptions> = {
   transport: 'stdio',
   host: 'localhost',
   port: 3000,
-  pidFile: path.join(os.tmpdir(), 'claude-flow-mcp.pid'),
-  logFile: path.join(os.tmpdir(), 'claude-flow-mcp.log'),
+  pidFile: path.join(os.tmpdir(), 'ruflo-mcp.pid'),
+  logFile: path.join(os.tmpdir(), 'ruflo-mcp.log'),
   tools: 'all',
   daemonize: false,
   timeout: 30000,
@@ -316,7 +316,7 @@ export class MCPServerManager extends EventEmitter {
 
     // Log to stderr to not corrupt stdout
     console.error(
-      `[${new Date().toISOString()}] INFO [claude-flow-mcp] (${sessionId}) Starting in stdio mode`
+      `[${new Date().toISOString()}] INFO [ruflo-mcp] (${sessionId}) Starting in stdio mode`
     );
     console.error(JSON.stringify({
       arch: process.arch,
@@ -354,7 +354,7 @@ export class MCPServerManager extends EventEmitter {
 
       if (buffer.length > MAX_BUFFER_SIZE) {
         console.error(
-          `[${new Date().toISOString()}] ERROR [claude-flow-mcp] Buffer exceeded ${MAX_BUFFER_SIZE} bytes, rejecting`
+          `[${new Date().toISOString()}] ERROR [ruflo-mcp] Buffer exceeded ${MAX_BUFFER_SIZE} bytes, rejecting`
         );
         buffer = '';
         console.log(JSON.stringify({
@@ -378,7 +378,7 @@ export class MCPServerManager extends EventEmitter {
             }
           } catch (error) {
             console.error(
-              `[${new Date().toISOString()}] ERROR [claude-flow-mcp] Failed to parse message:`,
+              `[${new Date().toISOString()}] ERROR [ruflo-mcp] Failed to parse message:`,
               error instanceof Error ? error.message : String(error)
             );
           }
@@ -388,7 +388,7 @@ export class MCPServerManager extends EventEmitter {
 
     process.stdin.on('end', () => {
       console.error(
-        `[${new Date().toISOString()}] INFO [claude-flow-mcp] (${sessionId}) stdin closed, shutting down...`
+        `[${new Date().toISOString()}] INFO [ruflo-mcp] (${sessionId}) stdin closed, shutting down...`
       );
       process.exit(0);
     });
@@ -396,14 +396,14 @@ export class MCPServerManager extends EventEmitter {
     // Handle process termination
     process.on('SIGINT', () => {
       console.error(
-        `[${new Date().toISOString()}] INFO [claude-flow-mcp] (${sessionId}) Received SIGINT, shutting down...`
+        `[${new Date().toISOString()}] INFO [ruflo-mcp] (${sessionId}) Received SIGINT, shutting down...`
       );
       process.exit(0);
     });
 
     process.on('SIGTERM', () => {
       console.error(
-        `[${new Date().toISOString()}] INFO [claude-flow-mcp] (${sessionId}) Received SIGTERM, shutting down...`
+        `[${new Date().toISOString()}] INFO [ruflo-mcp] (${sessionId}) Received SIGTERM, shutting down...`
       );
       process.exit(0);
     });
@@ -494,7 +494,7 @@ export class MCPServerManager extends EventEmitter {
         case 'notifications/initialized':
           // Client notification - no response needed
           console.error(
-            `[${new Date().toISOString()}] INFO [claude-flow-mcp] (${sessionId}) Client initialized`
+            `[${new Date().toISOString()}] INFO [ruflo-mcp] (${sessionId}) Client initialized`
           );
           return null;
 
@@ -514,7 +514,7 @@ export class MCPServerManager extends EventEmitter {
       }
     } catch (error) {
       console.error(
-        `[${new Date().toISOString()}] ERROR [claude-flow-mcp] Error handling ${message.method}:`,
+        `[${new Date().toISOString()}] ERROR [ruflo-mcp] Error handling ${message.method}:`,
         error
       );
       return {
@@ -663,7 +663,7 @@ export class MCPServerManager extends EventEmitter {
   }
 
   /**
-   * Check if process is running AND is a node/claude-flow process.
+   * Check if process is running AND is a node/ruflo process.
    * Plain `kill -0` returns true for any process with the same owner,
    * which causes false positives when the OS recycles the PID.
    */
@@ -682,7 +682,7 @@ export class MCPServerManager extends EventEmitter {
         timeout: 1000,
       }).trim();
       // Must be a node process to be our MCP server
-      return cmdline.includes('node') || cmdline.includes('claude-flow') || cmdline.includes('npx');
+      return cmdline.includes('node') || cmdline.includes('ruflo') || cmdline.includes('claude-flow') || cmdline.includes('npx');
     } catch {
       // If we can't inspect the process (macOS, Windows, permissions), fall back to kill check
       return true;

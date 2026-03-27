@@ -1,5 +1,5 @@
 /**
- * Update checker for @claude-flow packages
+ * Update checker for @ruflo packages
  * Queries npm registry and compares versions
  */
 

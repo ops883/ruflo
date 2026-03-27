@@ -76,7 +76,7 @@ const CAPABILITY_CATALOG: Record<string, CapabilityArea> = {
     tools: ['swarm_init', 'swarm_status', 'swarm_spawn', 'swarm_terminate', 'swarm_topology', 'swarm_metrics'],
     commands: ['swarm init', 'swarm status', 'swarm spawn', 'swarm terminate'],
     agents: ['hierarchical-coordinator', 'mesh-coordinator', 'adaptive-coordinator', 'queen-coordinator', 'collective-intelligence-coordinator'],
-    skills: ['swarm-orchestration', 'swarm-advanced', 'claude-flow-swarm'],
+    skills: ['swarm-orchestration', 'swarm-advanced', 'ruflo-swarm'],
     whenToUse: 'When a task requires multiple agents working together (3+ files, features, refactoring).',
   },
   'memory-knowledge': {

@@ -1,6 +1,6 @@
 /**
  * V3 CLI Cleanup Command
- * Removes project artifacts created by claude-flow/ruflo
+ * Removes project artifacts created by ruflo
  *
  * Created with ruv.io
  */
@@ -11,7 +11,7 @@ import { existsSync, statSync, rmSync, readdirSync } from 'fs';
 import { join } from 'path';
 
 /**
- * Artifact directories and files that claude-flow/ruflo may create
+ * Artifact directories and files that ruflo may create
  */
 const ARTIFACT_DIRS = [
   { path: '.claude', description: 'Claude settings, helpers, agents' },
@@ -24,7 +24,7 @@ const ARTIFACT_DIRS = [
 ];
 
 const ARTIFACT_FILES = [
-  { path: 'claude-flow.config.json', description: 'Claude Flow configuration' },
+  { path: 'claude-flow.config.json', description: 'Ruflo configuration' },
 ];
 
 /**
@@ -74,7 +74,7 @@ function formatSize(bytes: number): string {
  */
 export const cleanupCommand: Command = {
   name: 'cleanup',
-  description: 'Remove project artifacts created by claude-flow/ruflo',
+  description: 'Remove project artifacts created by ruflo',
   aliases: ['clean'],
   options: [
     {
@@ -106,7 +106,7 @@ export const cleanupCommand: Command = {
     },
     {
       command: 'cleanup --force',
-      description: 'Remove all claude-flow artifacts',
+      description: 'Remove all ruflo artifacts',
     },
     {
       command: 'cleanup --force --keep-config',
@@ -122,8 +122,8 @@ export const cleanupCommand: Command = {
 
     output.writeln();
     output.writeln(output.bold(dryRun
-      ? 'Claude Flow Cleanup (dry run)'
-      : 'Claude Flow Cleanup'));
+      ? 'Ruflo Cleanup (dry run)'
+      : 'Ruflo Cleanup'));
     output.writeln();
 
     const found: { path: string; description: string; size: number; type: 'dir' | 'file'; skipped?: boolean }[] = [];
@@ -150,7 +150,7 @@ export const cleanupCommand: Command = {
     }
 
     if (found.length === 0) {
-      output.writeln(output.info('No claude-flow artifacts found in the current directory.'));
+      output.writeln(output.info('No ruflo artifacts found in the current directory.'));
       return { success: true, message: 'Nothing to clean' };
     }
 

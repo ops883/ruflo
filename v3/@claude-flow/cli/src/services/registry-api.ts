@@ -1,6 +1,6 @@
 /**
  * Registry API Client
- * Secure integration with Claude Flow Cloud Functions
+ * Secure integration with Ruflo Cloud Functions
  *
  * Security:
  * - HTTPS only

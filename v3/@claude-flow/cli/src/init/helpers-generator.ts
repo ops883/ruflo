@@ -1075,9 +1075,9 @@ function getDataDir() {
 
   switch (platform) {
     case 'win32':
-      return path.join(process.env.APPDATA || homeDir, 'claude-flow', 'sessions');
+      return path.join(process.env.APPDATA || homeDir, 'ruflo', 'sessions');
     case 'darwin':
-      return path.join(homeDir, 'Library', 'Application Support', 'claude-flow', 'sessions');
+      return path.join(homeDir, 'Library', 'Application Support', 'ruflo', 'sessions');
     default:
       return path.join(homeDir, '.claude-flow', 'sessions');
   }

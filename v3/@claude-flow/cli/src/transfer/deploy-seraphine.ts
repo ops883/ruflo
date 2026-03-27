@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 /**
  * Deploy Seraphine Genesis Model
- * Exports and uploads the first Claude Flow pattern model to IPFS
+ * Exports and uploads the first Ruflo pattern model to IPFS
  *
  * Usage:
  *   npx tsx deploy-seraphine.ts
@@ -96,7 +96,7 @@ function printHelp(): void {
 Seraphine Genesis Deployer
 ==========================
 
-Deploy the foundational Claude Flow pattern model.
+Deploy the foundational Ruflo pattern model.
 
 Usage:
   npx ts-node deploy-seraphine.ts [options]
@@ -127,7 +127,7 @@ async function deploy(): Promise<void> {
   console.log('');
   console.log('╔══════════════════════════════════════════════════════════╗');
   console.log('║        SERAPHINE GENESIS MODEL DEPLOYMENT                 ║');
-  console.log('║        The First Claude Flow Pattern Model                ║');
+  console.log('║        The First Ruflo Pattern Model                ║');
   console.log('╚══════════════════════════════════════════════════════════╝');
   console.log('');
 
@@ -224,7 +224,7 @@ async function deploy(): Promise<void> {
 
     console.log('');
     console.log('   🎉 Hello World! The genesis pattern has been deployed.');
-    console.log('   🌟 This is the first Claude Flow pattern ever shared.');
+    console.log('   🌟 This is the first Ruflo pattern ever shared.');
     console.log('');
   } else {
     console.error('❌ Deployment failed!');

@@ -44,7 +44,7 @@ export function getGCSConfig(): GCSConfig | null {
     bucket,
     projectId: process.env.GCS_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT,
     keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-    prefix: process.env.GCS_PREFIX || 'claude-flow-patterns',
+    prefix: process.env.GCS_PREFIX || 'ruflo-patterns',
   };
 }
 
@@ -137,7 +137,7 @@ export async function uploadToGCS(
 
   // Write content to temp file
   const tempDir = process.env.TMPDIR || '/tmp';
-  const tempFile = path.join(tempDir, `claude-flow-upload-${Date.now()}.json`);
+  const tempFile = path.join(tempDir, `ruflo-upload-${Date.now()}.json`);
   fs.writeFileSync(tempFile, content);
 
   try {
@@ -205,7 +205,7 @@ export async function downloadFromGCS(
 
   // Write to temp file first
   const tempDir = process.env.TMPDIR || '/tmp';
-  const tempFile = path.join(tempDir, `claude-flow-download-${Date.now()}.json`);
+  const tempFile = path.join(tempDir, `ruflo-download-${Date.now()}.json`);
 
   try {
     // Download using gcloud storage cp (array form prevents shell injection)

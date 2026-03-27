@@ -3,9 +3,9 @@
  * Outputs Docker files and SQL for easy RuVector PostgreSQL setup
  *
  * Usage:
- *   npx claude-flow ruvector setup              # Output to ./ruvector-postgres/
- *   npx claude-flow ruvector setup --output /path/to/dir
- *   npx claude-flow ruvector setup --print      # Print to stdout only
+ *   npx ruflo ruvector setup              # Output to ./ruvector-postgres/
+ *   npx ruflo ruvector setup --output /path/to/dir
+ *   npx ruflo ruvector setup --print      # Print to stdout only
  *
  * Created with care by ruv.io
  */
@@ -36,7 +36,7 @@ services:
     container_name: ruvector-postgres
     environment:
       POSTGRES_USER: claude
-      POSTGRES_PASSWORD: claude-flow-test
+      POSTGRES_PASSWORD: ruflo-test
       POSTGRES_DB: claude_flow
     ports:
       - "5432:5432"
@@ -582,7 +582,7 @@ docker exec ruvector-postgres psql -U claude -d claude_flow -c "SELECT ruvector_
 | Port | 5432 |
 | Database | claude_flow |
 | Username | claude |
-| Password | claude-flow-test |
+| Password | ruflo-test |
 | Schema | claude_flow |
 
 ## RuVector Syntax
@@ -621,10 +621,10 @@ WITH (m = 16, ef_construction = 100);
 
 \`\`\`bash
 # Export current Claude-Flow memory
-npx claude-flow memory list --format json > memory-export.json
+npx ruflo memory list --format json > memory-export.json
 
 # Import to RuVector PostgreSQL
-npx claude-flow ruvector import --input memory-export.json
+npx ruflo ruvector import --input memory-export.json
 \`\`\`
 
 ## pgAdmin (Optional)
@@ -685,10 +685,10 @@ export const setupCommand: Command = {
     },
   ],
   examples: [
-    { command: 'claude-flow ruvector setup', description: 'Output files to ./ruvector-postgres/' },
-    { command: 'claude-flow ruvector setup --output /path/to/dir', description: 'Output to custom directory' },
-    { command: 'claude-flow ruvector setup --print', description: 'Print files to stdout' },
-    { command: 'claude-flow ruvector setup --force', description: 'Overwrite existing files' },
+    { command: 'ruflo ruvector setup', description: 'Output files to ./ruvector-postgres/' },
+    { command: 'ruflo ruvector setup --output /path/to/dir', description: 'Output to custom directory' },
+    { command: 'ruflo ruvector setup --print', description: 'Print files to stdout' },
+    { command: 'ruflo ruvector setup --force', description: 'Overwrite existing files' },
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     const outputDir = (ctx.flags.output as string) || './ruvector-postgres';

@@ -83,7 +83,7 @@ const SKILLS_MAP: Record<string, string[]> = {
  * Commands to copy based on configuration
  */
 const COMMANDS_MAP: Record<string, string[]> = {
-  core: ['claude-flow-help.md', 'claude-flow-swarm.md', 'claude-flow-memory.md'],
+  core: ['ruflo-help.md', 'ruflo-swarm.md', 'ruflo-memory.md'],
   analysis: ['analysis'],
   automation: ['automation'],
   github: ['github'],
@@ -1206,7 +1206,7 @@ mcp:
 
   // Write .gitignore
   const gitignorePath = path.join(targetDir, '.claude-flow', '.gitignore');
-  const gitignore = `# Claude Flow runtime files
+  const gitignore = `# Ruflo runtime files
 data/
 logs/
 sessions/
