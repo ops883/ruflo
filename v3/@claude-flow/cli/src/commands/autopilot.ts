@@ -5,6 +5,8 @@
  * ADR-072: Autopilot Integration
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type { Command, CommandContext, CommandResult } from '../types.js';
 import { output } from '../output.js';
 import {
@@ -212,8 +214,6 @@ const logCommand: Command = {
   ],
   action: async (ctx: CommandContext): Promise<CommandResult> => {
     if (ctx.flags?.clear) {
-      const fs = require('fs') as typeof import('fs');
-      const path = require('path') as typeof import('path');
       try { fs.writeFileSync(path.resolve(LOG_FILE), '[]'); } catch { /* ignore */ }
       output.writeln('Autopilot log cleared');
       return { success: true };
