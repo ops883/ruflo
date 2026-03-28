@@ -12,6 +12,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { extname } from 'path';
 import { ClaudeModel, getModelRouter, ModelRouter, ModelRoutingResult } from './model-router.js';
+import { getSmallFastModel, getBalancedModel, getCapableModel } from '../model-env.js';
 
 // ============================================================================
 // Types
@@ -44,7 +45,7 @@ export interface EditIntent {
  */
 export interface EnhancedRouteResult {
   tier: 1 | 2 | 3;
-  handler: 'agent-booster' | 'haiku' | 'sonnet' | 'opus';
+  handler: 'agent-booster' | string;  // 'agent-booster' or model name (built-in or custom)
   model?: ClaudeModel;
   confidence: number;
   complexity?: number;
@@ -368,14 +369,15 @@ export class EnhancedModelRouter {
     // Step 2: Check for Tier 3 keywords (architecture, security, distributed)
     const tier3Check = this.containsTier3Keywords(task);
     if (tier3Check.matches && tier3Check.count >= 2) {
-      // Strong signal for Opus - multiple complex keywords
+      // Strong signal for capable model - multiple complex keywords
+      const capableModel = getCapableModel();
       return {
         tier: 3,
-        handler: 'opus',
-        model: 'opus',
+        handler: capableModel,
+        model: capableModel,
         confidence: Math.min(0.95, 0.7 + tier3Check.count * 0.1),
         complexity: 0.8 + tier3Check.count * 0.05,
-        reasoning: `High complexity task (${tier3Check.count} architectural keywords) - using opus`,
+        reasoning: `High complexity task (${tier3Check.count} architectural keywords) - using ${capableModel}`,
         canSkipLLM: false,
         estimatedLatencyMs: 5000,
         estimatedCost: 0.015,
@@ -412,13 +414,14 @@ export class EnhancedModelRouter {
     const { haiku, sonnet } = this.config.complexityThresholds;
 
     if (finalComplexity < haiku) {
+      const fastModel = getSmallFastModel();
       return {
         tier: 2,
-        handler: 'haiku',
-        model: 'haiku',
+        handler: fastModel,
+        model: fastModel,
         confidence: tinyDancerResult.confidence,
         complexity: finalComplexity,
-        reasoning: `Low complexity (${(finalComplexity * 100).toFixed(0)}%) - using haiku`,
+        reasoning: `Low complexity (${(finalComplexity * 100).toFixed(0)}%) - using ${fastModel}`,
         canSkipLLM: false,
         estimatedLatencyMs: 500,
         estimatedCost: 0.0002,
@@ -426,26 +429,28 @@ export class EnhancedModelRouter {
     }
 
     if (finalComplexity < sonnet) {
+      const balancedModel = getBalancedModel();
       return {
         tier: 2,
-        handler: 'sonnet',
-        model: 'sonnet',
+        handler: balancedModel,
+        model: balancedModel,
         confidence: tinyDancerResult.confidence,
         complexity: finalComplexity,
-        reasoning: `Medium complexity (${(finalComplexity * 100).toFixed(0)}%) - using sonnet`,
+        reasoning: `Medium complexity (${(finalComplexity * 100).toFixed(0)}%) - using ${balancedModel}`,
         canSkipLLM: false,
         estimatedLatencyMs: 2000,
         estimatedCost: 0.003,
       };
     }
 
+    const capableModel = getCapableModel();
     return {
       tier: 3,
-      handler: 'opus',
-      model: 'opus',
+      handler: capableModel as 'opus',
+      model: capableModel as ClaudeModel,
       confidence: tinyDancerResult.confidence,
       complexity: finalComplexity,
-      reasoning: `High complexity (${(finalComplexity * 100).toFixed(0)}%) - using opus`,
+      reasoning: `High complexity (${(finalComplexity * 100).toFixed(0)}%) - using ${capableModel}`,
       canSkipLLM: false,
       estimatedLatencyMs: 5000,
       estimatedCost: 0.015,
@@ -513,9 +518,10 @@ export class EnhancedModelRouter {
       }
 
       // Agent Booster failed, fall back to LLM
+      const balancedModel = getBalancedModel();
       routeResult.tier = 2;
-      routeResult.handler = 'sonnet';
-      routeResult.model = 'sonnet';
+      routeResult.handler = balancedModel;
+      routeResult.model = balancedModel;
       routeResult.canSkipLLM = false;
       routeResult.reasoning += ' (Agent Booster fallback to LLM)';
     }

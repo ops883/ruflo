@@ -8,14 +8,15 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { MCPTool } from './types.js';
+import { getSmallFastModel, getBalancedModel, getCapableModel, getModelForAgentType } from '../model-env.js';
 
 // Storage paths
 const STORAGE_DIR = '.claude-flow';
 const AGENT_DIR = 'agents';
 const AGENT_FILE = 'store.json';
 
-// Model types matching Claude Agent SDK
-type ClaudeModel = 'haiku' | 'sonnet' | 'opus' | 'inherit';
+// Model types matching Claude Agent SDK - supports built-in and custom models
+type ClaudeModel = 'haiku' | 'sonnet' | 'opus' | 'inherit' | string;
 
 interface AgentRecord {
   agentId: string;
@@ -69,7 +70,8 @@ function saveAgentStore(store: AgentStore): void {
 }
 
 // Default model mappings for agent types (can be overridden)
-const AGENT_TYPE_MODEL_DEFAULTS: Record<string, ClaudeModel> = {
+// Note: Actual model values come from environment variables via getModelForAgentType()
+const AGENT_TYPE_MODEL_DEFAULTS: Record<string, string> = {
   // Complex agents → opus
   'architect': 'opus',
   'security-architect': 'opus',
@@ -122,7 +124,7 @@ async function determineAgentModel(
   tier?: 1 | 2 | 3;
 }> {
   // 1. Explicit model in config
-  if (config.model && ['haiku', 'sonnet', 'opus', 'inherit'].includes(config.model as string)) {
+  if (config.model) {
     return { model: config.model as ClaudeModel, routedBy: 'explicit' };
   }
 
@@ -137,7 +139,7 @@ async function determineAgentModel(
       if (routeResult.tier === 1 && routeResult.canSkipLLM) {
         // Agent Booster can handle this task
         return {
-          model: 'haiku', // Use haiku as fallback if AB fails
+          model: getSmallFastModel(), // Use env var or haiku as fallback if AB fails
           routedBy: 'agent-booster',
           canSkipLLM: true,
           agentBoosterIntent: routeResult.agentBoosterIntent?.type,
@@ -164,14 +166,9 @@ async function determineAgentModel(
     }
   }
 
-  // 3. Agent type defaults
-  const defaultModel = AGENT_TYPE_MODEL_DEFAULTS[agentType];
-  if (defaultModel) {
-    return { model: defaultModel, routedBy: 'default' };
-  }
-
-  // 4. Fallback to sonnet (balanced)
-  return { model: 'sonnet', routedBy: 'default' };
+  // 3. Agent type defaults - use environment variables
+  const defaultModel = getModelForAgentType(agentType);
+  return { model: defaultModel, routedBy: 'default' };
 }
 
 export const agentTools: MCPTool[] = [
@@ -188,8 +185,7 @@ export const agentTools: MCPTool[] = [
         domain: { type: 'string', description: 'Agent domain' },
         model: {
           type: 'string',
-          enum: ['haiku', 'sonnet', 'opus', 'inherit'],
-          description: 'Claude model to use (haiku=fast/cheap, sonnet=balanced, opus=most capable)'
+          description: 'Claude model to use (haiku=fast/cheap, sonnet=balanced, opus=most capable, or custom model name)'
         },
         task: { type: 'string', description: 'Task description for intelligent model routing' },
       },

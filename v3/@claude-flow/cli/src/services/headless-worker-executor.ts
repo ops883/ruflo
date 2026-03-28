@@ -24,6 +24,7 @@ import { EventEmitter } from 'events';
 import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync } from 'fs';
 import { join, relative } from 'path';
 import type { WorkerType } from './worker-daemon.js';
+import { getSmallFastModel, getBalancedModel, getCapableModel } from '../model-env.js';
 
 // ============================================
 // Type Definitions
@@ -53,9 +54,9 @@ export type LocalWorkerType = 'map' | 'consolidate' | 'benchmark' | 'preload';
 export type SandboxMode = 'strict' | 'permissive' | 'disabled';
 
 /**
- * Model types for Claude Code
+ * Model types for Claude Code - supports built-in and custom models
  */
-export type ModelType = 'sonnet' | 'opus' | 'haiku';
+export type ModelType = 'sonnet' | 'opus' | 'haiku' | string;
 
 /**
  * Output format for worker results
@@ -277,8 +278,9 @@ export const LOCAL_WORKER_TYPES: LocalWorkerType[] = [
  *
  * Users can override per-worker via the `model` field in daemon-state.json
  * or the ANTHROPIC_MODEL environment variable.
+ * For custom models, the model name is used directly.
  */
-const MODEL_IDS: Record<ModelType, string> = {
+const MODEL_IDS: Record<string, string> = {
   sonnet: 'sonnet',
   opus: 'opus',
   haiku: 'haiku',
@@ -310,7 +312,7 @@ Provide a JSON report with:
   "recommendations": ["..."]
 }`,
       sandbox: 'strict',
-      model: 'haiku',
+      model: getSmallFastModel(),
       outputFormat: 'json',
       contextPatterns: ['**/*.ts', '**/*.js', '**/.env*', '**/package.json'],
       timeoutMs: 5 * 60 * 1000,
@@ -334,7 +336,7 @@ Provide a JSON report with:
 
 Provide actionable suggestions with code examples.`,
       sandbox: 'permissive',
-      model: 'sonnet',
+      model: getBalancedModel(),
       outputFormat: 'markdown',
       contextPatterns: ['src/**/*.ts', 'src/**/*.tsx'],
       timeoutMs: 10 * 60 * 1000,
@@ -358,7 +360,7 @@ Provide actionable suggestions with code examples.`,
 
 For each gap, provide a test skeleton.`,
       sandbox: 'permissive',
-      model: 'sonnet',
+      model: getBalancedModel(),
       outputFormat: 'markdown',
       contextPatterns: ['src/**/*.ts', 'tests/**/*.ts', '__tests__/**/*.ts'],
       timeoutMs: 10 * 60 * 1000,
@@ -382,7 +384,7 @@ For each gap, provide a test skeleton.`,
 
 Focus on public APIs and exported functions.`,
       sandbox: 'permissive',
-      model: 'haiku',
+      model: getSmallFastModel(),
       outputFormat: 'markdown',
       contextPatterns: ['src/**/*.ts'],
       timeoutMs: 10 * 60 * 1000,
@@ -412,7 +414,7 @@ Provide insights as JSON:
   "insights": ["..."]
 }`,
       sandbox: 'strict',
-      model: 'opus',
+      model: getCapableModel(),
       outputFormat: 'json',
       contextPatterns: ['**/*.ts', '**/CLAUDE.md', '**/README.md'],
       timeoutMs: 15 * 60 * 1000,
@@ -436,7 +438,7 @@ Provide insights as JSON:
 
 Provide before/after code examples.`,
       sandbox: 'permissive',
-      model: 'sonnet',
+      model: getBalancedModel(),
       outputFormat: 'markdown',
       contextPatterns: ['src/**/*.ts'],
       timeoutMs: 10 * 60 * 1000,
@@ -460,7 +462,7 @@ Provide before/after code examples.`,
 
 Provide comprehensive report.`,
       sandbox: 'strict',
-      model: 'opus',
+      model: getCapableModel(),
       outputFormat: 'markdown',
       contextPatterns: ['src/**/*.ts'],
       timeoutMs: 15 * 60 * 1000,
@@ -489,7 +491,7 @@ Provide preload suggestions as JSON:
   "confidence": 0.0-1.0
 }`,
       sandbox: 'strict',
-      model: 'haiku',
+      model: getSmallFastModel(),
       outputFormat: 'json',
       contextPatterns: ['.claude-flow/metrics/*.json'],
       timeoutMs: 2 * 60 * 1000,
@@ -563,9 +565,11 @@ export function isLocalWorker(type: WorkerType): type is LocalWorkerType {
 
 /**
  * Get model ID from model type
+ * For built-in models, returns the short alias.
+ * For custom models, returns the model name directly.
  */
 export function getModelId(model: ModelType): string {
-  return MODEL_IDS[model];
+  return MODEL_IDS[model] || model;
 }
 
 /**
