@@ -6,6 +6,7 @@
 import { mkdirSync, writeFileSync, existsSync, readFileSync, statSync } from 'fs';
 import { dirname, join, resolve } from 'path';
 import type { MCPTool } from './types.js';
+import { getSmallFastModel, getBalancedModel, getCapableModel } from '../model-env.js';
 
 // Real vector search functions - lazy loaded to avoid circular imports
 let searchEntriesFn: ((options: {
@@ -3269,7 +3270,7 @@ export const hooksModelRoute: MCPTool = {
       // Fallback to simple heuristic
       const complexity = analyzeComplexityFallback(task);
       return {
-        model: complexity > 0.7 ? 'opus' : complexity > 0.4 ? 'sonnet' : 'haiku',
+        model: complexity > 0.7 ? getCapableModel() : complexity > 0.4 ? getBalancedModel() : getSmallFastModel(),
         confidence: 0.7,
         complexity,
         reasoning: 'Fallback heuristic (model router not available)',
@@ -3300,14 +3301,14 @@ export const hooksModelOutcome: MCPTool = {
     type: 'object',
     properties: {
       task: { type: 'string', description: 'Original task' },
-      model: { type: 'string', enum: ['haiku', 'sonnet', 'opus'], description: 'Model used' },
+      model: { type: 'string', description: 'Model used (haiku, sonnet, opus, or custom model name)' },
       outcome: { type: 'string', enum: ['success', 'failure', 'escalated'], description: 'Task outcome' },
     },
     required: ['task', 'model', 'outcome'],
   },
   handler: async (params: Record<string, unknown>) => {
     const task = params.task as string;
-    const model = params.model as 'haiku' | 'sonnet' | 'opus';
+    const model = params.model as string;
     const outcome = params.outcome as 'success' | 'failure' | 'escalated';
 
     const router = await getModelRouterInstance();
