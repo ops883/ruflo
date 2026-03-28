@@ -89,8 +89,8 @@ export class MiniMaxProvider extends BaseProvider {
       'MiniMax-M2.5-highspeed',
     ],
     maxContextLength: {
-      'MiniMax-M2.7': 1048576,
-      'MiniMax-M2.7-highspeed': 1048576,
+      'MiniMax-M2.7': 204800,
+      'MiniMax-M2.7-highspeed': 204800,
       'MiniMax-M2.5': 204800,
       'MiniMax-M2.5-highspeed': 204800,
     },
@@ -288,7 +288,7 @@ export class MiniMaxProvider extends BaseProvider {
 
   async getModelInfo(model: LLMModel): Promise<ModelInfo> {
     const descriptions: Record<string, string> = {
-      'MiniMax-M2.7': 'Latest MiniMax model with 1M context window',
+      'MiniMax-M2.7': 'Latest MiniMax model with 204K context window',
       'MiniMax-M2.7-highspeed': 'Faster MiniMax-M2.7 variant optimized for speed',
       'MiniMax-M2.5': 'Peak Performance. Ultimate Value. Master the Complex',
       'MiniMax-M2.5-highspeed': 'Same performance, faster and more agile',

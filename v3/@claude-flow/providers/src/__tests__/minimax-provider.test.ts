@@ -47,8 +47,8 @@ describe('MiniMax Provider', () => {
     it('should have correct context lengths for M2.7 models', () => {
       const provider = createProvider();
 
-      expect(provider.capabilities.maxContextLength['MiniMax-M2.7']).toBe(1048576);
-      expect(provider.capabilities.maxContextLength['MiniMax-M2.7-highspeed']).toBe(1048576);
+      expect(provider.capabilities.maxContextLength['MiniMax-M2.7']).toBe(204800);
+      expect(provider.capabilities.maxContextLength['MiniMax-M2.7-highspeed']).toBe(204800);
     });
 
     it('should have correct context lengths for M2.5 models', () => {
@@ -106,7 +106,7 @@ describe('MiniMax Provider', () => {
       const info = await provider.getModelInfo('MiniMax-M2.7');
 
       expect(info.model).toBe('MiniMax-M2.7');
-      expect(info.contextLength).toBe(1048576);
+      expect(info.contextLength).toBe(204800);
       expect(info.maxOutputTokens).toBe(131072);
       expect(info.description).toContain('MiniMax');
     });
@@ -116,7 +116,7 @@ describe('MiniMax Provider', () => {
       const info = await provider.getModelInfo('MiniMax-M2.7-highspeed');
 
       expect(info.model).toBe('MiniMax-M2.7-highspeed');
-      expect(info.contextLength).toBe(1048576);
+      expect(info.contextLength).toBe(204800);
       expect(info.description).toContain('speed');
     });
 

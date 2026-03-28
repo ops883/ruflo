@@ -267,7 +267,7 @@ describe('Provider Integration Tests', () => {
       expect(models).toContain('MiniMax-M2.5-highspeed');
 
       const m27Info = await provider.getModelInfo('MiniMax-M2.7');
-      expect(m27Info.contextLength).toBe(1048576);
+      expect(m27Info.contextLength).toBe(204800);
       expect(m27Info.maxOutputTokens).toBe(131072);
 
       const m25Info = await provider.getModelInfo('MiniMax-M2.5');
