@@ -34,25 +34,27 @@ interface DolceLocation {
   locationId: string;         // Supabase location_id
   /** Prefixes used to match schedule group names (case-insensitive) */
   groupPrefixes: string[];
+  /** Primary Dolce schedule group label (matches <option> text in #loc_id) */
+  primaryGroup: string;
 }
 
-// [slug, name, locationId, groupPrefixes[]]
-const LOCATION_DATA: [string, string, string, string[]][] = [
-  ['lowland', 'Lowland', 'f36fdb18-a97b-48af-8456-7374dea4b0f9', ['lowland', 'contract']],
-  ['le-supreme', 'Le Supreme', 'ae99ee33-1b8e-4c8f-8451-e9f3d0fa28ce', ['lsd', 'le supreme']],
-  ['mulherins', "Wm. Mulherin's Sons", '23c02a8e-1425-441e-9650-73ae93fa68cc', ['wm. mulherin', 'wm mulherin']],
-  ['quoin', 'The Quoin Restaurant', '0eefcab2-d68d-4a2f-ae30-009b999258c7', ['the quoin']],
-  ['hiroki-san', 'HIROKI-SAN Detroit', 'b4035001-0928-4ada-a0f0-f2a272393147', ['hs ', 'sakazuki', 'aladdin', 'hiroki-san']],
-  ['kampers', "Kamper's", 'b7d3e1a4-5f2c-4a8b-9e6d-1c3f5a7b9d2e', ['kampers']],
-  ['hiroki-philly', 'HIROKI Philadelphia', 'c21aa6c1-411e-4ed1-9b84-e9d9d143abf9', ['hiroki']],
-  ['little-wing', 'Little Wing', '574118d5-8511-41ce-8ae8-14f921fb021a', ['little wing']],
-  ['vessel', 'Vessel', 'd201e1aa-a2a7-420d-8112-91160d0bc1bc', ['vessel']],
-  ['anthology', 'Anthology', '84f4ea7f-722d-4296-894b-6ecfe389b2d5', ['anthology']],
-  ['rosemary-rose', 'Rosemary Rose', '757c51f9-ae4a-4dd2-9609-e231f21df72a', ['rosemary rose', 'rr ']],
+// [slug, name, locationId, groupPrefixes[], primaryGroup]
+const LOCATION_DATA: [string, string, string, string[], string][] = [
+  ['lowland',      'Lowland',               'f36fdb18-a97b-48af-8456-7374dea4b0f9', ['lowland', 'contract'],                  'Lowland FOH'],
+  ['le-supreme',   'Le Supreme',            'ae99ee33-1b8e-4c8f-8451-e9f3d0fa28ce', ['lsd', 'le supreme'],                    'LSD FOH'],
+  ['mulherins',    "Wm. Mulherin's Sons",   '23c02a8e-1425-441e-9650-73ae93fa68cc', ['wm. mulherin', 'wm mulherin'],          'Mulherins FOH'],
+  ['quoin',        'The Quoin Restaurant',  '0eefcab2-d68d-4a2f-ae30-009b999258c7', ['the quoin'],                            'Quoin FOH'],
+  ['hiroki-san',   'HIROKI-SAN Detroit',    'b4035001-0928-4ada-a0f0-f2a272393147', ['hs ', 'sakazuki', 'aladdin', 'hiroki-san'], 'HS FOH'],
+  ['kampers',      "Kamper's",              'b7d3e1a4-5f2c-4a8b-9e6d-1c3f5a7b9d2e', ['kampers'],                             'Kampers FOH'],
+  ['hiroki-philly','HIROKI Philadelphia',   'c21aa6c1-411e-4ed1-9b84-e9d9d143abf9', ['hiroki'],                               'Hiroki Philly FOH'],
+  ['little-wing',  'Little Wing',           '574118d5-8511-41ce-8ae8-14f921fb021a', ['little wing'],                          'Little Wing FOH'],
+  ['vessel',       'Vessel',                'd201e1aa-a2a7-420d-8112-91160d0bc1bc', ['vessel'],                               'Vessel FOH'],
+  ['anthology',    'Anthology',             '84f4ea7f-722d-4296-894b-6ecfe389b2d5', ['anthology'],                            'Anthology FOH'],
+  ['rosemary-rose','Rosemary Rose',         '757c51f9-ae4a-4dd2-9609-e231f21df72a', ['rosemary rose', 'rr '],                 'Rosemary Rose FOH'],
 ];
 
 const LOCATIONS: DolceLocation[] = LOCATION_DATA.map(
-  ([slug, name, locationId, groupPrefixes]) => ({ slug, name, locationId, groupPrefixes }),
+  ([slug, name, locationId, groupPrefixes, primaryGroup]) => ({ slug, name, locationId, groupPrefixes, primaryGroup }),
 );
 
 // ---------------------------------------------------------------------------
@@ -734,19 +736,59 @@ async function navigateToSchedules(page: Page): Promise<void> {
 }
 
 async function getPageText(page: Page): Promise<string> {
-  console.log('[Dolce] Scrolling to load all schedule sections...');
-  // Dolce lazy-loads schedule groups as you scroll — scroll 10 times to trigger all
-  for (let i = 0; i < 10; i++) {
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForTimeout(600);
-  }
-  // Scroll back to top then extract
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForTimeout(500);
-
   console.log('[Dolce] Extracting page text...');
   const text = await page.evaluate(() => document.body.innerText);
   console.log(`[Dolce] Extracted ${text.length} characters of text`);
+  return text;
+}
+
+/**
+ * Extract text for a specific schedule group by selecting it in the view selector.
+ * Returns null if no group selector exists on the page.
+ */
+async function getGroupPageText(page: Page, groupLabel: string): Promise<string | null> {
+  // Look for a schedule group/location selector on the view page
+  // Dolce may use a select with id containing "group", "loc", "location", or "schedule"
+  const selectorIds = ['#scheduleGroupSelect', '#group_id', '#location_select', '#schedule_select', '#view_group'];
+  let selectorFound = false;
+
+  for (const sel of selectorIds) {
+    const exists = await page.$(sel).then(el => !!el).catch(() => false);
+    if (exists) {
+      await page.selectOption(sel, { label: groupLabel });
+      await page.waitForTimeout(3000);
+      selectorFound = true;
+      break;
+    }
+  }
+
+  // Also try any select element with schedule-related options
+  if (!selectorFound) {
+    const selects = await page.$$('select');
+    for (const sel of selects) {
+      const options = await sel.$$eval('option', (opts) => opts.map(o => o.textContent?.trim()));
+      if (options.some(o => o && (o.includes('FOH') || o.includes('BOH') || o.toLowerCase().includes('lowland')))) {
+        // Found a schedule group selector
+        try {
+          await sel.selectOption({ label: groupLabel });
+          await page.waitForTimeout(3000);
+          selectorFound = true;
+          console.log(`[Dolce] Selected group "${groupLabel}" via schedule selector`);
+          break;
+        } catch {
+          // Label not found in this select, try next
+        }
+      }
+    }
+  }
+
+  if (!selectorFound) {
+    console.log(`[Dolce] No group selector found on page — single-group view`);
+    return null;
+  }
+
+  const text = await page.evaluate(() => document.body.innerText);
+  console.log(`[Dolce] Group "${groupLabel}": ${text.length} chars`);
   return text;
 }
 
@@ -946,17 +988,30 @@ async function main(): Promise<void> {
   try {
     await loginToDolce(page);
     await navigateToSchedules(page);
-    const pageText = await getPageText(page);
+    const defaultPageText = await getPageText(page);
 
     if (process.env.DOLCE_DEBUG) {
       const fs = await import('fs');
-      fs.writeFileSync('/tmp/dolce-page-text.txt', pageText);
-      console.log('[Debug] Page text saved to /tmp/dolce-page-text.txt');
+      fs.writeFileSync('/tmp/dolce-page-text.txt', defaultPageText);
+      console.log('[Debug] Default page text saved to /tmp/dolce-page-text.txt');
     }
 
+    // Test if group selector navigation works (try switching to second location)
+    const testLoc = targetLocations.find(l => l.slug !== 'lowland') ?? targetLocations[1];
+    const hasGroupNav = testLoc
+      ? (await getGroupPageText(page, testLoc.primaryGroup)) !== null
+      : false;
+    console.log(`[Dolce] Group navigation: ${hasGroupNav ? 'available' : 'not available — using full page text for all'}`);
+
+    // If group nav works, re-navigate to first location's group to get its text fresh
     let totalUpserted = 0;
     for (const loc of targetLocations) {
       try {
+        let pageText = defaultPageText;
+        if (hasGroupNav) {
+          const groupText = await getGroupPageText(page, loc.primaryGroup);
+          if (groupText) pageText = groupText;
+        }
         totalUpserted += await syncLocation(loc, pageText, weekDates, sb);
       } catch (err) {
         console.error(`[${loc.slug}] Error:`, err);
