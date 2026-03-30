@@ -734,6 +734,16 @@ async function navigateToSchedules(page: Page): Promise<void> {
 }
 
 async function getPageText(page: Page): Promise<string> {
+  console.log('[Dolce] Scrolling to load all schedule sections...');
+  // Dolce lazy-loads schedule groups as you scroll — scroll 10 times to trigger all
+  for (let i = 0; i < 10; i++) {
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(600);
+  }
+  // Scroll back to top then extract
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(500);
+
   console.log('[Dolce] Extracting page text...');
   const text = await page.evaluate(() => document.body.innerText);
   console.log(`[Dolce] Extracted ${text.length} characters of text`);
