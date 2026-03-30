@@ -504,6 +504,19 @@ export function generateHookHandler(): string {
     '  },',
     '',
     "  'session-end': () => {",
+    '    // Record session cost to global ledger',
+    '    try {',
+    "      var ledgerPath = path.join(require('os').homedir(), '.claude', 'helpers', 'cost-ledger.cjs');",
+    '      if (fs.existsSync(ledgerPath)) {',
+    "        var { execSync } = require('child_process');",
+    '        execSync("node \\"" + ledgerPath + "\\" record", {',
+    '          input: JSON.stringify(hookInput) || "",',
+    '          timeout: 3000,',
+    "          stdio: ['pipe', 'pipe', 'pipe'],",
+    '        });',
+    '      }',
+    '    } catch (e) { /* non-fatal — cost tracking should never break session end */ }',
+    '',
     '    if (intelligence && intelligence.consolidate) {',
     '      try {',
     '        var result = intelligence.consolidate();',
@@ -1172,6 +1185,269 @@ module.exports = commands;
 /**
  * Generate all helper files
  */
+/**
+ * Generate cost-ledger.cjs — tracks session costs across all projects.
+ * Stores a JSONL ledger at ~/.claude/cost-ledger.jsonl with per-session
+ * cost, duration, model, and lines changed. Supports daily/weekly/monthly/annual reports.
+ */
+export function generateCostLedger(): string {
+  return `#!/usr/bin/env node
+/**
+ * Claude Code Cost Ledger
+ *
+ * Tracks session costs across all projects on this machine.
+ * Two modes:
+ *   1. "record" — called by session-end hook, appends cost to JSONL ledger
+ *   2. "report" — generates daily/weekly/monthly/annual summaries
+ *
+ * Ledger location: ~/.claude/cost-ledger.jsonl
+ *
+ * Usage:
+ *   node cost-ledger.cjs record          # (reads stdin from Claude Code)
+ *   node cost-ledger.cjs report          # default: last 30 days
+ *   node cost-ledger.cjs report --daily
+ *   node cost-ledger.cjs report --weekly
+ *   node cost-ledger.cjs report --monthly
+ *   node cost-ledger.cjs report --annual
+ *   node cost-ledger.cjs report --project <name>
+ *   node cost-ledger.cjs report --json
+ */
+
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+const LEDGER_PATH = path.join(os.homedir(), '.claude', 'cost-ledger.jsonl');
+
+const c = {
+  reset: '\\x1b[0m', bold: '\\x1b[1m', dim: '\\x1b[2m',
+  red: '\\x1b[31m', green: '\\x1b[32m', yellow: '\\x1b[33m',
+  blue: '\\x1b[34m', cyan: '\\x1b[36m', white: '\\x1b[37m',
+  brightGreen: '\\x1b[1;32m', brightYellow: '\\x1b[1;33m',
+  brightCyan: '\\x1b[1;36m', brightWhite: '\\x1b[1;37m',
+};
+
+function readStdinSync() {
+  try {
+    if (process.stdin.isTTY) return null;
+    const chunks = [];
+    const buf = Buffer.alloc(4096);
+    let bytesRead;
+    try {
+      while ((bytesRead = fs.readSync(0, buf, 0, buf.length, null)) > 0) {
+        chunks.push(buf.slice(0, bytesRead));
+      }
+    } catch { /* EOF */ }
+    const raw = Buffer.concat(chunks).toString('utf-8').trim();
+    if (raw && raw.startsWith('{')) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return null;
+}
+
+function getProjectName() {
+  try {
+    const { execSync } = require('child_process');
+    const remote = execSync('git remote get-url origin 2>/dev/null', {
+      encoding: 'utf-8', timeout: 2000, stdio: ['pipe', 'pipe', 'pipe']
+    }).trim();
+    if (remote) {
+      const match = remote.match(/\\/([^/]+?)(?:\\.git)?$/);
+      if (match) return match[1];
+    }
+  } catch { /* ignore */ }
+  return path.basename(process.cwd());
+}
+
+function record() {
+  const data = readStdinSync();
+  const costUsd = (data && data.cost && data.cost.total_cost_usd)
+    || parseFloat(process.env.CLAUDE_SESSION_COST || '0');
+  const durationMs = (data && data.cost && data.cost.total_duration_ms)
+    || parseInt(process.env.CLAUDE_SESSION_DURATION_MS || '0', 10);
+  const linesAdded = (data && data.cost && data.cost.total_lines_added) || 0;
+  const linesRemoved = (data && data.cost && data.cost.total_lines_removed) || 0;
+  const model = (data && data.model && data.model.model_id)
+    || process.env.CLAUDE_MODEL || 'unknown';
+  const sessionId = (data && data.session_id)
+    || process.env.CLAUDE_SESSION_ID || 'session-' + Date.now();
+
+  if (costUsd <= 0 && durationMs <= 0) return;
+
+  const entry = {
+    date: new Date().toISOString().split('T')[0],
+    timestamp: new Date().toISOString(),
+    project: getProjectName(),
+    session_id: sessionId,
+    cost_usd: Math.round(costUsd * 100) / 100,
+    duration_min: Math.round(durationMs / 60000 * 10) / 10,
+    model: model,
+    lines_added: linesAdded,
+    lines_removed: linesRemoved,
+  };
+
+  const dir = path.dirname(LEDGER_PATH);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.appendFileSync(LEDGER_PATH, JSON.stringify(entry) + '\\n');
+}
+
+function loadLedger() {
+  if (!fs.existsSync(LEDGER_PATH)) return [];
+  const lines = fs.readFileSync(LEDGER_PATH, 'utf-8').trim().split('\\n');
+  const entries = [];
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    try { entries.push(JSON.parse(line)); } catch { /* skip */ }
+  }
+  return entries;
+}
+
+function filterByDate(entries, days) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = cutoff.toISOString().split('T')[0];
+  return entries.filter(e => e.date >= cutoffStr);
+}
+
+function groupBy(entries, keyFn) {
+  const groups = {};
+  for (const e of entries) {
+    const key = keyFn(e);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(e);
+  }
+  return groups;
+}
+
+function summarize(entries) {
+  const totalCost = entries.reduce((s, e) => s + (e.cost_usd || 0), 0);
+  const totalDuration = entries.reduce((s, e) => s + (e.duration_min || 0), 0);
+  return {
+    cost_usd: Math.round(totalCost * 100) / 100,
+    duration_hours: Math.round(totalDuration / 60 * 10) / 10,
+    sessions: entries.length,
+    lines_added: entries.reduce((s, e) => s + (e.lines_added || 0), 0),
+    lines_removed: entries.reduce((s, e) => s + (e.lines_removed || 0), 0),
+    avg_cost_per_session: entries.length > 0 ? Math.round(totalCost / entries.length * 100) / 100 : 0,
+  };
+}
+
+function getWeekKey(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(d.setDate(diff));
+  return monday.toISOString().split('T')[0];
+}
+
+function formatCost(usd) { return '$' + usd.toFixed(2); }
+function formatDuration(hours) {
+  if (hours < 1) return Math.round(hours * 60) + 'm';
+  return hours.toFixed(1) + 'h';
+}
+
+function report(args) {
+  const entries = loadLedger();
+  if (entries.length === 0) {
+    console.log('No cost data recorded yet. Costs will be tracked after session-end hooks run.');
+    return;
+  }
+
+  const jsonOutput = args.includes('--json');
+  const projectFilter = args.includes('--project')
+    ? args[args.indexOf('--project') + 1] : null;
+
+  let filtered = entries;
+  if (projectFilter) filtered = filtered.filter(e => e.project === projectFilter);
+
+  let groupFn, groupLabel, periodDays;
+  if (args.includes('--annual') || args.includes('--yearly')) {
+    groupFn = e => e.date.substring(0, 4);
+    groupLabel = 'Annual'; periodDays = 3650;
+  } else if (args.includes('--monthly')) {
+    groupFn = e => e.date.substring(0, 7);
+    groupLabel = 'Monthly'; periodDays = 365;
+  } else if (args.includes('--weekly')) {
+    groupFn = e => 'Week of ' + getWeekKey(e.date);
+    groupLabel = 'Weekly'; periodDays = 90;
+  } else if (args.includes('--daily')) {
+    groupFn = e => e.date;
+    groupLabel = 'Daily'; periodDays = 30;
+  } else {
+    groupFn = e => e.project;
+    groupLabel = 'By Project (Last 30 Days)'; periodDays = 30;
+  }
+
+  filtered = filterByDate(filtered, periodDays);
+  if (filtered.length === 0) { console.log('No cost data for the specified period.'); return; }
+
+  const groups = groupBy(filtered, groupFn);
+  const overall = summarize(filtered);
+
+  if (jsonOutput) {
+    const result = { period: groupLabel, overall, breakdown: {} };
+    for (const [key, ents] of Object.entries(groups)) {
+      result.breakdown[key] = summarize(ents);
+    }
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  console.log('');
+  console.log(c.bold + c.brightCyan + '  Claude Code Cost Report' + c.reset);
+  console.log(c.dim + '  ' + String.fromCharCode(0x2500).repeat(50) + c.reset);
+  console.log('');
+  console.log(c.bold + '  Overall' + c.reset + (projectFilter ? c.dim + ' (' + projectFilter + ')' + c.reset : ''));
+  console.log(c.brightYellow + '    Total Cost:     ' + c.brightWhite + formatCost(overall.cost_usd) + c.reset);
+  console.log(c.cyan + '    Total Time:     ' + c.white + formatDuration(overall.duration_hours) + c.reset);
+  console.log(c.cyan + '    Sessions:       ' + c.white + overall.sessions + c.reset);
+  console.log(c.cyan + '    Avg/Session:    ' + c.white + formatCost(overall.avg_cost_per_session) + c.reset);
+  console.log(c.cyan + '    Lines +/-:      ' + c.green + '+' + overall.lines_added + c.reset + ' / ' + c.red + '-' + overall.lines_removed + c.reset);
+  console.log('');
+  console.log(c.bold + '  ' + groupLabel + c.reset);
+  console.log(c.dim + '  ' + String.fromCharCode(0x2500).repeat(50) + c.reset);
+
+  var colW = { name: 24, cost: 10, time: 8, sess: 6 };
+  console.log(c.dim + '  ' + 'Period/Project'.padEnd(colW.name) + 'Cost'.padStart(colW.cost) + 'Time'.padStart(colW.time) + 'Sess'.padStart(colW.sess) + c.reset);
+
+  var sorted = Object.entries(groups)
+    .map(function(pair) { var s = summarize(pair[1]); s.key = pair[0]; return s; })
+    .sort(function(a, b) { return b.cost_usd - a.cost_usd; });
+
+  for (var i = 0; i < sorted.length; i++) {
+    var row = sorted[i];
+    var costColor = row.cost_usd > 50 ? c.brightYellow : row.cost_usd > 10 ? c.yellow : c.green;
+    console.log('  ' + c.white + row.key.substring(0, colW.name - 1).padEnd(colW.name) + c.reset +
+      costColor + formatCost(row.cost_usd).padStart(colW.cost) + c.reset +
+      c.cyan + formatDuration(row.duration_hours).padStart(colW.time) + c.reset +
+      c.dim + String(row.sessions).padStart(colW.sess) + c.reset);
+  }
+
+  console.log('');
+  console.log(c.dim + '  Ledger: ' + LEDGER_PATH + c.reset);
+  console.log('');
+}
+
+const [,, cmd, ...cmdArgs] = process.argv;
+if (cmd === 'record') { record(); }
+else if (cmd === 'report') { report(cmdArgs); }
+else {
+  console.log('Claude Code Cost Ledger');
+  console.log('');
+  console.log('Usage:');
+  console.log('  node cost-ledger.cjs record           Record session cost (from hook)');
+  console.log('  node cost-ledger.cjs report            Last 30 days by project');
+  console.log('  node cost-ledger.cjs report --daily    Daily breakdown');
+  console.log('  node cost-ledger.cjs report --weekly   Weekly breakdown');
+  console.log('  node cost-ledger.cjs report --monthly  Monthly breakdown');
+  console.log('  node cost-ledger.cjs report --annual   Annual breakdown');
+  console.log('  node cost-ledger.cjs report --project <name>  Filter by project');
+  console.log('  node cost-ledger.cjs report --json     JSON output');
+  console.log('');
+  console.log('Ledger: ' + LEDGER_PATH);
+}
+`;
+}
+
 export function generateHelpers(options: InitOptions): Record<string, string> {
   const helpers: Record<string, string> = {};
 
@@ -1188,6 +1464,9 @@ export function generateHelpers(options: InitOptions): Record<string, string> {
     // Windows-specific scripts
     helpers['daemon-manager.ps1'] = generateWindowsDaemonManager();
     helpers['daemon-manager.cmd'] = generateWindowsBatchWrapper();
+
+    // Cost tracking (installed to both project and ~/.claude/helpers/)
+    helpers['cost-ledger.cjs'] = generateCostLedger();
   }
 
   if (options.components.statusline) {
