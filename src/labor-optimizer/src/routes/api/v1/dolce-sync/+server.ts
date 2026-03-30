@@ -11,8 +11,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-const GITHUB_OWNER = 'methodco';
-const GITHUB_REPO = 'claude-agents';
+const GITHUB_OWNER = 'rrmethodco';
+const GITHUB_REPO = 'ruflo';
 const WORKFLOW_ID = 'dolce-sync.yml';
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -51,7 +51,7 @@ export const POST: RequestHandler = async ({ request }) => {
           'X-GitHub-Api-Version': '2022-11-28',
         },
         body: JSON.stringify({
-          ref: 'main',
+          ref: 'feature/claude-agents-setup',
           inputs,
         }),
       },

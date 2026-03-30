@@ -1,7 +1,7 @@
 /**
  * Dolce TeamWork Schedule Sync Script
  *
- * Scrapes the Schedules page from Dolce Clock for Lowland,
+ * Scrapes the Schedules page from Dolce Clock for all Method Co locations,
  * parses individual employee shifts and the Daily Analytics Summary,
  * maps Dolce roles to dashboard positions, and upserts daily
  * per-position scheduled labor into scheduled_labor.
@@ -11,22 +11,49 @@
  *   SUPABASE_URL, SUPABASE_SERVICE_KEY
  *
  * Usage:
- *   npx ts-node scripts/dolce-sync.ts
+ *   npx ts-node scripts/dolce-sync.ts                    # all locations
  *   npx ts-node scripts/dolce-sync.ts --week 2026-03-23
+ *   npx ts-node scripts/dolce-sync.ts --location lowland # single location
  */
 
 import { chromium, type Page } from 'playwright';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 // ---------------------------------------------------------------------------
-// Config
+// Config — Multi-location
 // ---------------------------------------------------------------------------
 
 const DOLCE_LOGIN_URL =
   'https://www.dolceclock.com/public/login.php?company_id=3243';
 const DOLCE_SCHEDULES_URL =
   'https://www.dolceclock.com/public/?_company_id=3243';
-const LOWLAND_LOCATION_ID = 'f36fdb18-a97b-48af-8456-7374dea4b0f9';
+
+interface DolceLocation {
+  slug: string;               // CLI-friendly name
+  name: string;               // Display name
+  locationId: string;         // Supabase location_id
+  /** Prefixes used to match schedule group names (case-insensitive) */
+  groupPrefixes: string[];
+}
+
+// [slug, name, locationId, groupPrefixes[]]
+const LOCATION_DATA: [string, string, string, string[]][] = [
+  ['lowland', 'Lowland', 'f36fdb18-a97b-48af-8456-7374dea4b0f9', ['lowland', 'contract']],
+  ['le-supreme', 'Le Supreme', 'ae99ee33-1b8e-4c8f-8451-e9f3d0fa28ce', ['lsd', 'le supreme']],
+  ['mulherins', "Wm. Mulherin's Sons", '23c02a8e-1425-441e-9650-73ae93fa68cc', ['wm. mulherin', 'wm mulherin']],
+  ['quoin', 'The Quoin Restaurant', '0eefcab2-d68d-4a2f-ae30-009b999258c7', ['the quoin']],
+  ['hiroki-san', 'HIROKI-SAN Detroit', 'b4035001-0928-4ada-a0f0-f2a272393147', ['hs ', 'sakazuki', 'aladdin', 'hiroki-san']],
+  ['kampers', "Kamper's", 'b7d3e1a4-5f2c-4a8b-9e6d-1c3f5a7b9d2e', ['kampers']],
+  ['hiroki-philly', 'HIROKI Philadelphia', 'c21aa6c1-411e-4ed1-9b84-e9d9d143abf9', ['hiroki']],
+  ['little-wing', 'Little Wing', '574118d5-8511-41ce-8ae8-14f921fb021a', ['little wing']],
+  ['vessel', 'Vessel', 'd201e1aa-a2a7-420d-8112-91160d0bc1bc', ['vessel']],
+  ['anthology', 'Anthology', '84f4ea7f-722d-4296-894b-6ecfe389b2d5', ['anthology']],
+  ['rosemary-rose', 'Rosemary Rose', '757c51f9-ae4a-4dd2-9609-e231f21df72a', ['rosemary rose', 'rr ']],
+];
+
+const LOCATIONS: DolceLocation[] = LOCATION_DATA.map(
+  ([slug, name, locationId, groupPrefixes]) => ({ slug, name, locationId, groupPrefixes }),
+);
 
 // ---------------------------------------------------------------------------
 // Supabase
@@ -159,6 +186,7 @@ function calcShiftHours(startStr: string, endStr: string): number {
 function parseDailyAnalytics(
   text: string,
   weekDates: string[],
+  extraEndMarkers?: string[],
 ): DailyAnalytics[] {
   const results: DailyAnalytics[] = [];
 
@@ -169,10 +197,17 @@ function parseDailyAnalytics(
     return results;
   }
 
-  // The summary ends before the schedule sections (e.g. "Lowland FOH" or "Weekly Analytics")
-  const summaryEndMarkers = ['Lowland FOH', 'Lowland BOH', 'Weekly Analytics'];
+  // The summary ends before schedule sections or Weekly Analytics
+  // Build end markers dynamically from all known group prefixes
+  const defaultEndMarkers = ['Weekly Analytics'];
+  for (const loc of LOCATIONS) {
+    for (const pfx of loc.groupPrefixes) {
+      defaultEndMarkers.push(pfx.trim());
+    }
+  }
+  const endMarkers = extraEndMarkers ? [...defaultEndMarkers, ...extraEndMarkers] : defaultEndMarkers;
   let summaryEnd = text.length;
-  for (const marker of summaryEndMarkers) {
+  for (const marker of endMarkers) {
     const idx = text.indexOf(marker, summaryStart);
     if (idx > summaryStart && idx < summaryEnd) {
       summaryEnd = idx;
@@ -296,6 +331,7 @@ function parseDailyAnalytics(
 function parseShifts(
   text: string,
   weekDates: string[],
+  groupPrefixes?: string[],
 ): ParsedShift[] {
   const shifts: ParsedShift[] = [];
 
@@ -306,21 +342,31 @@ function parseShifts(
     dayToDate.set(dayNames[i], weekDates[i]);
   }
 
-  // Find schedule sections (Lowland FOH, Lowland BOH, etc.)
-  const sectionRegex = /^(Lowland\s+(?:FOH|BOH|MGT)|Contract\s+Labor)/im;
+  // Find schedule sections matching the location's group prefixes
+  const prefixes = groupPrefixes || ['lowland', 'contract labor'];
+  const prefixLower = prefixes.map(p => p.toLowerCase());
 
-  // Find the start of schedule data (after Daily Analytics)
-  const scheduleMarkers = ['Lowland FOH', 'Lowland BOH'];
+  // Find the earliest schedule section that matches our prefixes
   let schedStart = text.length;
-  for (const marker of scheduleMarkers) {
-    const idx = text.indexOf(marker);
-    if (idx >= 0 && idx < schedStart) {
-      schedStart = idx;
+  const lines_all = text.split('\n');
+  for (let i = 0; i < lines_all.length; i++) {
+    const lineLower = lines_all[i].trim().toLowerCase();
+    if (prefixLower.some(p => lineLower.startsWith(p)) &&
+        (lineLower.includes('foh') || lineLower.includes('boh') || lineLower.includes('mgt') ||
+         lineLower.includes('server') || lineLower.includes('bartender') || lineLower.includes('host') ||
+         lineLower.includes('cook') || lineLower.includes('dishwasher') || lineLower.includes('prep') ||
+         lineLower.includes('support') || lineLower.includes('training') || lineLower.includes('pastry') ||
+         lineLower.includes('runner') || lineLower.includes('bar') || lineLower.includes('s.a.') ||
+         lineLower.includes('sushi') || lineLower.includes('cleaner') || lineLower.includes('keeping'))) {
+      const idx = text.indexOf(lines_all[i].trim());
+      if (idx >= 0 && idx < schedStart) {
+        schedStart = idx;
+      }
     }
   }
 
   if (schedStart >= text.length) {
-    console.warn('[Parse] No schedule sections found in page text');
+    console.warn(`[Parse] No schedule sections found for prefixes: ${prefixes.join(', ')}`);
     return shifts;
   }
 
@@ -335,17 +381,31 @@ function parseShifts(
     /^(mon|tue|wed|thu|fri|sat|sun)\s+(\d{1,2}:\d{2}(?:am|pm))\s*-\s*(\d{1,2}:\d{2}(?:am|pm))\s+(.+)$/i;
   const timeOnlyRegex =
     /^(\d{1,2}:\d{2}(?:am|pm))\s*-\s*(\d{1,2}:\d{2}(?:am|pm))$/i;
-  // Known role names (from Dolce)
+  // Known generic role names (from Dolce — location prefixes stripped)
   const knownRoles = new Set([
-    'cook', 'dishwasher', 'prep', 'lowland server', 'lowland bartender',
-    'lowland host', 'lowland support', 'lowland sidework', 'lead bar admin',
-    'maitre\'d', 'polisher', 'foh training', 'boh training', 'key holder',
-    'lowland server assistant server support', 'general manager',
-    'ghost bartender', 'contract dish',
+    'cook', 'dishwasher', 'prep', 'server', 'bartender', 'host', 'support',
+    'training', 'line cook', 'prep cook', 'pastry cook', 'food runner',
+    'bar prep', 'sushi cook', 'cleaner', 'house keeping', 'polisher',
+    'maitre\'d', 'lead bar admin', 'key holder', 'general manager',
+    'ghost bartender', 'contract dish', 'foh training', 'boh training',
+    'server assistant', 's.a.', 'bar rotunda', 'barista',
   ]);
 
+  /** Check if a role line belongs to our location based on group prefixes */
+  const matchesLocation = (line: string): boolean => {
+    const lower = line.toLowerCase();
+    if (prefixLower.some(p => lower.startsWith(p))) return true;
+    if (knownRoles.has(lower)) return true;
+    // Strip any known location prefix and check generic role
+    const stripped = lower.replace(
+      /^(lowland|lsd|le supreme|the quoin( restaurant)?|wm\.?\s*mulherin\S*|hiroki-san|hiroki|hs|kampers|little wing|vessel|anthology|rosemary rose|rr)\s+[-]?\s*/i,
+      '',
+    ).trim();
+    return stripped !== lower && knownRoles.has(stripped);
+  };
+
   const nameExclusions =
-    /^(lowland\s+(foh|boh|mgt)|contract\s+labor|published|hrs:|shifts:|daily|weekly|location|sched|act|hours|\$|salary|overtime|total|regular|filter|all|ready)/i;
+    /^(lowland\s+(foh|boh|mgt)|lsd\s+\w|the quoin|wm\.?\s*mulherin|contract\s+labor|hs\s+(server|support|bar|host|line|sushi|prep|dish)|sakazuki|aladdin|hiroki|kampers|little wing|vessel|anthology|rosemary rose|rr\s*\+|published|hrs:|shifts:|daily|weekly|location|sched|act|hours|\$|salary|overtime|total|regular|filter|all|ready)/i;
   const namePattern = /^[A-Z][a-z'-]+,\s+[A-Z]/;
 
   let currentEmployee = 'Unknown';
@@ -418,7 +478,7 @@ function parseShifts(
     // If previous line was a time, this line might be the role name
     if (pendingTime) {
       const normalizedLine = line.toLowerCase().trim();
-      if (knownRoles.has(normalizedLine) || normalizedLine.startsWith('lowland ')) {
+      if (matchesLocation(normalizedLine)) {
         const date = weekDates[currentDay] || weekDates[0];
         const hours = calcShiftHours(pendingTime.start, pendingTime.end);
 
@@ -542,7 +602,7 @@ function calculatePositionDayRecords(
 
 /**
  * Find the dashboard position for a Dolce role name.
- * Tries exact match first, then partial/contains matching.
+ * Tries exact match first, then strips known location prefixes, then partial matching.
  */
 function findMapping(
   dolceRole: string,
@@ -555,16 +615,21 @@ function findMapping(
     return mappingLookup.get(lower);
   }
 
-  // Try matching without "Lowland " prefix
-  const withoutPrefix = lower.replace(/^lowland\s+/, '');
-  if (mappingLookup.has(withoutPrefix)) {
+  // Strip known location prefixes and try again
+  // Longer prefixes first to avoid partial matches (hiroki-san before hiroki)
+  const prefixPattern = /^(lowland|lsd|le supreme|the quoin( restaurant)?|wm\.?\s*mulherin'?s?\s*(sons)?|hiroki-san|hiroki|hs|kampers|little wing|vessel|anthology|rosemary rose|rr)\s+[-]?\s*/i;
+  const withoutPrefix = lower.replace(prefixPattern, '').trim();
+  if (withoutPrefix !== lower && mappingLookup.has(withoutPrefix)) {
     return mappingLookup.get(withoutPrefix);
   }
 
-  // Try matching with "Lowland " prefix added
-  const withPrefix = `lowland ${withoutPrefix}`;
-  if (mappingLookup.has(withPrefix)) {
-    return mappingLookup.get(withPrefix);
+  // Try with various prefixes added back
+  const allPrefixes = LOCATIONS.flatMap(l => l.groupPrefixes.map(p => p.trim().toLowerCase()));
+  for (const prefix of allPrefixes) {
+    const withPrefix = `${prefix} ${withoutPrefix}`.replace(/\s+/g, ' ');
+    if (mappingLookup.has(withPrefix)) {
+      return mappingLookup.get(withPrefix);
+    }
   }
 
   // Partial match: check if any mapping key is contained in the role
@@ -615,21 +680,56 @@ async function loginToDolce(page: Page): Promise<void> {
 
 async function navigateToSchedules(page: Page): Promise<void> {
   console.log('[Dolce] Navigating to Schedules page...');
-  await page.goto(DOLCE_SCHEDULES_URL, {
-    waitUntil: 'networkidle',
-    timeout: 30000,
-  });
-  await page.waitForTimeout(3000);
+  // After login, navigate using the same domain origin to preserve cookies
+  // Try clicking the Schedules link first, fall back to direct navigation
+  try {
+    const schedLink = await page.$('a[href*="schedule"], a:has-text("Schedule"), a:has-text("Schedules")');
+    if (schedLink) {
+      console.log('[Dolce] Found Schedules link, clicking...');
+      await schedLink.click();
+      await page.waitForTimeout(3000);
+    } else {
+      // Use evaluate to navigate within the same context (preserves session)
+      console.log('[Dolce] No link found, navigating via location.href...');
+      await page.evaluate((url) => { window.location.href = url; }, DOLCE_SCHEDULES_URL);
+      await page.waitForTimeout(5000);
+    }
+  } catch {
+    // Last resort: direct goto
+    await page.goto(DOLCE_SCHEDULES_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(5000);
+  }
   console.log('[Dolce] Schedules URL:', page.url());
 
-  // Wait for schedule content to appear
+  // Check for login redirect (error=header_info means session lost)
+  if (page.url().includes('error=header_info') || page.url().includes('login.php')) {
+    console.warn('[Dolce] Session lost during navigation, re-logging in...');
+    // Re-enter credentials on the redirected login page
+    await page.waitForTimeout(1000);
+    const passField = await page.$('input[type="password"]');
+    if (passField) {
+      const userField = await page.$('input[name="user_email"], input[name="email"], input[type="email"], input[type="text"]');
+      if (userField) {
+        await userField.click({ clickCount: 3 });
+        await page.keyboard.type(process.env.DOLCE_USERNAME || '');
+      }
+      await passField.click({ clickCount: 3 });
+      await page.keyboard.type(process.env.DOLCE_PASSWORD || '');
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(5000);
+      // Try navigating again after re-login
+      await page.evaluate((url) => { window.location.href = url; }, DOLCE_SCHEDULES_URL);
+      await page.waitForTimeout(5000);
+      console.log('[Dolce] After re-login URL:', page.url());
+    }
+  }
+
+  // Wait for schedule content
   try {
-    await page.waitForSelector('text=Lowland', { timeout: 20000 });
+    await page.waitForSelector('text=Daily Analytics Summary', { timeout: 20000 });
     console.log('[Dolce] Schedule page loaded');
   } catch {
-    console.warn(
-      '[Dolce] Warning: "Lowland" text not found on schedules page',
-    );
+    console.warn('[Dolce] Warning: schedule content not found on page');
   }
 }
 
@@ -646,11 +746,12 @@ async function getPageText(page: Page): Promise<string> {
 
 async function fetchDolceMappings(
   sb: SupabaseClient,
+  locationId: string,
 ): Promise<DolceMapping[]> {
   const { data, error } = await sb
     .from('dolce_job_mapping')
     .select('dolce_role_name, dashboard_position')
-    .eq('location_id', LOWLAND_LOCATION_ID);
+    .eq('location_id', locationId);
 
   if (error) {
     console.error('[Dolce] Error fetching mappings:', error.message);
@@ -663,6 +764,7 @@ async function fetchDolceMappings(
 async function upsertScheduledLabor(
   sb: SupabaseClient,
   records: PositionDayRecord[],
+  locationId: string,
 ): Promise<number> {
   let upserted = 0;
   for (const rec of records) {
@@ -670,7 +772,7 @@ async function upsertScheduledLabor(
 
     const { error } = await sb.from('scheduled_labor').upsert(
       {
-        location_id: LOWLAND_LOCATION_ID,
+        location_id: locationId,
         business_date: rec.date,
         position: rec.position,
         scheduled_dollars: rec.scheduledDollars,
@@ -696,41 +798,138 @@ async function upsertScheduledLabor(
 // Main
 // ---------------------------------------------------------------------------
 
-async function main(): Promise<void> {
-  console.log('=== Dolce Schedule Sync (Shift-Level) ===');
-  console.log(`Time: ${new Date().toISOString()}`);
+/** Process a single location's data from the full page text */
+async function syncLocation(
+  loc: DolceLocation,
+  pageText: string,
+  weekDates: string[],
+  sb: SupabaseClient,
+): Promise<number> {
+  console.log(`\n--- Syncing ${loc.name} (${loc.slug}) ---`);
 
-  // Parse --week argument
-  const weekArg = process.argv.find((a) => a.startsWith('--week'));
-  const weekDate = weekArg
-    ? process.argv[process.argv.indexOf(weekArg) + 1]
-    : undefined;
-  const { monday, sunday, weekDates } = getWeekBounds(weekDate);
-  console.log(`Week: ${monday} to ${sunday}`);
-
-  const sb = getSupabase();
-
-  // Fetch role mappings
-  const mappings = await fetchDolceMappings(sb);
-  console.log(`[Dolce] Loaded ${mappings.length} role mappings`);
-
+  // Fetch role mappings for this location
+  const mappings = await fetchDolceMappings(sb, loc.locationId);
+  console.log(`[${loc.slug}] Loaded ${mappings.length} role mappings`);
   if (mappings.length === 0) {
-    console.error('[Dolce] No role mappings found! Run seed SQL first.');
-    process.exit(1);
+    console.warn(`[${loc.slug}] No role mappings found — skipping`);
+    return 0;
   }
 
-  // Build mapping lookup (lowercase key -> dashboard position)
   const mappingLookup = new Map<string, string>();
   for (const m of mappings) {
     mappingLookup.set(m.dolce_role_name.toLowerCase(), m.dashboard_position);
   }
 
-  // Launch browser and scrape
-  const browser = await chromium.launch({ headless: true });
+  // 1. Parse Daily Analytics Summary
+  const dailyAnalytics = parseDailyAnalytics(pageText, weekDates);
+  console.log(`[${loc.slug}] Daily Analytics: ${dailyAnalytics.length} days`);
+
+  // 2. Parse role summary totals (tab-delimited lines)
+  const roleWeeklyTotals = new Map<string, number>();
+  const roleSummaryRegex = /^(.+?)\t\$([\d,]+\.\d{2})\t[\d.]+%/gm;
+  let match;
+  while ((match = roleSummaryRegex.exec(pageText)) !== null) {
+    const roleName = match[1].trim();
+    const dollars = parseFloat(match[2].replace(/,/g, ''));
+    if (dollars > 0 && !roleName.match(/^(total|overtime|regular|salary|hourly)/i)) {
+      // Filter: only include roles that match this location's prefixes
+      const lower = roleName.toLowerCase();
+      const belongsHere = loc.groupPrefixes.some(p => lower.startsWith(p.toLowerCase()));
+      if (belongsHere) {
+        roleWeeklyTotals.set(roleName, (roleWeeklyTotals.get(roleName) ?? 0) + dollars);
+      }
+    }
+  }
+
+  // 2b. Try individual shift parsing
+  const shifts = parseShifts(pageText, weekDates, loc.groupPrefixes);
+  console.log(`[${loc.slug}] Shifts: ${shifts.length}, Role summaries: ${roleWeeklyTotals.size}`);
+
+  const uniqueDays = new Set(shifts.map(s => s.date));
+  const useRoleSummaryFallback = roleWeeklyTotals.size > 0 &&
+    (shifts.length === 0 || uniqueDays.size <= 1);
+
+  if (shifts.length === 0 && roleWeeklyTotals.size === 0) {
+    if (dailyAnalytics.length === 0) {
+      console.warn(`[${loc.slug}] No data found — skipping`);
+      return 0;
+    }
+    console.warn(`[${loc.slug}] No shifts/roles — falling back to analytics totals`);
+  }
+
+  // 3. Build per-position daily records
+  let positionRecords: PositionDayRecord[];
+
+  if (useRoleSummaryFallback) {
+    const totalWeekHrs = dailyAnalytics.reduce((s, d) => s + d.schedHours, 0);
+    const dayWeights = dailyAnalytics.map(d => totalWeekHrs > 0 ? d.schedHours / totalWeekHrs : 1/7);
+    const direct: PositionDayRecord[] = [];
+    for (const [roleName, weeklyTotal] of roleWeeklyTotals) {
+      const dashPos = findMapping(roleName, mappingLookup);
+      if (!dashPos || dashPos === 'EXCLUDE') continue;
+      for (let i = 0; i < dailyAnalytics.length; i++) {
+        direct.push({
+          date: dailyAnalytics[i].date,
+          position: dashPos,
+          scheduledDollars: Math.round(weeklyTotal * (dayWeights[i] || 0) * 100) / 100,
+          scheduledHours: Math.round(dailyAnalytics[i].schedHours * (dayWeights[i] || 0) * 100) / 100,
+        });
+      }
+    }
+    // Aggregate duplicates
+    const aggMap = new Map<string, PositionDayRecord>();
+    for (const rec of direct) {
+      const key = `${rec.date}|${rec.position}`;
+      const existing = aggMap.get(key);
+      if (existing) { existing.scheduledDollars += rec.scheduledDollars; existing.scheduledHours += rec.scheduledHours; }
+      else aggMap.set(key, { ...rec });
+    }
+    positionRecords = Array.from(aggMap.values());
+  } else {
+    const roleDayHours = aggregateShiftsByDateRole(shifts);
+    positionRecords = calculatePositionDayRecords(roleDayHours, dailyAnalytics, mappingLookup);
+  }
+
+  console.log(`[${loc.slug}] ${positionRecords.length} position records to upsert`);
+  const upserted = await upsertScheduledLabor(sb, positionRecords, loc.locationId);
+  console.log(`[${loc.slug}] Upserted ${upserted} records`);
+  return upserted;
+}
+
+async function main(): Promise<void> {
+  console.log('=== Dolce Schedule Sync (Multi-Location) ===');
+  console.log(`Time: ${new Date().toISOString()}`);
+
+  // Parse CLI arguments
+  const weekArgIdx = process.argv.indexOf('--week');
+  const weekDate = weekArgIdx >= 0 ? process.argv[weekArgIdx + 1] : undefined;
+  const locArgIdx = process.argv.indexOf('--location');
+  const locationFilter = locArgIdx >= 0 ? process.argv[locArgIdx + 1]?.toLowerCase() : undefined;
+
+  const { monday, sunday, weekDates } = getWeekBounds(weekDate);
+  console.log(`Week: ${monday} to ${sunday}`);
+
+  // Determine which locations to sync
+  const targetLocations = locationFilter
+    ? LOCATIONS.filter(l => l.slug === locationFilter || l.name.toLowerCase() === locationFilter)
+    : LOCATIONS;
+
+  if (targetLocations.length === 0) {
+    const slugs = LOCATIONS.map(l => l.slug).join(', ');
+    console.error(`[Dolce] Unknown location "${locationFilter}". Available: ${slugs}`);
+    process.exit(1);
+  }
+
+  console.log(`Locations: ${targetLocations.map(l => l.name).join(', ')}`);
+
+  const sb = getSupabase();
+
+  // Launch browser and scrape (single login, single page load)
+  const browser = await chromium.launch({ headless: true, args: ['--disable-blink-features=AutomationControlled'] });
   const context = await browser.newContext({
-    viewport: { width: 1280, height: 900 },
-    userAgent:
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    viewport: { width: 1400, height: 900 },
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    extraHTTPHeaders: { 'Accept-Language': 'en-US,en;q=0.9' },
   });
   const page = await context.newPage();
 
@@ -739,180 +938,27 @@ async function main(): Promise<void> {
     await navigateToSchedules(page);
     const pageText = await getPageText(page);
 
-    // Debug: save page text for troubleshooting
     if (process.env.DOLCE_DEBUG) {
       const fs = await import('fs');
       fs.writeFileSync('/tmp/dolce-page-text.txt', pageText);
       console.log('[Debug] Page text saved to /tmp/dolce-page-text.txt');
     }
 
-    // 1. Parse Daily Analytics Summary
-    const dailyAnalytics = parseDailyAnalytics(pageText, weekDates);
-    console.log(
-      `\n[Parse] Daily Analytics: ${dailyAnalytics.length} days found`,
-    );
-    for (const da of dailyAnalytics) {
-      console.log(
-        `  ${da.date}: ${da.schedHours} hrs, $${da.schedHrlyDollars} hrly, $${da.schedSalaryDollars} salary`,
-      );
-    }
-
-    // 2. Parse shifts from Role Analytics summary at bottom of page
-    // The page text contains role summary lines like:
-    //   Cook	$8,503.68	8.26%	$3,202.50	9.6%	$3,664.71	9.0%
-    // Extract role name and scheduled $ (first dollar amount)
-    const roleWeeklyTotals = new Map<string, number>();
-    const roleSummaryRegex = /^(.+?)\t\$([\d,]+\.\d{2})\t[\d.]+%/gm;
-    let match;
-    while ((match = roleSummaryRegex.exec(pageText)) !== null) {
-      const roleName = match[1].trim();
-      const dollars = parseFloat(match[2].replace(/,/g, ''));
-      if (dollars > 0 && !roleName.match(/^(total|overtime|regular|salary|hourly)/i)) {
-        roleWeeklyTotals.set(roleName, (roleWeeklyTotals.get(roleName) ?? 0) + dollars);
+    let totalUpserted = 0;
+    for (const loc of targetLocations) {
+      try {
+        totalUpserted += await syncLocation(loc, pageText, weekDates, sb);
+      } catch (err) {
+        console.error(`[${loc.slug}] Error:`, err);
       }
     }
 
-    console.log(`\n[Parse] Role summary totals: ${roleWeeklyTotals.size} roles found`);
-    for (const [role, total] of roleWeeklyTotals) {
-      console.log(`  ${role}: $${total.toFixed(2)}`);
-    }
-
-    // 2b. Also try individual shift parsing for per-day breakdown
-    const shifts = parseShifts(pageText, weekDates);
-    console.log(`[Parse] Individual shifts: ${shifts.length} found`);
-
-    // Use role summary fallback if:
-    // - No individual shifts parsed, OR
-    // - Shifts parsed but all assigned to same day (day tracking broken)
-    const uniqueDays = new Set(shifts.map(s => s.date));
-    let useRoleSummaryFallback = roleWeeklyTotals.size > 0 && (shifts.length === 0 || uniqueDays.size <= 1);
-    if (useRoleSummaryFallback && shifts.length > 0) {
-      console.log(`[Parse] ${shifts.length} shifts found but only ${uniqueDays.size} day(s) detected — using role summary fallback`);
-    }
-
-    if (shifts.length === 0 && roleWeeklyTotals.size === 0) {
-      console.warn('[Dolce] No shifts or role summaries parsed. Taking screenshot...');
-      await page.screenshot({ path: '/tmp/dolce-debug.png', fullPage: true });
-      console.log('[Dolce] Screenshot saved to /tmp/dolce-debug.png');
-      if (dailyAnalytics.length === 0) {
-        console.error('[Dolce] No data at all. Exiting.');
-        process.exit(1);
-      }
-      console.warn('[Dolce] Falling back to daily analytics totals only');
-    }
-
-    // 3. Build per-position daily records
-    let roleDayHours: RoleDayHours[];
-
-    if (useRoleSummaryFallback) {
-      // Distribute role weekly totals to daily using analytics hours proportions
-      const totalWeekHrs = dailyAnalytics.reduce((s, d) => s + d.schedHours, 0);
-      const dayWeights = dailyAnalytics.map(d => totalWeekHrs > 0 ? d.schedHours / totalWeekHrs : 1/7);
-
-      // Skip per-position hours distribution — go directly to position records
-      const positionRecordsDirect: PositionDayRecord[] = [];
-      for (const [roleName, weeklyTotal] of roleWeeklyTotals) {
-        const dashPos = findMapping(roleName, mappingLookup);
-        if (!dashPos || dashPos === 'EXCLUDE') {
-          console.log(`  [SKIP] "${roleName}" -> ${dashPos || 'UNMAPPED'}`);
-          continue;
-        }
-        for (let i = 0; i < dailyAnalytics.length; i++) {
-          const da = dailyAnalytics[i];
-          const dayDollars = Math.round(weeklyTotal * (dayWeights[i] || 0) * 100) / 100;
-          const dayHours = Math.round(da.schedHours * (dayWeights[i] || 0) * 100) / 100;
-          positionRecordsDirect.push({
-            date: da.date,
-            position: dashPos,
-            scheduledDollars: dayDollars,
-            scheduledHours: dayHours,
-          });
-        }
-      }
-
-      // Aggregate duplicate positions per day (multiple Dolce roles -> same dashboard position)
-      const aggMap = new Map<string, PositionDayRecord>();
-      for (const rec of positionRecordsDirect) {
-        const key = `${rec.date}|${rec.position}`;
-        const existing = aggMap.get(key);
-        if (existing) {
-          existing.scheduledDollars += rec.scheduledDollars;
-          existing.scheduledHours += rec.scheduledHours;
-        } else {
-          aggMap.set(key, { ...rec });
-        }
-      }
-
-      const directRecords = Array.from(aggMap.values());
-      console.log(`\n[Parse] Distributed ${roleWeeklyTotals.size} roles across ${dailyAnalytics.length} days -> ${directRecords.length} position records`);
-      for (const rec of directRecords) {
-        console.log(`  ${rec.date} | ${rec.position}: $${rec.scheduledDollars.toFixed(2)}`);
-      }
-
-      // Upsert directly and exit
-      console.log(`\n[Dolce] Upserting ${directRecords.length} records to scheduled_labor...`);
-      const upserted = await upsertScheduledLabor(sb, directRecords);
-      console.log(`[Dolce] Successfully upserted ${upserted} records`);
-      console.log('\n=== Dolce Schedule Sync Complete ===');
-      await browser.close();
-      return;
-    } else {
-      roleDayHours = aggregateShiftsByDateRole(shifts);
-    }
-    console.log(`[Parse] Aggregated into ${roleDayHours.length} date+role groups`);
-
-    // Log unmapped roles
-    const unmappedRoles = new Set<string>();
-    for (const rdh of roleDayHours) {
-      const mapped = findMapping(rdh.dolceRole, mappingLookup);
-      if (!mapped) {
-        unmappedRoles.add(rdh.dolceRole);
-      } else if (mapped === 'EXCLUDE') {
-        // silently skip
-      }
-    }
-    if (unmappedRoles.size > 0) {
-      console.warn('\n[Dolce] Unmapped Dolce roles:');
-      for (const role of unmappedRoles) {
-        console.warn(`  [UNMAPPED] "${role}"`);
-      }
-    }
-
-    // 4. Calculate per-position daily records
-    const positionRecords = calculatePositionDayRecords(
-      roleDayHours,
-      dailyAnalytics,
-      mappingLookup,
-    );
-
-    console.log(
-      `\n[Dolce] Per-position daily records: ${positionRecords.length}`,
-    );
-    for (const rec of positionRecords) {
-      console.log(
-        `  ${rec.date} | ${rec.position}: $${rec.scheduledDollars.toFixed(2)}, ${rec.scheduledHours.toFixed(1)} hrs`,
-      );
-    }
-
-    // 5. Upsert to scheduled_labor
-    console.log(
-      `\n[Dolce] Upserting ${positionRecords.length} records to scheduled_labor...`,
-    );
-    const upserted = await upsertScheduledLabor(sb, positionRecords);
-    console.log(`[Dolce] Successfully upserted ${upserted} records`);
-
-    console.log('\n=== Dolce Schedule Sync Complete ===');
+    console.log(`\n=== Dolce Sync Complete: ${totalUpserted} total records ===`);
   } catch (err) {
     console.error('[Dolce] Fatal error:', err);
     try {
-      await page.screenshot({
-        path: '/tmp/dolce-error.png',
-        fullPage: true,
-      });
-      console.log('[Dolce] Error screenshot saved to /tmp/dolce-error.png');
-    } catch {
-      // ignore screenshot errors
-    }
+      await page.screenshot({ path: '/tmp/dolce-error.png', fullPage: true });
+    } catch { /* ignore */ }
     process.exit(1);
   } finally {
     await browser.close();

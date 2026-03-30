@@ -1,7 +1,7 @@
 /**
  * Resy Reservation Sync Script
  *
- * Scrapes the Resy OS portal for Lowland (Charleston) to pull:
+ * Scrapes the Resy OS portal for all Method Co venues to pull:
  *   1. Upcoming Covers (forward-looking booked covers from Home page)
  *   2. Daily Covers Report (historical covers from Analytics > Covers)
  *
@@ -12,20 +12,74 @@
  *   SUPABASE_URL, SUPABASE_SERVICE_KEY
  *
  * Usage:
- *   npx tsx scripts/resy-sync.ts
+ *   npx tsx scripts/resy-sync.ts                       # all venues
  *   npx tsx scripts/resy-sync.ts --month 2026-03
+ *   npx tsx scripts/resy-sync.ts --venue lowland       # single venue
  */
 
 import { chromium, type Page, type BrowserContext } from 'playwright';
 
 // ---------------------------------------------------------------------------
-// Config
+// Config — Multi-venue
 // ---------------------------------------------------------------------------
 
 const RESY_LOGIN_URL = 'https://os.resy.com/portal';
-const RESY_HOME_URL = 'https://os.resy.com/portal/chs/lowland/Home';
-const RESY_COVERS_URL = 'https://os.resy.com/portal/chs/lowland/analytics/Covers';
-const LOWLAND_LOCATION_ID = 'f36fdb18-a97b-48af-8456-7374dea4b0f9';
+
+interface ResyVenue {
+  slug: string;              // CLI-friendly name
+  name: string;              // Display name (matches Resy OS)
+  locationId: string;        // Supabase location_id
+  /** Resy OS URL path segment, e.g. "chs/lowland" */
+  urlPath: string;
+}
+
+// NOTE: urlPath values below use {city_code}/{venue_slug} format from Resy OS.
+// Verify exact slugs against the live portal on first run; adjust if needed.
+const VENUES: ResyVenue[] = [
+  {
+    slug: 'lowland',
+    name: 'Lowland',
+    locationId: 'f36fdb18-a97b-48af-8456-7374dea4b0f9',
+    urlPath: 'chs/lowland',
+  },
+  {
+    slug: 'le-supreme',
+    name: 'Le Suprême',
+    locationId: 'ae99ee33-1b8e-4c8f-8451-e9f3d0fa28ce',
+    urlPath: 'dtw/le-supreme',
+  },
+  {
+    slug: 'mulherins',
+    name: "Wm. Mulherin's Sons",
+    locationId: '23c02a8e-1425-441e-9650-73ae93fa68cc',
+    urlPath: 'phi/wm-mulherins-sons',
+  },
+  {
+    slug: 'the-quoin',
+    name: 'The Quoin Restaurant',
+    locationId: '0eefcab2-d68d-4a2f-ae30-009b999258c7',
+    urlPath: 'wil/the-quoin-restaurant',
+  },
+  {
+    slug: 'hiroki-san',
+    name: 'HIROKI-SAN Detroit',
+    locationId: 'b4035001-0928-4ada-a0f0-f2a272393147',
+    urlPath: 'dtw/hiroki-san-detroit',
+  },
+  {
+    slug: 'hiroki-philly',
+    name: 'HIROKI Philadelphia',
+    locationId: 'c21aa6c1-411e-4ed1-9b84-e9d9d143abf9',
+    urlPath: 'phi/hiroki-philadelphia',
+  },
+  {
+    slug: 'kampers',
+    name: "Kamper's",
+    locationId: 'b7d3e1a4-5f2c-4a8b-9e6d-1c3f5a7b9d2e',
+    urlPath: 'dtw/kampers',
+  },
+];
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
@@ -217,58 +271,31 @@ async function loginToResy(page: Page): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Playwright: Navigate to Lowland venue
+// Playwright: Navigate to a venue
 // ---------------------------------------------------------------------------
 
-async function navigateToLowland(page: Page): Promise<void> {
-  const currentUrl = page.url();
+function venueHomeUrl(venue: ResyVenue): string {
+  return `https://os.resy.com/portal/${venue.urlPath}/Home`;
+}
 
-  // If we're already on a Lowland page, skip
-  if (currentUrl.includes('/chs/lowland/')) {
-    console.log('[Resy] Already on Lowland venue');
+function venueCoversUrl(venue: ResyVenue): string {
+  return `https://os.resy.com/portal/${venue.urlPath}/analytics/Covers`;
+}
+
+async function navigateToVenue(page: Page, venue: ResyVenue): Promise<void> {
+  const currentUrl = page.url();
+  const homeUrl = venueHomeUrl(venue);
+
+  // If already on this venue, skip
+  if (currentUrl.includes(`/${venue.urlPath}/`)) {
+    console.log(`[Resy] Already on ${venue.name}`);
     return;
   }
 
-  // If on venues page, click Lowland
-  if (currentUrl.includes('/venues') || currentUrl.includes('/portal')) {
-    console.log('[Resy] Looking for Lowland venue...');
-
-    // Try clicking the Lowland link/card
-    const lowlandLink = page.locator(
-      'a:has-text("Lowland"), div:has-text("Lowland") >> nth=0, ' +
-      '[data-venue-name="Lowland"], [href*="lowland"]'
-    ).first();
-
-    try {
-      await lowlandLink.waitFor({ state: 'visible', timeout: 10000 });
-      await lowlandLink.click();
-      await page.waitForTimeout(3000);
-    } catch {
-      console.log('[Resy] Lowland link not found on venue page, navigating directly...');
-      await page.goto(RESY_HOME_URL, { waitUntil: 'networkidle', timeout: 30000 });
-      await page.waitForTimeout(3000);
-    }
-  }
-
-  // If there's a city/location sub-selection (Charleston)
-  const charlestonLink = page.locator(
-    'a:has-text("Charleston"), div:has-text("Charleston"), [data-city="Charleston"]'
-  ).first();
-  try {
-    if (await charlestonLink.isVisible({ timeout: 3000 })) {
-      await charlestonLink.click();
-      await page.waitForTimeout(2000);
-    }
-  } catch {
-    // Charleston selection not needed or not visible
-  }
-
-  // Ensure we're on the Home page
-  if (!page.url().includes('/chs/lowland/')) {
-    console.log('[Resy] Navigating directly to Lowland Home...');
-    await page.goto(RESY_HOME_URL, { waitUntil: 'networkidle', timeout: 30000 });
-    await page.waitForTimeout(3000);
-  }
+  // Navigate directly to the venue Home page
+  console.log(`[Resy] Navigating to ${venue.name}...`);
+  await page.goto(homeUrl, { waitUntil: 'networkidle', timeout: 30000 });
+  await page.waitForTimeout(3000);
 
   console.log(`[Resy] On venue page: ${page.url()}`);
 }
@@ -277,12 +304,12 @@ async function navigateToLowland(page: Page): Promise<void> {
 // Scrape: Home page — Upcoming Covers + Today Summary
 // ---------------------------------------------------------------------------
 
-async function scrapeUpcomingCovers(page: Page): Promise<UpcomingCover[]> {
-  console.log('[Resy] Scraping Upcoming Covers from Home page...');
+async function scrapeUpcomingCovers(page: Page, venue: ResyVenue): Promise<UpcomingCover[]> {
+  console.log(`[Resy] Scraping Upcoming Covers for ${venue.name}...`);
 
   // Make sure we're on the Home page
   if (!page.url().includes('/Home')) {
-    await page.goto(RESY_HOME_URL, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto(venueHomeUrl(venue), { waitUntil: 'networkidle', timeout: 30000 });
     await page.waitForTimeout(3000);
   }
 
@@ -338,11 +365,11 @@ function parseUpcomingDateInBrowser(text: string): string | null {
   return parseUpcomingDate(text);
 }
 
-async function scrapeHomeSummary(page: Page): Promise<HomeSummary | null> {
-  console.log('[Resy] Scraping today summary from Home page...');
+async function scrapeHomeSummary(page: Page, venue: ResyVenue): Promise<HomeSummary | null> {
+  console.log(`[Resy] Scraping today summary for ${venue.name}...`);
 
   if (!page.url().includes('/Home')) {
-    await page.goto(RESY_HOME_URL, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto(venueHomeUrl(venue), { waitUntil: 'networkidle', timeout: 30000 });
     await page.waitForTimeout(3000);
   }
 
@@ -378,9 +405,9 @@ async function scrapeHomeSummary(page: Page): Promise<HomeSummary | null> {
 // Scrape: Analytics > Covers page — historical daily data
 // ---------------------------------------------------------------------------
 
-async function scrapeDailyCovers(page: Page, targetMonth?: string): Promise<DailyCoverRow[]> {
-  console.log('[Resy] Navigating to Covers report...');
-  await page.goto(RESY_COVERS_URL, { waitUntil: 'networkidle', timeout: 30000 });
+async function scrapeDailyCovers(page: Page, venue: ResyVenue, targetMonth?: string): Promise<DailyCoverRow[]> {
+  console.log(`[Resy] Navigating to Covers report for ${venue.name}...`);
+  await page.goto(venueCoversUrl(venue), { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForTimeout(3000);
 
   // Select month if specified
@@ -554,6 +581,7 @@ function parseCoverDate(text: string, year: number, month: number): string | nul
 async function upsertDailyReservations(
   historicalRows: DailyCoverRow[],
   upcomingCovers: UpcomingCover[],
+  locationId: string,
 ): Promise<number> {
   const now = new Date().toISOString();
   let upserted = 0;
@@ -562,7 +590,7 @@ async function upsertDailyReservations(
   for (const row of historicalRows) {
     try {
       await supabaseUpsert('daily_reservations', {
-        location_id: LOWLAND_LOCATION_ID,
+        location_id: locationId,
         business_date: row.date,
         total_covers: row.totalCovers,
         booked_covers: row.reservedCovers,
@@ -587,7 +615,7 @@ async function upsertDailyReservations(
 
     try {
       await supabaseUpsert('daily_reservations', {
-        location_id: LOWLAND_LOCATION_ID,
+        location_id: locationId,
         business_date: uc.date,
         booked_covers: uc.covers,
         synced_at: now,
@@ -603,7 +631,7 @@ async function upsertDailyReservations(
     const daysOut = Math.round((targetDate.getTime() - todayDate.getTime()) / 86400000);
     try {
       await supabaseInsert('reservation_pickup', {
-        location_id: LOWLAND_LOCATION_ID,
+        location_id: locationId,
         business_date: uc.date,
         days_out: daysOut,
         booked_covers: uc.covers,
@@ -618,8 +646,52 @@ async function upsertDailyReservations(
 // Main
 // ---------------------------------------------------------------------------
 
+/** Sync a single venue: navigate, scrape, upsert */
+async function syncVenue(
+  page: Page,
+  venue: ResyVenue,
+  targetMonth?: string,
+): Promise<number> {
+  console.log(`\n--- Syncing ${venue.name} (${venue.slug}) ---`);
+
+  await navigateToVenue(page, venue);
+
+  // Scrape upcoming covers from Home page
+  let upcomingCovers: UpcomingCover[] = [];
+  let homeSummary: HomeSummary | null = null;
+  try {
+    upcomingCovers = await scrapeUpcomingCovers(page, venue);
+    homeSummary = await scrapeHomeSummary(page, venue);
+  } catch (err: any) {
+    console.warn(`[${venue.slug}] Could not scrape Home page: ${err.message}`);
+    await page.screenshot({ path: `/tmp/resy-${venue.slug}-home-debug.png`, fullPage: true });
+  }
+
+  // Scrape daily covers from Analytics > Covers
+  let dailyCoverRows: DailyCoverRow[] = [];
+  try {
+    dailyCoverRows = await scrapeDailyCovers(page, venue, targetMonth);
+  } catch (err: any) {
+    console.warn(`[${venue.slug}] Could not scrape Covers report: ${err.message}`);
+    await page.screenshot({ path: `/tmp/resy-${venue.slug}-covers-debug.png`, fullPage: true });
+  }
+
+  if (dailyCoverRows.length === 0 && upcomingCovers.length === 0) {
+    console.warn(`[${venue.slug}] No data scraped — skipping`);
+    return 0;
+  }
+
+  // Upsert to Supabase
+  const upserted = await upsertDailyReservations(dailyCoverRows, upcomingCovers, venue.locationId);
+  console.log(`[${venue.slug}] Upserted ${upserted} records (${dailyCoverRows.length} historical + ${upcomingCovers.length} upcoming)`);
+  if (homeSummary) {
+    console.log(`[${venue.slug}] Today: ${homeSummary.coversBooked} covers, ${homeSummary.firstTimeGuests} first-time, ${homeSummary.returningGuests} returning, ${homeSummary.vips} VIPs`);
+  }
+  return upserted;
+}
+
 async function main(): Promise<void> {
-  console.log('=== Resy Reservation Sync ===');
+  console.log('=== Resy Reservation Sync (Multi-Venue) ===');
   console.log(`Time: ${new Date().toISOString()}`);
 
   // Validate env vars
@@ -630,9 +702,11 @@ async function main(): Promise<void> {
     throw new Error('Missing RESY_USERNAME or RESY_PASSWORD');
   }
 
-  // Parse --month argument
+  // Parse CLI arguments
   const monthArgIdx = process.argv.indexOf('--month');
   const targetMonth = monthArgIdx >= 0 ? process.argv[monthArgIdx + 1] : undefined;
+  const venueArgIdx = process.argv.indexOf('--venue');
+  const venueFilter = venueArgIdx >= 0 ? process.argv[venueArgIdx + 1]?.toLowerCase() : undefined;
 
   if (targetMonth) {
     if (!/^\d{4}-\d{2}$/.test(targetMonth)) {
@@ -643,7 +717,20 @@ async function main(): Promise<void> {
     console.log(`Target month: ${getCurrentMonthStr()} (current)`);
   }
 
-  // Launch browser
+  // Determine which venues to sync
+  const targetVenues = venueFilter
+    ? VENUES.filter(v => v.slug === venueFilter || v.name.toLowerCase() === venueFilter)
+    : VENUES;
+
+  if (targetVenues.length === 0) {
+    const slugs = VENUES.map(v => v.slug).join(', ');
+    console.error(`[Resy] Unknown venue "${venueFilter}". Available: ${slugs}`);
+    process.exit(1);
+  }
+
+  console.log(`Venues: ${targetVenues.map(v => v.name).join(', ')}`);
+
+  // Launch browser (single login, then iterate venues)
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 1400, height: 900 },
@@ -651,70 +738,27 @@ async function main(): Promise<void> {
       '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   });
   const page = await context.newPage();
-
-  // Set a generous default timeout
   page.setDefaultTimeout(20000);
 
   try {
-    // Step 1: Login
     await loginToResy(page);
 
-    // Step 2: Navigate to Lowland
-    await navigateToLowland(page);
-
-    // Step 3: Scrape upcoming covers from Home page
-    let upcomingCovers: UpcomingCover[] = [];
-    let homeSummary: HomeSummary | null = null;
-    try {
-      upcomingCovers = await scrapeUpcomingCovers(page);
-      homeSummary = await scrapeHomeSummary(page);
-    } catch (err: any) {
-      console.warn(`[Resy] Warning: Could not scrape Home page: ${err.message}`);
-      await page.screenshot({ path: '/tmp/resy-home-debug.png', fullPage: true });
+    let totalUpserted = 0;
+    for (const venue of targetVenues) {
+      try {
+        totalUpserted += await syncVenue(page, venue, targetMonth);
+      } catch (err: any) {
+        console.error(`[${venue.slug}] Error: ${err.message}`);
+        await page.screenshot({ path: `/tmp/resy-${venue.slug}-error.png`, fullPage: true }).catch(() => {});
+      }
     }
 
-    // Step 4: Scrape daily covers from Analytics > Covers
-    let dailyCoverRows: DailyCoverRow[] = [];
-    try {
-      dailyCoverRows = await scrapeDailyCovers(page, targetMonth);
-    } catch (err: any) {
-      console.warn(`[Resy] Warning: Could not scrape Covers report: ${err.message}`);
-      await page.screenshot({ path: '/tmp/resy-covers-debug.png', fullPage: true });
-    }
-
-    if (dailyCoverRows.length === 0 && upcomingCovers.length === 0) {
-      console.error('[Resy] No data scraped from either page. Taking debug screenshot...');
-      await page.screenshot({ path: '/tmp/resy-empty-debug.png', fullPage: true });
-      console.log('[Resy] Screenshot saved to /tmp/resy-empty-debug.png');
-      process.exit(1);
-    }
-
-    // Step 5: Upsert to Supabase
-    console.log(`\n[Resy] Upserting ${dailyCoverRows.length} historical + ${upcomingCovers.length} upcoming rows...`);
-    const upserted = await upsertDailyReservations(dailyCoverRows, upcomingCovers);
-    console.log(`[Resy] Successfully upserted ${upserted} records to daily_reservations`);
-
-    // Summary
-    console.log('\n=== Resy Sync Summary ===');
-    console.log(`Historical rows scraped: ${dailyCoverRows.length}`);
-    console.log(`Upcoming cover dates:    ${upcomingCovers.length}`);
-    console.log(`Total upserted:          ${upserted}`);
-    if (homeSummary) {
-      console.log(`Today's covers booked:   ${homeSummary.coversBooked}`);
-      console.log(`First-time guests:       ${homeSummary.firstTimeGuests}`);
-      console.log(`Returning guests:        ${homeSummary.returningGuests}`);
-      console.log(`VIPs:                    ${homeSummary.vips}`);
-    }
-    console.log('=== Resy Sync Complete ===');
-
+    console.log(`\n=== Resy Sync Complete: ${totalUpserted} total records across ${targetVenues.length} venue(s) ===`);
   } catch (err) {
     console.error('[Resy] Fatal error:', err);
     try {
       await page.screenshot({ path: '/tmp/resy-error.png', fullPage: true });
-      console.log('[Resy] Error screenshot saved to /tmp/resy-error.png');
-    } catch {
-      // ignore screenshot errors
-    }
+    } catch { /* ignore */ }
     process.exit(1);
   } finally {
     await browser.close();
