@@ -16,6 +16,7 @@ const BACKENDS = [
   { value: 'memory', label: 'In-Memory', hint: 'Fast but non-persistent' }
 ];
 
+
 // Store command
 const storeCommand: Command = {
   name: 'store',
@@ -850,7 +851,7 @@ const cleanupCommand: Command = {
 
         if (!confirmed) {
           output.printInfo('Cleanup cancelled');
-          return { success: true, data: result };
+            return { success: true, data: result };
         }
       }
 
@@ -1444,14 +1445,6 @@ const initMemoryCommand: Command = {
         fs.copyFileSync(result.dbPath, claudeDbPath);
         output.writeln();
         output.writeln(output.dim(`Synced to: ${claudeDbPath}`));
-      }
-
-      // Fix #1428: ONNX worker threads keep the event loop alive after init.
-      // Force-exit after a short delay to allow final I/O to flush.
-      if (typeof globalThis !== 'undefined') {
-        setTimeout(() => {
-          process.exit(0);
-        }, 500).unref();
       }
 
       return {

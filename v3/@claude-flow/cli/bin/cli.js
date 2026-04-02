@@ -149,7 +149,11 @@ if (isMCPMode) {
   // Run normal CLI mode
   const { CLI } = await import('../dist/src/index.js');
   const cli = new CLI();
-  cli.run().catch((error) => {
+  // Fix #1428: ONNX/WASM worker threads keep the event loop alive after commands
+  // complete. Force-exit here (the true entry point) so all commands benefit.
+  cli.run().then(() => {
+    process.exit(0);
+  }).catch((error) => {
     console.error('Fatal error:', error.message);
     process.exit(1);
   });
