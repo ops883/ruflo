@@ -1,0 +1,92 @@
+site_name: Ruflo
+site_url: https://ruvnet.github.io/ruflo
+site_description: The leading agent orchestration platform for Claude. Deploy intelligent multi-agent swarms, coordinate autonomous workflows, and build conversational AI systems.
+repo_url: https://github.com/ruvnet/ruflo
+repo_name: ruvnet/ruflo
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  icon:
+    logo: material/waves
+  palette:
+    - scheme: slate
+      primary: deep purple
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: deep purple
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - content.action.edit
+    - content.code.copy
+    - content.code.annotate
+    - navigation.instant
+    - navigation.footer
+    - navigation.top
+    - navigation.tabs
+    - navigation.sections
+    - search.suggest
+    - search.highlight
+    - toc.follow
+
+plugins:
+  - search
+  - llms-source:
+      full_output: true
+      markdown_urls: true
+      description: >
+        Ruflo is an enterprise AI agent orchestration platform for Claude. Deploy 60+
+        specialized agents in coordinated swarms with self-learning capabilities,
+        fault-tolerant consensus, and RAG integration.
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+  - tables
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - Claude Code Integration: getting-started/claude-code.md
+  - Architecture:
+    - Overview: architecture/overview.md
+    - Swarm Topologies: architecture/swarm.md
+    - Intelligence & Memory: architecture/memory.md
+    - Task Routing: architecture/routing.md
+    - Security: architecture/security.md
+  - Agents:
+    - Agent Catalog: agents/catalog.md
+    - Swarm Configuration: agents/swarm-config.md
+    - Anti-Drift: agents/anti-drift.md
+  - MCP:
+    - MCP Server: mcp/server.md
+    - Tool Reference: mcp/tools.md
+    - Client Setup: mcp/clients.md
+  - Configuration:
+    - Reference: configuration/reference.md
+  - For LLMs: for-llms.md
