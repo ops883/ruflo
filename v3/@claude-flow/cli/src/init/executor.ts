@@ -26,6 +26,7 @@ import {
   generateHookHandler,
   generateIntelligenceStub,
   generateAutoMemoryHook,
+  generateCostLedger,
 } from './helpers-generator.js';
 import { generateClaudeMd } from './claudemd-generator.js';
 
@@ -452,6 +453,22 @@ export async function executeUpgrade(targetDir: string, upgradeSettings = false)
         try { fs.chmodSync(targetPath, '755'); } catch {}
       }
     }
+
+    // 0b. Install cost-ledger globally (~/.claude/helpers/) so it works cross-project
+    try {
+      const { generateCostLedger } = await import('./helpers-generator.js');
+      const costContent = generateCostLedger();
+      const globalHelpersDir = path.join(require('os').homedir(), '.claude', 'helpers');
+      if (!fs.existsSync(globalHelpersDir)) fs.mkdirSync(globalHelpersDir, { recursive: true });
+      const globalCostPath = path.join(globalHelpersDir, 'cost-ledger.cjs');
+      fs.writeFileSync(globalCostPath, costContent, 'utf-8');
+      try { fs.chmodSync(globalCostPath, '755'); } catch {}
+      // Also install to project helpers
+      const projectCostPath = path.join(targetDir, '.claude', 'helpers', 'cost-ledger.cjs');
+      fs.writeFileSync(projectCostPath, costContent, 'utf-8');
+      try { fs.chmodSync(projectCostPath, '755'); } catch {}
+      result.created.push('.claude/helpers/cost-ledger.cjs');
+    } catch { /* non-fatal */ }
 
     // 1. ALWAYS update statusline helper (force overwrite)
     const statuslinePath = path.join(targetDir, '.claude', 'helpers', 'statusline.cjs');
