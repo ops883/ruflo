@@ -679,6 +679,7 @@ export async function executeUpgradeWithMissing(targetDir: string, upgradeSettin
             copyDirRecursive(sourcePath, targetPath);
           } else {
             fs.copyFileSync(sourcePath, targetPath);
+            try { fs.chmodSync(targetPath, '644'); } catch {}
           }
           result.addedCommands.push(cmdName);
           result.created.push(`.claude/commands/${cmdName}`);
@@ -891,6 +892,7 @@ async function copyCommands(
           copyDirRecursive(sourcePath, targetPath);
         } else {
           fs.copyFileSync(sourcePath, targetPath);
+          try { fs.chmodSync(targetPath, '644'); } catch {}
         }
         result.created.files.push(`.claude/commands/${cmdName}`);
         result.summary.commandsCount++;
@@ -1044,9 +1046,12 @@ async function writeHelpers(
       if (!fs.existsSync(destPath) || options.force) {
         fs.copyFileSync(sourcePath, destPath);
 
-        // Make shell scripts and mjs files executable
+        // Ensure the copy is writable (source may be in a read-only store,
+        // e.g. Nix store, and copyFileSync preserves source permissions).
         if (file.endsWith('.sh') || file.endsWith('.mjs')) {
           fs.chmodSync(destPath, '755');
+        } else {
+          fs.chmodSync(destPath, '644');
         }
 
         result.created.files.push(`.claude/helpers/${file}`);
@@ -1158,9 +1163,11 @@ async function writeStatusline(
       if (fs.existsSync(sourcePath)) {
         if (!fs.existsSync(destPath) || options.force) {
           fs.copyFileSync(sourcePath, destPath);
-          // Make shell scripts and mjs executable
+          // Ensure the copy is writable (source may be in a read-only store)
           if (file.src.endsWith('.sh') || file.src.endsWith('.mjs')) {
             fs.chmodSync(destPath, '755');
+          } else {
+            fs.chmodSync(destPath, '644');
           }
           result.created.files.push(`.claude/${file.dest}`);
         } else {
@@ -1944,6 +1951,8 @@ function copyDirRecursive(src: string, dest: string): void {
       copyDirRecursive(srcPath, destPath);
     } else {
       fs.copyFileSync(srcPath, destPath);
+      // Ensure writable (source may be in a read-only store, e.g. Nix)
+      try { fs.chmodSync(destPath, '644'); } catch {}
     }
   }
 }

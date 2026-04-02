@@ -161,3 +161,9 @@ hive-mind-prompt-*.txt
 .env
 .env.local
 .env.*.local
+
+# Direnv
+.direnv/
+
+# Nix
+result
