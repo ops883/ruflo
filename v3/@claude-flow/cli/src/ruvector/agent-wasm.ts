@@ -14,6 +14,78 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
+// ── Anthropic API Client ─────────────────────────────────────
+
+/**
+ * Create an Anthropic API model provider callback for WasmAgent.
+ *
+ * The callback receives a JSON string of messages from the WASM runtime,
+ * calls the Anthropic Messages API, and returns the response as JSON.
+ *
+ * Requires ANTHROPIC_API_KEY environment variable.
+ */
+function createAnthropicProvider(modelId: string, systemPrompt?: string): (messagesJson: string) => Promise<string> {
+  return async (messagesJson: string): Promise<string> => {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return JSON.stringify({
+        role: 'assistant',
+        content: 'Error: ANTHROPIC_API_KEY environment variable is not set. Set it to enable LLM inference for WASM agents.',
+      });
+    }
+
+    // Parse the model identifier (e.g., "anthropic:claude-sonnet-4-20250514" -> "claude-sonnet-4-20250514")
+    const model = modelId.replace(/^anthropic:/, '');
+
+    let messages: Array<{ role: string; content: string }>;
+    try {
+      messages = JSON.parse(messagesJson);
+    } catch {
+      messages = [{ role: 'user', content: messagesJson }];
+    }
+
+    // Ensure messages is an array
+    if (!Array.isArray(messages)) {
+      messages = [{ role: 'user', content: String(messages) }];
+    }
+
+    const body: Record<string, unknown> = {
+      model,
+      max_tokens: 4096,
+      messages,
+    };
+    if (systemPrompt) {
+      body.system = systemPrompt;
+    }
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'unknown error');
+      return JSON.stringify({
+        role: 'assistant',
+        content: `API error (${res.status}): ${errText}`,
+      });
+    }
+
+    const data = await res.json() as { content?: Array<{ type: string; text?: string }> };
+    const text = data.content
+      ?.filter((b: { type: string }) => b.type === 'text')
+      .map((b: { text?: string }) => b.text ?? '')
+      .join('') ?? '';
+
+    return JSON.stringify({ role: 'assistant', content: text });
+  };
+}
+
 // ── Types ────────────────────────────────────────────────────
 
 export interface WasmAgentConfig {
@@ -117,6 +189,15 @@ export async function createWasmAgent(config: WasmAgentConfig = {}): Promise<Was
   });
 
   const agent = new mod.WasmAgent(configJson);
+
+  // Wire up the Anthropic API as the model provider so prompts
+  // go to a real LLM instead of echoing the input back.
+  const modelId = config.model ?? 'anthropic:claude-sonnet-4-20250514';
+  if (process.env.ANTHROPIC_API_KEY) {
+    const provider = createAnthropicProvider(modelId, config.instructions);
+    agent.set_model_provider(provider);
+  }
+
   const id = generateId();
 
   const info: WasmAgentInfo = {
